@@ -23,14 +23,14 @@ export default function MyReservations() {
       <PageHeader title="My Reservations" subtitle="Track the rooms you’ve requested and the landlord’s response." />
       <Tabs tabs={tabs} value={tab} onChange={setTab} label="Filter reservations by status" />
 
-      <div className="mt-5 space-y-3">
+      <div className="d-flex flex-column gap-3 mt-4">
         {visible.length === 0 && (
           <EmptyState
             icon={CalendarX}
             title={tab === 'All' ? 'No reservations yet' : `No ${tab.toLowerCase()} reservations`}
             body="Find a room you like and send the landlord a reservation request."
             action={
-              <Link to="/boarder/browse" className="btn-primary">
+              <Link to="/boarder/browse" className="btn btn-primary">
                 Browse rooms
               </Link>
             }
@@ -41,52 +41,56 @@ export default function MyReservations() {
           const listing = listingById(reservation.listingId)
           const owner = listing && ownerOf(listing)
           return (
-            <article key={reservation.id} className="card flex flex-col gap-4 p-3 sm:flex-row sm:items-center">
-              <div className="aspect-[16/10] w-full shrink-0 overflow-hidden rounded-xl bg-page sm:w-36">
-                {listing && <ListingImage listing={listing} kind="room" className="size-full" />}
-              </div>
-              <div className="min-w-0 flex-1 px-1 sm:px-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  {listing ? (
-                    <Link to={`/boarder/rooms/${listing.id}`} className="font-semibold hover:text-accent">
-                      {listing.name}
-                    </Link>
-                  ) : (
-                    <span className="font-semibold text-muted">Listing removed</span>
-                  )}
-                  <StatusPill status={reservation.status} />
+            <article key={reservation.id} className="card">
+              <div className="card-body p-3 d-flex flex-column flex-sm-row align-items-sm-center gap-3">
+                <div className="thumb thumb-md bg-page">
+                  <div className="ratio" style={{ '--bs-aspect-ratio': '62.5%' }}>
+                    {listing ? <ListingImage listing={listing} kind="room" /> : <div />}
+                  </div>
                 </div>
-                <p className="mt-1 text-sm text-muted">
-                  {reservation.roomType}
-                  {listing && ` · ${formatPeso(listing.price)}/month`}
-                </p>
-                <p className="mt-1 text-xs text-muted">
-                  Requested {formatDate(reservation.date)}
-                  {reservation.moveIn && ` · Move-in ${formatDate(reservation.moveIn)}`}
-                </p>
-                {reservation.status === 'Approved' && owner?.phone && (
-                  <p className="mt-2 text-sm">
-                    Contact <strong>{owner.name}</strong> to arrange your move-in.
+                <div className="flex-grow-1" style={{ minWidth: 0 }}>
+                  <div className="d-flex flex-wrap align-items-center gap-2">
+                    {listing ? (
+                      <Link to={`/boarder/rooms/${listing.id}`} className="fw-semibold text-reset-link">
+                        {listing.name}
+                      </Link>
+                    ) : (
+                      <span className="fw-semibold text-body-secondary">Listing removed</span>
+                    )}
+                    <StatusPill status={reservation.status} />
+                  </div>
+                  <p className="small text-body-secondary mt-1 mb-1">
+                    {reservation.roomType}
+                    {listing && ` · ${formatPeso(listing.price)}/month`}
                   </p>
-                )}
-              </div>
-              <div className="flex gap-2 self-end px-1 pb-1 sm:self-center">
-                {reservation.status === 'Approved' && owner?.phone && (
-                  <a href={`tel:${owner.phone.replace(/\s/g, '')}`} className="btn border border-line hover:bg-page">
-                    <Phone className="size-4" aria-hidden="true" />
-                    Call
-                  </a>
-                )}
-                {reservation.status === 'Pending' && (
-                  <button type="button" onClick={() => setCancelling(reservation)} className="btn border border-line text-red-600 hover:bg-red-50">
-                    Cancel
-                  </button>
-                )}
-                {['Declined', 'Cancelled'].includes(reservation.status) && (
-                  <Link to="/boarder/browse" className="btn border border-line hover:bg-page">
-                    Find another room
-                  </Link>
-                )}
+                  <p className="text-xs text-body-secondary mb-0">
+                    Requested {formatDate(reservation.date)}
+                    {reservation.moveIn && ` · Move-in ${formatDate(reservation.moveIn)}`}
+                  </p>
+                  {reservation.status === 'Approved' && owner?.phone && (
+                    <p className="small mt-2 mb-0">
+                      Contact <strong>{owner.name}</strong> to arrange your move-in.
+                    </p>
+                  )}
+                </div>
+                <div className="d-flex gap-2 align-self-end align-self-sm-center">
+                  {reservation.status === 'Approved' && owner?.phone && (
+                    <a href={`tel:${owner.phone.replace(/\s/g, '')}`} className="btn btn-outline-secondary">
+                      <Phone size={16} aria-hidden="true" />
+                      Call
+                    </a>
+                  )}
+                  {reservation.status === 'Pending' && (
+                    <button type="button" onClick={() => setCancelling(reservation)} className="btn btn-outline-danger">
+                      Cancel
+                    </button>
+                  )}
+                  {['Declined', 'Cancelled'].includes(reservation.status) && (
+                    <Link to="/boarder/browse" className="btn btn-outline-secondary">
+                      Find another room
+                    </Link>
+                  )}
+                </div>
               </div>
             </article>
           )
@@ -99,7 +103,7 @@ export default function MyReservations() {
           onClose={() => setCancelling(null)}
           footer={
             <>
-              <button type="button" onClick={() => setCancelling(null)} className="btn border border-line hover:bg-page">
+              <button type="button" onClick={() => setCancelling(null)} className="btn btn-outline-secondary">
                 Keep request
               </button>
               <button
@@ -108,15 +112,15 @@ export default function MyReservations() {
                   setReservationStatus(cancelling.id, 'Cancelled')
                   setCancelling(null)
                 }}
-                className="btn bg-red-600 text-white hover:bg-red-700"
+                className="btn btn-danger"
               >
                 Cancel request
               </button>
             </>
           }
         >
-          <p className="text-sm text-muted">
-            The landlord of <strong className="text-ink">{listingById(cancelling.listingId)?.name ?? 'this listing'}</strong> will be told you’re no longer interested.
+          <p className="small text-body-secondary mb-0">
+            The landlord of <strong className="text-body">{listingById(cancelling.listingId)?.name ?? 'this listing'}</strong> will be told you’re no longer interested.
           </p>
         </Modal>
       )}

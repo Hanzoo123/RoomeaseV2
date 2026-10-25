@@ -50,51 +50,53 @@ export default function Signup() {
 
   return (
     <AuthShell role={role}>
-      <h2 className="text-2xl font-bold tracking-tight">Create your account</h2>
-      <p className="mt-1 text-sm text-muted">It takes less than a minute.</p>
+      <h2 className="h3 fw-bold tracking-tight mb-1">Create your account</h2>
+      <p className="small text-body-secondary mb-4">It takes less than a minute.</p>
 
-      <div className="mt-6">
-        <RoleTabs role={role} onChange={setRole} label="I am a" />
-        <p className="mt-2 text-xs text-muted">
-          {role === 'boarder' ? 'Looking for a room to rent.' : 'Renting out rooms in a boarding house.'}
-        </p>
-      </div>
+      <RoleTabs role={role} onChange={setRole} label="I am a" />
+      <p className="text-xs text-body-secondary mt-2 mb-0">{role === 'boarder' ? 'Looking for a room to rent.' : 'Renting out rooms in a boarding house.'}</p>
 
-      <form onSubmit={handleSubmit} noValidate className="mt-5 space-y-4">
+      <form onSubmit={handleSubmit} noValidate className="d-flex flex-column gap-3 mt-3">
         <IconField id="name" label="Full name" icon={User} autoComplete="name" placeholder="Juan Dela Cruz" value={form.name} onChange={set('name')} error={errors.name} />
         <IconField id="email" label="Email address" icon={Mail} type="email" autoComplete="email" placeholder="you@example.com" value={form.email} onChange={set('email')} error={errors.email} />
         <IconField id="phone" label="Mobile number" icon={Phone} type="tel" autoComplete="tel" placeholder="0917 123 4567" value={form.phone} onChange={set('phone')} error={errors.phone} />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <IconField
-            id="password"
-            label="Password"
-            icon={Lock}
-            type={passwordType}
-            autoComplete="new-password"
-            placeholder="8+ characters"
-            value={form.password}
-            onChange={set('password')}
-            error={errors.password}
-            trailing={passwordToggle}
-          />
-          <IconField id="confirm" label="Confirm password" icon={Lock} type={passwordType} autoComplete="new-password" value={form.confirm} onChange={set('confirm')} error={errors.confirm} />
+        <div className="row g-3">
+          <div className="col-sm-6">
+            <IconField
+              id="password"
+              label="Password"
+              icon={Lock}
+              type={passwordType}
+              autoComplete="new-password"
+              placeholder="8+ characters"
+              value={form.password}
+              onChange={set('password')}
+              error={errors.password}
+              trailing={passwordToggle}
+            />
+          </div>
+          <div className="col-sm-6">
+            <IconField id="confirm" label="Confirm password" icon={Lock} type={passwordType} autoComplete="new-password" value={form.confirm} onChange={set('confirm')} error={errors.confirm} />
+          </div>
         </div>
 
-        <label className="flex items-start gap-2 text-sm">
-          <input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} className="mt-0.5 size-4 accent-accent" />
-          <span>I agree to the RoomEase Terms & Conditions and Privacy Policy.</span>
-        </label>
+        <div className="form-check small mb-0">
+          <input id="agree" type="checkbox" className="form-check-input" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} />
+          <label htmlFor="agree" className="form-check-label">
+            I agree to the RoomEase Terms & Conditions and Privacy Policy.
+          </label>
+        </div>
 
         {error && <Notice tone="error">{error}</Notice>}
 
-        <button type="submit" className="btn-primary h-11 w-full">
+        <button type="submit" className="btn btn-primary w-100" style={{ height: '2.75rem' }}>
           Create {ROLE_META[role].label} account
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-muted">
+      <p className="small text-body-secondary text-center mt-4 mb-0">
         Already have an account?{' '}
-        <Link to="/login" state={{ role }} className="font-semibold text-accent hover:underline">
+        <Link to="/login" state={{ role }} className="fw-semibold text-decoration-none">
           Sign in
         </Link>
       </p>

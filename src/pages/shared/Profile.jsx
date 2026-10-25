@@ -50,46 +50,54 @@ export default function Profile() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="content-narrow">
       <PageHeader title="My Profile" subtitle="This is what landlords and boarders see when you contact them." />
 
-      <div className="grid gap-6 md:grid-cols-[240px_minmax(0,1fr)]">
-        <aside className="card flex flex-col items-center p-6 text-center md:self-start">
-          <span className="grid size-20 place-items-center rounded-full bg-gradient-to-br from-accent to-sidebar text-2xl font-semibold text-white">{initials}</span>
-          <p className="mt-4 font-semibold">{user.name}</p>
-          <p className="text-sm text-muted">{ROLE_META[user.role].label}</p>
-          <dl className="mt-5 grid w-full grid-cols-2 gap-2 border-t border-line pt-5">
-            {highlights.map(([label, value]) => (
-              <div key={label}>
-                <dd className="text-lg font-bold">{value}</dd>
-                <dt className="text-xs text-muted">{label}</dt>
-              </div>
-            ))}
-          </dl>
-        </aside>
+      <div className="row g-4">
+        <div className="col-md-4">
+          <aside className="card">
+            <div className="card-body p-4 d-flex flex-column align-items-center text-center">
+              <span className="avatar avatar-lg">{initials}</span>
+              <p className="fw-semibold mt-3 mb-0">{user.name}</p>
+              <p className="small text-body-secondary mb-0">{ROLE_META[user.role].label}</p>
+              <dl className="row w-100 border-top pt-3 mt-3 mb-0">
+                {highlights.map(([label, value]) => (
+                  <div key={label} className="col-6">
+                    <dd className="fs-5 fw-bold mb-0">{value}</dd>
+                    <dt className="text-xs fw-normal text-body-secondary">{label}</dt>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          </aside>
+        </div>
 
-        <form onSubmit={handleSubmit} noValidate className="card space-y-4 p-5 sm:p-6">
-          <h2 className="font-semibold">Personal information</h2>
-          <TextField id="profile-name" label="Full name" autoComplete="name" value={form.name} onChange={set('name')} error={errors.name} />
-          <TextField id="profile-email" label="Email address" type="email" autoComplete="email" value={form.email} onChange={set('email')} error={errors.email} />
-          <TextField
-            id="profile-phone"
-            label="Mobile number"
-            type="tel"
-            autoComplete="tel"
-            placeholder="0917 123 4567"
-            hint={user.role === 'landlord' ? 'Shown to boarders on your listings.' : 'Shared with landlords when they approve your reservation.'}
-            value={form.phone}
-            onChange={set('phone')}
-            error={errors.phone}
-          />
-          {status && <Notice tone={status.tone}>{status.text}</Notice>}
-          <div className="flex justify-end">
-            <button type="submit" className="btn-primary">
-              Save changes
-            </button>
-          </div>
-        </form>
+        <div className="col-md-8">
+          <form onSubmit={handleSubmit} noValidate className="card">
+            <div className="card-body p-4 d-flex flex-column gap-3">
+              <h2 className="fs-6 fw-semibold mb-0">Personal information</h2>
+              <TextField id="profile-name" label="Full name" autoComplete="name" value={form.name} onChange={set('name')} error={errors.name} />
+              <TextField id="profile-email" label="Email address" type="email" autoComplete="email" value={form.email} onChange={set('email')} error={errors.email} />
+              <TextField
+                id="profile-phone"
+                label="Mobile number"
+                type="tel"
+                autoComplete="tel"
+                placeholder="0917 123 4567"
+                hint={user.role === 'landlord' ? 'Shown to boarders on your listings.' : 'Shared with landlords when they approve your reservation.'}
+                value={form.phone}
+                onChange={set('phone')}
+                error={errors.phone}
+              />
+              {status && <Notice tone={status.tone}>{status.text}</Notice>}
+              <div className="d-flex justify-content-end">
+                <button type="submit" className="btn btn-primary">
+                  Save changes
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   )

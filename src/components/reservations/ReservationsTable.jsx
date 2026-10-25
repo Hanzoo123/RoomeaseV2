@@ -4,33 +4,33 @@ import { StatusPill } from '../ui'
 export default function ReservationsTable({ reservations, listingName, onView }) {
   return (
     <div className="card overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[680px] text-left text-sm">
-          <thead className="border-b border-line bg-page/70 text-xs font-semibold">
-            <tr>
+      <div className="table-responsive">
+        <table className="table table-hover align-middle mb-0 table-min">
+          <thead className="table-light">
+            <tr className="text-xs">
               {['Date', 'Boarder', 'Property', 'Room Type', 'Status', 'Action'].map((heading) => (
-                <th key={heading} scope="col" className="px-5 py-3">
+                <th key={heading} scope="col" className="px-4 py-3 fw-semibold">
                   {heading}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-line">
+          <tbody>
             {reservations.map((reservation) => (
-              <tr key={reservation.id} className="hover:bg-page/50">
-                <td className="px-5 py-3.5 whitespace-nowrap text-muted">{formatDate(reservation.date)}</td>
-                <td className="px-5 py-3.5 font-medium whitespace-nowrap">{reservation.boarder}</td>
-                <td className="px-5 py-3.5 whitespace-nowrap text-muted">{listingName(reservation.listingId)}</td>
-                <td className="px-5 py-3.5 whitespace-nowrap text-muted">{reservation.roomType}</td>
-                <td className="px-5 py-3.5">
+              <tr key={reservation.id}>
+                <td className="px-4 py-3 text-nowrap text-body-secondary">{formatDate(reservation.date)}</td>
+                <td className="px-4 py-3 text-nowrap fw-medium">{reservation.boarder}</td>
+                <td className="px-4 py-3 text-nowrap text-body-secondary">{listingName(reservation.listingId)}</td>
+                <td className="px-4 py-3 text-nowrap text-body-secondary">{reservation.roomType}</td>
+                <td className="px-4 py-3">
                   <StatusPill status={reservation.status} />
                 </td>
-                <td className="px-5 py-3.5">
+                <td className="px-4 py-3">
                   <button
                     type="button"
                     onClick={() => onView(reservation.id)}
                     aria-label={`View request from ${reservation.boarder}`}
-                    className="rounded-md bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+                    className="btn btn-sm btn-primary px-3"
                   >
                     View
                   </button>

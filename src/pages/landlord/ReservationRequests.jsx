@@ -26,15 +26,11 @@ export default function ReservationRequests() {
     <div>
       <PageHeader title="Reservation Requests" subtitle="Review boarders’ requests and approve or decline them." />
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <div className="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
         <Tabs tabs={tabs} value={tab} onChange={setTab} label="Filter requests by status" />
-        <label className="flex items-center gap-2 text-sm">
-          <span className="text-muted">Property</span>
-          <select
-            value={listingFilter}
-            onChange={(event) => setListingFilter(event.target.value)}
-            className="h-10 rounded-lg border border-line bg-white px-3 text-sm font-medium focus:border-accent focus:outline-none"
-          >
+        <label className="d-flex align-items-center gap-2 small">
+          <span className="text-body-secondary text-nowrap">Property</span>
+          <select value={listingFilter} onChange={(event) => setListingFilter(event.target.value)} className="form-select fw-medium">
             <option value="">All properties</option>
             {myListings.map((listing) => (
               <option key={listing.id} value={listing.id}>
@@ -45,7 +41,7 @@ export default function ReservationRequests() {
         </label>
       </div>
 
-      <div className="mt-5">
+      <div className="mt-4">
         {visible.length > 0 ? (
           <ReservationsTable reservations={visible} listingName={listingName} onView={setSelectedId} />
         ) : (

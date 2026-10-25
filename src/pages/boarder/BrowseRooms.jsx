@@ -53,12 +53,11 @@ export default function BrowseRooms() {
   }
 
   function toggleAmenity(amenity) {
-    const next = filters.amenities.includes(amenity)
-      ? filters.amenities.filter((item) => item !== amenity)
-      : [...filters.amenities, amenity]
+    const next = filters.amenities.includes(amenity) ? filters.amenities.filter((item) => item !== amenity) : [...filters.amenities, amenity]
     setFilter('amenities', next.join(','))
   }
 
+  const clearFilters = () => setParams({}, { replace: true })
   const priceError = filters.min && filters.max && Number(filters.min) > Number(filters.max)
   const results = publicListings.filter((listing) => matches(listing, filters)).sort(SORTS[filters.sort].compare)
   const hasFilters = [...params.keys()].some((key) => key !== 'sort')
@@ -67,112 +66,126 @@ export default function BrowseRooms() {
     <div>
       <PageHeader title="Browse Rooms" subtitle={`${publicListings.length} approved boarding houses in Baybay City`} />
 
-      <section className="card space-y-4 p-4 sm:p-5">
-        <div className="relative">
-          <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted" aria-hidden="true" />
-          <input
-            type="search"
-            value={filters.q}
-            onChange={(event) => setFilter('q', event.target.value)}
-            placeholder="Search by name, street or barangay"
-            aria-label="Search boarding houses"
-            className="h-12 w-full rounded-xl border border-line bg-white pr-4 pl-10 text-sm placeholder:text-muted/80 focus:border-accent focus:ring-2 focus:ring-accent/15 focus:outline-none"
-          />
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <SelectBox label="Location" icon={MapPin} value={filters.location} onChange={(value) => setFilter('location', value)}>
-            <option value="">All of Baybay City</option>
-            {AREAS.map((area) => (
-              <option key={area} value={area}>
-                {area}
-              </option>
-            ))}
-          </SelectBox>
-          <RentBox label="Min Rent" value={filters.min} onChange={(value) => setFilter('min', value)} />
-          <RentBox label="Max Rent" value={filters.max} onChange={(value) => setFilter('max', value)} />
-          <SelectBox label="Room Type" value={filters.roomType} onChange={(value) => setFilter('roomType', value)}>
-            <option value="">Any Type</option>
-            {ROOM_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </SelectBox>
-        </div>
-        {priceError && (
-          <p role="alert" className="text-sm text-red-600">
-            Min rent can’t be higher than max rent.
-          </p>
-        )}
-
-        <div>
-          <p className="mb-2 text-xs font-medium text-muted">Amenities</p>
-          <div className="flex flex-wrap gap-2">
-            {AMENITIES.map((amenity) => {
-              const Icon = FEATURE_ICONS[amenity]
-              const active = filters.amenities.includes(amenity)
-              return (
-                <button
-                  key={amenity}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => toggleAmenity(amenity)}
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                    active ? 'border-accent bg-accent text-white' : 'border-line bg-white text-ink hover:border-accent/50'
-                  }`}
-                >
-                  <Icon className="size-3.5" aria-hidden="true" />
-                  {amenity}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
-          <label className="flex items-center gap-2 text-sm">
+      <section className="card">
+        <div className="card-body p-3 p-sm-4 d-flex flex-column gap-3">
+          <div className="input-icon">
+            <Search size={16} className="lead-icon" aria-hidden="true" />
             <input
-              type="checkbox"
-              checked={filters.availableOnly}
-              onChange={(event) => setFilter('available', event.target.checked ? '1' : '')}
-              className="size-4 accent-accent"
+              type="search"
+              value={filters.q}
+              onChange={(event) => setFilter('q', event.target.value)}
+              placeholder="Search by name, street or barangay"
+              aria-label="Search boarding houses"
+              className="form-control rounded-3"
+              style={{ height: '3rem' }}
             />
-            Only show houses with rooms available
-          </label>
-          <div className="flex items-center gap-3">
-            {hasFilters && (
-              <button type="button" onClick={() => setParams({}, { replace: true })} className="text-sm font-medium text-accent hover:underline">
-                Clear filters
-              </button>
-            )}
-            <label className="flex items-center gap-2 text-sm">
-              <ArrowUpDown className="size-4 text-muted" aria-hidden="true" />
-              <span className="sr-only">Sort by</span>
-              <select
-                value={filters.sort}
-                onChange={(event) => setFilter('sort', event.target.value === 'recommended' ? '' : event.target.value)}
-                className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-sm font-medium focus:border-accent focus:outline-none"
-              >
-                {Object.entries(SORTS).map(([value, sort]) => (
-                  <option key={value} value={value}>
-                    {sort.label}
+          </div>
+
+          <div className="row g-3">
+            <div className="col-sm-6 col-lg-3">
+              <SelectBox label="Location" icon={MapPin} value={filters.location} onChange={(value) => setFilter('location', value)}>
+                <option value="">All of Baybay City</option>
+                {AREAS.map((area) => (
+                  <option key={area} value={area}>
+                    {area}
                   </option>
                 ))}
-              </select>
-            </label>
+              </SelectBox>
+            </div>
+            <div className="col-sm-6 col-lg-3">
+              <RentBox label="Min Rent" value={filters.min} onChange={(value) => setFilter('min', value)} />
+            </div>
+            <div className="col-sm-6 col-lg-3">
+              <RentBox label="Max Rent" value={filters.max} onChange={(value) => setFilter('max', value)} />
+            </div>
+            <div className="col-sm-6 col-lg-3">
+              <SelectBox label="Room Type" value={filters.roomType} onChange={(value) => setFilter('roomType', value)}>
+                <option value="">Any Type</option>
+                {ROOM_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </SelectBox>
+            </div>
+          </div>
+          {priceError && (
+            <p role="alert" className="small text-danger mb-0">
+              Min rent can’t be higher than max rent.
+            </p>
+          )}
+
+          <div>
+            <p className="text-xs fw-medium text-body-secondary mb-2">Amenities</p>
+            <div className="d-flex flex-wrap gap-2">
+              {AMENITIES.map((amenity) => {
+                const Icon = FEATURE_ICONS[amenity]
+                const active = filters.amenities.includes(amenity)
+                return (
+                  <button
+                    key={amenity}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => toggleAmenity(amenity)}
+                    className={`btn btn-sm rounded-pill fw-medium ${active ? 'btn-primary' : 'btn-outline-secondary'}`}
+                  >
+                    <Icon size={14} aria-hidden="true" />
+                    {amenity}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 border-top pt-3">
+            <div className="form-check small mb-0">
+              <input
+                id="available-only"
+                type="checkbox"
+                className="form-check-input"
+                checked={filters.availableOnly}
+                onChange={(event) => setFilter('available', event.target.checked ? '1' : '')}
+              />
+              <label htmlFor="available-only" className="form-check-label">
+                Only show houses with rooms available
+              </label>
+            </div>
+            <div className="d-flex align-items-center gap-3">
+              {hasFilters && (
+                <button type="button" onClick={clearFilters} className="btn btn-link p-0 small fw-medium text-decoration-none">
+                  Clear filters
+                </button>
+              )}
+              <label className="d-flex align-items-center gap-2 small">
+                <ArrowUpDown size={16} className="text-body-secondary" aria-hidden="true" />
+                <span className="visually-hidden">Sort by</span>
+                <select
+                  value={filters.sort}
+                  onChange={(event) => setFilter('sort', event.target.value === 'recommended' ? '' : event.target.value)}
+                  className="form-select form-select-sm fw-medium"
+                >
+                  {Object.entries(SORTS).map(([value, sort]) => (
+                    <option key={value} value={value}>
+                      {sort.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
           </div>
         </div>
       </section>
 
-      <p className="mt-6 mb-4 text-sm text-muted" aria-live="polite">
-        Showing <strong className="text-ink">{results.length}</strong> {results.length === 1 ? 'boarding house' : 'boarding houses'}
+      <p className="small text-body-secondary mt-4 mb-3" aria-live="polite">
+        Showing <strong className="text-body">{results.length}</strong> {results.length === 1 ? 'boarding house' : 'boarding houses'}
       </p>
 
       {results.length > 0 ? (
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="row g-4">
           {results.map((listing) => (
-            <RoomCard key={listing.id} listing={listing} isFavorite={favorites.includes(listing.id)} onToggleFavorite={toggleFavorite} />
+            <div key={listing.id} className="col-sm-6 col-xl-4">
+              <RoomCard listing={listing} isFavorite={favorites.includes(listing.id)} onToggleFavorite={toggleFavorite} />
+            </div>
           ))}
         </div>
       ) : (
@@ -181,7 +194,7 @@ export default function BrowseRooms() {
           title="No boarding houses match your filters"
           body="Try another location, widen your budget or remove some amenities."
           action={
-            <button type="button" onClick={() => setParams({}, { replace: true })} className="btn-primary">
+            <button type="button" onClick={clearFilters} className="btn btn-primary">
               Clear filters
             </button>
           }

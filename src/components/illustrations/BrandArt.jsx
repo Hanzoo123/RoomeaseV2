@@ -40,10 +40,10 @@ export function SidebarArt({ className = '' }) {
 const brandBlue = HOUSE_PALETTES[3]
 
 // House-in-a-circle illustration for the boarder "Need a place to stay?" banner.
-export function CtaHouseArt({ className = '' }) {
+export function CtaHouseArt({ className = '', width }) {
   const id = useSvgId('cta')
   return (
-    <svg viewBox="0 0 200 150" className={className} aria-hidden="true">
+    <svg viewBox="0 0 200 150" width={width} className={className} aria-hidden="true">
       <defs>
         <linearGradient id={`${id}-glass`} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#dbe8ff" />

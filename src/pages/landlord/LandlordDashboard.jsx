@@ -19,38 +19,42 @@ export default function LandlordDashboard() {
   const selected = incomingReservations.find((reservation) => reservation.id === selectedId)
 
   return (
-    <div className="space-y-6">
-      <WelcomeBanner
-        title={`Welcome back, ${user.firstName}!`}
-        subtitle="Manage your boarding house listings and room availability."
-        art={<HouseArt variant={0} className="size-full" />}
-      />
+    <div className="d-flex flex-column gap-4">
+      <WelcomeBanner title={`Welcome back, ${user.firstName}!`} subtitle="Manage your boarding house listings and room availability." art={<HouseArt variant={0} />} />
 
-      <section className="flex flex-col gap-4 rounded-2xl bg-gradient-to-r from-accent to-[#1c8a4f] p-5 text-white shadow-[0_10px_30px_-12px_rgba(22,112,63,0.55)] sm:flex-row sm:items-center sm:p-6">
-        <span className="grid size-14 shrink-0 place-items-center rounded-full bg-white text-accent">
-          <House className="size-6" aria-hidden="true" />
+      <section className="cta-accent rounded-4 text-white d-flex flex-column flex-sm-row align-items-sm-center gap-3 p-4">
+        <span className="icon-circle icon-circle-lg bg-white text-primary">
+          <House size={24} aria-hidden="true" />
         </span>
-        <div className="flex-1">
-          <h2 className="text-lg font-semibold">Add a Boarding House</h2>
-          <p className="text-sm text-white/80">Create a listing for boarders to discover.</p>
+        <div className="flex-grow-1">
+          <h2 className="h5 fw-semibold mb-1">Add a Boarding House</h2>
+          <p className="small text-white text-opacity-75 mb-0">Create a listing for boarders to discover.</p>
         </div>
-        <Link to="/landlord/add-listing" className="btn bg-white text-accent hover:bg-white/90">
-          <Plus className="size-4" aria-hidden="true" />
+        <Link to="/landlord/add-listing" className="btn btn-light text-primary">
+          <Plus size={16} aria-hidden="true" />
           Add New Listing
         </Link>
       </section>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard icon={Building2} value={myListings.length} label="My Listings" iconClassName="text-blue-600" />
-        <StatCard icon={DoorOpen} value={availableSlots} label="Available Slots" iconClassName="text-green-600" />
-        <StatCard icon={Clock} value={counts.pendingReservations} label="Pending Approval" iconClassName="text-amber-500" />
-        <StatCard icon={CalendarDays} value={incomingReservations.length} label="Reservation Requests" iconClassName="text-violet-600" />
+      <div className="row g-3">
+        <div className="col-6 col-lg-3">
+          <StatCard icon={Building2} value={myListings.length} label="My Listings" iconClassName="text-primary-emphasis" />
+        </div>
+        <div className="col-6 col-lg-3">
+          <StatCard icon={DoorOpen} value={availableSlots} label="Available Slots" iconClassName="text-success" />
+        </div>
+        <div className="col-6 col-lg-3">
+          <StatCard icon={Clock} value={counts.pendingReservations} label="Pending Approval" iconClassName="text-warning" />
+        </div>
+        <div className="col-6 col-lg-3">
+          <StatCard icon={CalendarDays} value={incomingReservations.length} label="Reservation Requests" iconClassName="text-info" />
+        </div>
       </div>
 
       <section>
         <SectionHeader title="My Boarding Houses" actionTo="/landlord/listings" />
         {myListings.length > 0 ? (
-          <div className="space-y-3">
+          <div className="d-flex flex-column gap-3">
             {myListings.slice(0, 3).map((listing) => (
               <ListingRow key={listing.id} listing={listing} />
             ))}
@@ -61,7 +65,7 @@ export default function LandlordDashboard() {
             title="No listings yet"
             body="Add your first boarding house so boarders can find it."
             action={
-              <Link to="/landlord/add-listing" className="btn-primary">
+              <Link to="/landlord/add-listing" className="btn btn-primary">
                 Add New Listing
               </Link>
             }
@@ -78,15 +82,13 @@ export default function LandlordDashboard() {
         )}
       </section>
 
-      <section className="flex flex-col gap-4 rounded-2xl border border-green-200 bg-green-50/80 p-5 sm:flex-row sm:items-center sm:p-6">
-        <ShieldCheck className="size-12 shrink-0 fill-accent text-white" strokeWidth={1.6} aria-hidden="true" />
-        <div className="flex-1">
-          <h2 className="font-semibold">Listing Approval Status</h2>
-          <p className="mt-0.5 text-sm text-muted">
-            Your listings are reviewed by our admin team to ensure quality and safety for all boarders.
-          </p>
+      <section className="alert alert-success rounded-4 d-flex flex-column flex-sm-row align-items-sm-center gap-3 p-4 mb-0">
+        <ShieldCheck size={48} className="flex-shrink-0 text-primary" fill="currentColor" color="white" strokeWidth={1.6} aria-hidden="true" />
+        <div className="flex-grow-1">
+          <h2 className="fs-6 fw-semibold text-body mb-1">Listing Approval Status</h2>
+          <p className="small text-body-secondary mb-0">Your listings are reviewed by our admin team to ensure quality and safety for all boarders.</p>
         </div>
-        <Link to="/landlord/listings" className="btn-primary self-start sm:self-auto">
+        <Link to="/landlord/listings" className="btn btn-primary align-self-start align-self-sm-auto">
           Learn More
         </Link>
       </section>

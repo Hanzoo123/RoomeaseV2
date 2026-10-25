@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BellOff, CheckCheck, X } from 'lucide-react'
+import { BellOff, CheckCheck } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import { formatDateTime } from '../../data/mockData'
 import { EmptyState, PageHeader, Tabs } from '../../components/ui'
@@ -19,14 +19,14 @@ export default function Notifications() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="content-narrow">
       <PageHeader
         title="Notifications"
         subtitle={counts.notifications ? `You have ${counts.notifications} unread ${counts.notifications === 1 ? 'notification' : 'notifications'}.` : 'You’re all caught up.'}
         actions={
           counts.notifications > 0 && (
-            <button type="button" onClick={markAllRead} className="btn border border-line bg-white hover:bg-page">
-              <CheckCheck className="size-4" aria-hidden="true" />
+            <button type="button" onClick={markAllRead} className="btn btn-outline-secondary">
+              <CheckCheck size={16} aria-hidden="true" />
               Mark all as read
             </button>
           )
@@ -43,30 +43,27 @@ export default function Notifications() {
         label="Filter notifications"
       />
 
-      <div className="mt-5">
+      <div className="mt-4">
         {visible.length === 0 ? (
           <EmptyState icon={BellOff} title={tab === 'Unread' ? 'No unread notifications' : 'No notifications yet'} body="Updates about your listings and reservations will appear here." />
         ) : (
-          <ul className="card divide-y divide-line overflow-hidden">
+          <ul className="list-group shadow-sm rounded-4">
             {visible.map((item) => (
-              <li key={item.id} className={`group flex items-start gap-3 px-4 py-4 sm:px-5 ${item.read ? '' : 'bg-accent-soft/50'}`}>
-                <span className={`mt-1.5 size-2.5 shrink-0 rounded-full ${item.read ? 'bg-transparent' : 'bg-accent'}`} aria-hidden="true" />
-                <button type="button" onClick={() => open(item)} className="min-w-0 flex-1 text-left">
-                  <p className={`text-sm ${item.read ? 'font-medium' : 'font-semibold'}`}>
+              <li key={item.id} className={`list-group-item d-flex align-items-start gap-3 px-3 px-sm-4 py-3 ${item.read ? '' : 'bg-primary-subtle bg-opacity-50'}`}>
+                <span
+                  className={`rounded-circle flex-shrink-0 mt-2 ${item.read ? '' : 'bg-primary'}`}
+                  style={{ width: '0.625rem', height: '0.625rem' }}
+                  aria-hidden="true"
+                />
+                <button type="button" onClick={() => open(item)} className="btn btn-link d-block text-start text-decoration-none text-body p-0 flex-grow-1" style={{ minWidth: 0 }}>
+                  <span className={`d-block small ${item.read ? 'fw-medium' : 'fw-semibold'}`}>
                     {item.title}
-                    {!item.read && <span className="sr-only"> (unread)</span>}
-                  </p>
-                  <p className="mt-0.5 text-sm text-muted">{item.body}</p>
-                  <p className="mt-1.5 text-xs text-muted">{formatDateTime(item.date)}</p>
+                    {!item.read && <span className="visually-hidden"> (unread)</span>}
+                  </span>
+                  <span className="d-block small text-body-secondary">{item.body}</span>
+                  <span className="d-block text-xs text-body-secondary mt-1">{formatDateTime(item.date)}</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => deleteNotification(item.id)}
-                  aria-label={`Dismiss “${item.title}”`}
-                  className="rounded-md p-1 text-muted opacity-60 hover:bg-page hover:text-ink group-hover:opacity-100"
-                >
-                  <X className="size-4" />
-                </button>
+                <button type="button" onClick={() => deleteNotification(item.id)} aria-label={`Dismiss “${item.title}”`} className="btn-close flex-shrink-0" style={{ fontSize: '0.625rem' }} />
               </li>
             ))}
           </ul>

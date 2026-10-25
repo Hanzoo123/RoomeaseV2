@@ -4,7 +4,7 @@ Boarding house finder for Baybay City with two user roles: **Boarder** (looks fo
 
 ## Phase 1 — Frontend prototype (this build) ✅
 
-**Stack:** React 19 + Vite, Tailwind CSS v4, React Router, lucide-react icons. No backend yet; mock data and mock sign-in.
+**Stack:** React 19 + Vite, Bootstrap 5.3, React Router, lucide-react icons. No backend yet; mock data and mock sign-in.
 
 | Area | What's included |
 | --- | --- |
@@ -14,7 +14,7 @@ Boarding house finder for Baybay City with two user roles: **Boarder** (looks fo
 | Landlord dashboard | Welcome banner, "Add a Boarding House" banner, stats computed from data, My Boarding Houses list, recent reservation requests with approve/decline dialog, listing approval notice |
 | Routing | Role-protected routes (`/boarder`, `/landlord`), redirect to `/login` when signed out, placeholder pages for the remaining sidebar links |
 
-**Theming:** colors are CSS variables set per role (`[data-theme="boarder"|"landlord"]` in `src/index.css`), so the same components render blue for boarders and green for landlords.
+**Theming:** Bootstrap's CSS variables (`--bs-primary`, button and form colors) are pointed at per-role colors in `src/index.css` (`[data-theme="boarder"|"landlord"]`), so the same Bootstrap components render blue for boarders and green for landlords. Modals, dropdowns and the mobile offcanvas use Bootstrap markup but are opened by React state, so `bootstrap.js` isn't needed.
 
 **Images:** listing, room and location pictures are SVG illustrations (`src/components/illustrations`). Set `photo` on a listing in `src/data/mockData.js` to switch to a real photo.
 

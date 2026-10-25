@@ -1,21 +1,16 @@
-import { ChevronDown } from 'lucide-react'
-
-const inputClass =
-  'w-full rounded-lg border border-line bg-white px-3.5 text-sm placeholder:text-muted/70 focus:border-accent focus:ring-2 focus:ring-accent/15 focus:outline-none disabled:bg-page disabled:text-muted'
-
 function FieldShell({ id, label, hint, error, children }) {
   return (
     <div>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-medium">
+      <label htmlFor={id} className="form-label">
         {label}
       </label>
       {children}
       {error ? (
-        <p id={`${id}-error`} className="mt-1.5 text-xs text-red-600">
+        <div id={`${id}-error`} className="invalid-feedback d-block">
           {error}
-        </p>
+        </div>
       ) : (
-        hint && <p className="mt-1.5 text-xs text-muted">{hint}</p>
+        hint && <div className="form-text">{hint}</div>
       )}
     </div>
   )
@@ -28,7 +23,8 @@ export function TextField({ id, label, hint, error, className = '', ...inputProp
         id={id}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? `${id}-error` : undefined}
-        className={`h-11 ${inputClass} ${error ? 'border-red-400' : ''} ${className}`}
+        className={`form-control ${error ? 'is-invalid' : ''} ${className}`}
+        style={{ height: '2.75rem' }}
         {...inputProps}
       />
     </FieldShell>
@@ -38,12 +34,7 @@ export function TextField({ id, label, hint, error, className = '', ...inputProp
 export function TextArea({ id, label, hint, error, ...inputProps }) {
   return (
     <FieldShell id={id} label={label} hint={hint} error={error}>
-      <textarea
-        id={id}
-        aria-invalid={Boolean(error)}
-        className={`min-h-28 py-2.5 ${inputClass} ${error ? 'border-red-400' : ''}`}
-        {...inputProps}
-      />
+      <textarea id={id} aria-invalid={Boolean(error)} className={`form-control ${error ? 'is-invalid' : ''}`} rows={4} {...inputProps} />
     </FieldShell>
   )
 }
@@ -51,35 +42,33 @@ export function TextArea({ id, label, hint, error, ...inputProps }) {
 export function SelectField({ id, label, hint, error, children, ...selectProps }) {
   return (
     <FieldShell id={id} label={label} hint={hint} error={error}>
-      <div className="relative">
-        <select id={id} className={`h-11 appearance-none pr-9 ${inputClass}`} {...selectProps}>
-          {children}
-        </select>
-        <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted" aria-hidden="true" />
-      </div>
+      <select id={id} className="form-select" style={{ height: '2.75rem' }} {...selectProps}>
+        {children}
+      </select>
     </FieldShell>
   )
 }
 
 export function Toggle({ id, label, description, checked, onChange }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-3">
+    <div className="d-flex align-items-start justify-content-between gap-3 py-3">
       <div>
-        <label htmlFor={id} className="text-sm font-medium">
+        <label htmlFor={id} className="small fw-medium">
           {label}
         </label>
-        {description && <p className="mt-0.5 text-sm text-muted">{description}</p>}
+        {description && <p className="small text-body-secondary mb-0">{description}</p>}
       </div>
-      <button
-        id={id}
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        onClick={() => onChange(!checked)}
-        className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition-colors ${checked ? 'bg-accent' : 'bg-slate-300'}`}
-      >
-        <span className={`absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-5' : ''}`} />
-      </button>
+      <div className="form-check form-switch mb-0">
+        <input
+          id={id}
+          className="form-check-input"
+          type="checkbox"
+          role="switch"
+          checked={checked}
+          onChange={(event) => onChange(event.target.checked)}
+          style={{ width: '2.75rem', height: '1.4rem' }}
+        />
+      </div>
     </div>
   )
 }

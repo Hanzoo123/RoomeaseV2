@@ -22,7 +22,7 @@ export default function ListingView() {
         title="Listing not found"
         body="It may have been deleted, or it belongs to another landlord."
         action={
-          <Link to="/landlord/listings" className="btn-primary">
+          <Link to="/landlord/listings" className="btn btn-primary">
             Back to my listings
           </Link>
         }
@@ -39,25 +39,25 @@ export default function ListingView() {
   ]
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="d-flex flex-column gap-4">
+      <div className="d-flex flex-column flex-sm-row align-items-sm-end justify-content-between gap-3">
         <div>
-          <Link to="/landlord/listings" className="mb-3 inline-flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink">
-            <ArrowLeft className="size-4" aria-hidden="true" />
+          <Link to="/landlord/listings" className="d-inline-flex align-items-center gap-1 small fw-medium link-secondary text-decoration-none mb-2">
+            <ArrowLeft size={16} aria-hidden="true" />
             My Boarding Houses
           </Link>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight">{listing.name}</h1>
+          <div className="d-flex flex-wrap align-items-center gap-2">
+            <h1 className="h4 fw-bold tracking-tight mb-0">{listing.name}</h1>
             <Tag tone="approval">{listing.approval}</Tag>
           </div>
-          <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
-            <MapPin className="size-4 shrink-0" aria-hidden="true" />
+          <p className="d-flex align-items-center gap-1 small text-body-secondary mt-1 mb-0">
+            <MapPin size={16} className="flex-shrink-0" aria-hidden="true" />
             {listing.address ? `${listing.address}, ` : ''}
             {listing.area}, {listing.city}
           </p>
         </div>
-        <Link to={`/landlord/listings/${listing.id}/edit`} className="btn-primary self-start sm:self-auto">
-          <SquarePen className="size-4" aria-hidden="true" />
+        <Link to={`/landlord/listings/${listing.id}/edit`} className="btn btn-primary align-self-start align-self-sm-auto">
+          <SquarePen size={16} aria-hidden="true" />
           Edit listing
         </Link>
       </div>
@@ -65,14 +65,14 @@ export default function ListingView() {
       {state?.saved && <Notice>{state.saved === 'created' ? 'Listing submitted! It’s now waiting for admin review.' : 'Changes saved.'}</Notice>}
 
       {listing.approval === 'Pending' && (
-        <div className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-amber-900">
+        <div className="alert alert-warning d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 small mb-0">
+          <p className="mb-0">
             <strong>Waiting for admin review.</strong> Boarders can’t see this listing until it’s approved.
           </p>
           <button
             type="button"
             onClick={() => updateListing(listing.id, { approval: 'Approved' })}
-            className="btn shrink-0 border border-amber-300 bg-white text-amber-900 hover:bg-amber-100"
+            className="btn btn-sm btn-light border flex-shrink-0"
             title="There is no admin panel yet, so this simulates the approval."
           >
             Approve now (demo)
@@ -80,28 +80,38 @@ export default function ListingView() {
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <div className="aspect-[16/10] overflow-hidden rounded-2xl">
-          <ListingImage listing={listing} kind="house" className="size-full" />
+      <div className="row g-4">
+        <div className="col-lg-6">
+          <div className="ratio rounded-4 overflow-hidden" style={{ '--bs-aspect-ratio': '62.5%' }}>
+            <ListingImage listing={listing} kind="house" />
+          </div>
         </div>
-        <section className="card p-5 sm:p-6">
-          <p className="text-sm text-muted">
-            <span className="text-2xl font-bold text-ink">{formatPeso(listing.price)}</span> / month
-          </p>
-          <dl className="mt-4 grid grid-cols-3 gap-3">
-            {facts.map(({ icon: Icon, label, value }) => (
-              <div key={label} className="rounded-xl bg-page p-3">
-                <Icon className="size-4 text-accent" aria-hidden="true" />
-                <dt className="mt-2 text-xs text-muted">{label}</dt>
-                <dd className="text-sm font-semibold">{value}</dd>
-              </div>
-            ))}
-          </dl>
-          <h2 className="mt-5 text-sm font-semibold">Amenities</h2>
-          <FeatureList features={listing.amenities} className="mt-2" />
-          <h2 className="mt-5 text-sm font-semibold">Description</h2>
-          <p className="mt-1 text-sm leading-relaxed text-ink/80">{listing.description || 'No description yet. Add one so boarders know what to expect.'}</p>
-        </section>
+        <div className="col-lg-6">
+          <section className="card h-100">
+            <div className="card-body p-4">
+              <p className="small text-body-secondary mb-0">
+                <span className="fs-3 fw-bold text-body">{formatPeso(listing.price)}</span> / month
+              </p>
+              <dl className="row g-3 mt-1 mb-0">
+                {facts.map(({ icon: Icon, label, value }) => (
+                  <div key={label} className="col-4">
+                    <div className="fact-tile h-100">
+                      <Icon size={16} className="text-primary" aria-hidden="true" />
+                      <dt className="text-xs fw-normal text-body-secondary mt-2">{label}</dt>
+                      <dd className="small fw-semibold mb-0">{value}</dd>
+                    </div>
+                  </div>
+                ))}
+              </dl>
+              <h2 className="small fw-semibold mt-4 mb-2">Amenities</h2>
+              <FeatureList features={listing.amenities} />
+              <h2 className="small fw-semibold mt-4 mb-1">Description</h2>
+              <p className="small mb-0" style={{ lineHeight: 1.7 }}>
+                {listing.description || 'No description yet. Add one so boarders know what to expect.'}
+              </p>
+            </div>
+          </section>
+        </div>
       </div>
 
       <section>

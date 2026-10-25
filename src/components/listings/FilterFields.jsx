@@ -5,36 +5,31 @@ export const withCommas = (digits) => (digits ? Number(digits).toLocaleString('e
 
 export function SelectBox({ label, showLabel = true, icon: Icon, value, onChange, children }) {
   return (
-    <label className="relative flex h-14 items-center gap-2.5 rounded-xl border border-line bg-white px-3.5 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15">
-      {Icon && <Icon className="size-4 shrink-0 text-muted" aria-hidden="true" />}
-      <span className="flex min-w-0 flex-1 flex-col">
-        {showLabel && <span className="text-[11px] text-muted">{label}</span>}
-        <select
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          aria-label={label}
-          className="w-full appearance-none bg-transparent pr-6 text-sm font-medium outline-none"
-        >
+    <label className="filter-box">
+      {Icon && <Icon size={16} className="flex-shrink-0 text-body-secondary" aria-hidden="true" />}
+      <span className="d-flex flex-column flex-grow-1" style={{ minWidth: 0 }}>
+        {showLabel && <span className="filter-label">{label}</span>}
+        <select value={value} onChange={(event) => onChange(event.target.value)} aria-label={label}>
           {children}
         </select>
       </span>
-      <ChevronDown className="pointer-events-none absolute right-3.5 size-4 text-muted" aria-hidden="true" />
+      <ChevronDown size={16} className="filter-chevron" aria-hidden="true" />
     </label>
   )
 }
 
 export function RentBox({ label, value, onChange }) {
   return (
-    <label className="flex h-14 flex-col justify-center rounded-xl border border-line bg-white px-3.5 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15">
-      <span className="text-[11px] text-muted">{label}</span>
-      <span className="flex items-center text-sm font-semibold">
+    <label className="filter-box flex-column align-items-stretch justify-content-center gap-0">
+      <span className="filter-label">{label}</span>
+      <span className="d-flex align-items-center small fw-semibold">
         ₱
         <input
           inputMode="numeric"
           value={withCommas(value)}
           onChange={(event) => onChange(digitsOnly(event.target.value))}
           placeholder="Any"
-          className="w-full bg-transparent pl-0.5 outline-none placeholder:font-normal placeholder:text-muted/70"
+          className="ps-1"
         />
       </span>
     </label>

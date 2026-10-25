@@ -9,8 +9,8 @@ export default function NotFound({ role }) {
       title="Page not found"
       body="The page you’re looking for doesn’t exist or has moved."
       action={
-        <Link to={`/${role}`} className="btn-primary">
-          <ArrowLeft className="size-4" aria-hidden="true" />
+        <Link to={`/${role}`} className="btn btn-primary">
+          <ArrowLeft size={16} aria-hidden="true" />
           Back to dashboard
         </Link>
       }

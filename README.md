@@ -1,6 +1,6 @@
 # RoomEase
 
-Find and manage boarding houses in Baybay City. Frontend prototype with sign-in/sign-up and full dashboards for **boarders** (browse, reserve, favorites) and **landlords** (listings, availability, reservation requests).
+Find and manage boarding houses in Baybay City. Frontend prototype (React + Bootstrap 5) with sign-in/sign-up and full dashboards for **boarders** (browse, reserve, favorites) and **landlords** (listings, availability, reservation requests).
 
 | Login | Boarder | Landlord |
 | --- | --- | --- |
@@ -29,7 +29,7 @@ Other scripts: `npm run build` (production build to `dist/`), `npm run preview`,
 ```
 src/
   App.jsx                    routes + role protection
-  index.css                  Tailwind theme and per-role colors
+  index.css                  Bootstrap theme overrides, per-role colors, app styles
   config/navigation.js       sidebar items and role labels
   context/AuthContext.jsx    mock accounts: sign in, sign up, profile, password
   context/DataContext.jsx    stand-in backend: listings, reservations, favorites, notifications

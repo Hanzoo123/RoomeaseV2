@@ -19,37 +19,35 @@ export default function ReservationDialog({ reservation, listingName, onClose, o
       footer={
         isPending ? (
           <>
-            <button type="button" onClick={() => onDecide('Declined')} className="btn border border-red-200 text-red-600 hover:bg-red-50">
+            <button type="button" onClick={() => onDecide('Declined')} className="btn btn-outline-danger">
               Decline
             </button>
-            <button type="button" onClick={() => onDecide('Approved')} className="btn-primary">
+            <button type="button" onClick={() => onDecide('Approved')} className="btn btn-primary">
               Approve
             </button>
           </>
         ) : (
-          <button type="button" onClick={onClose} className="btn border border-line hover:bg-page">
+          <button type="button" onClick={onClose} className="btn btn-outline-secondary">
             Close
           </button>
         )
       }
     >
-      <dl className="space-y-3 text-sm">
+      <dl className="small mb-0">
         {details.map(([term, value]) => (
-          <div key={term} className="flex justify-between gap-4">
-            <dt className="text-muted">{term}</dt>
-            <dd className="text-right font-medium">{value}</dd>
+          <div key={term} className="d-flex justify-content-between gap-3 mb-2">
+            <dt className="fw-normal text-body-secondary">{term}</dt>
+            <dd className="fw-medium text-end mb-0">{value}</dd>
           </div>
         ))}
-        <div className="flex items-center justify-between gap-4">
-          <dt className="text-muted">Status</dt>
-          <dd>
+        <div className="d-flex align-items-center justify-content-between gap-3">
+          <dt className="fw-normal text-body-secondary">Status</dt>
+          <dd className="mb-0">
             <StatusPill status={reservation.status} />
           </dd>
         </div>
       </dl>
-      {reservation.message && (
-        <blockquote className="mt-4 rounded-lg bg-page px-3.5 py-3 text-sm text-ink/80">“{reservation.message}”</blockquote>
-      )}
+      {reservation.message && <blockquote className="small bg-page rounded-3 px-3 py-2 mt-3 mb-0">“{reservation.message}”</blockquote>}
     </Modal>
   )
 }

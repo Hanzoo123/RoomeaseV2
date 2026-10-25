@@ -46,20 +46,18 @@ export default function Login() {
 
   return (
     <AuthShell role={role}>
-      <h2 className="text-2xl font-bold tracking-tight">Welcome back</h2>
-      <p className="mt-1 text-sm text-muted">Sign in to your RoomEase account.</p>
+      <h2 className="h3 fw-bold tracking-tight mb-1">Welcome back</h2>
+      <p className="small text-body-secondary mb-4">Sign in to your RoomEase account.</p>
 
-      <div className="mt-6">
-        <RoleTabs
-          role={role}
-          onChange={(nextRole) => {
-            setRole(nextRole)
-            setError('')
-          }}
-        />
-      </div>
+      <RoleTabs
+        role={role}
+        onChange={(nextRole) => {
+          setRole(nextRole)
+          setError('')
+        }}
+      />
 
-      <form onSubmit={handleSubmit} noValidate className="mt-6 space-y-4">
+      <form onSubmit={handleSubmit} noValidate className="d-flex flex-column gap-3 mt-4">
         <IconField
           id="email"
           label="Email address"
@@ -82,58 +80,58 @@ export default function Login() {
           trailing={passwordToggle}
         />
 
-        <div className="flex items-center justify-between text-sm">
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} className="size-4 accent-accent" />
-            Remember me
-          </label>
+        <div className="d-flex align-items-center justify-content-between small">
+          <div className="form-check mb-0">
+            <input id="remember" type="checkbox" className="form-check-input" checked={remember} onChange={(event) => setRemember(event.target.checked)} />
+            <label htmlFor="remember" className="form-check-label">
+              Remember me
+            </label>
+          </div>
           <button
             type="button"
             onClick={() => setNotice('Password reset isn’t available in the demo yet. Use one of the demo accounts below.')}
-            className="font-medium text-accent hover:underline"
+            className="btn btn-link p-0 small fw-medium text-decoration-none"
           >
             Forgot password?
           </button>
         </div>
 
         {error && (
-          <p role="alert" className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-700">
-            <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          <div role="alert" className="alert alert-danger d-flex align-items-start gap-2 small py-2 px-3 mb-0">
+            <CircleAlert size={16} className="flex-shrink-0 mt-1" aria-hidden="true" />
             {error}
-          </p>
+          </div>
         )}
-        {notice && <p className="rounded-lg bg-accent-soft px-3 py-2.5 text-sm">{notice}</p>}
+        {notice && <div className="alert alert-primary small py-2 px-3 mb-0">{notice}</div>}
 
-        <button type="submit" className="btn-primary h-11 w-full">
+        <button type="submit" className="btn btn-primary w-100" style={{ height: '2.75rem' }}>
           Sign in as {ROLE_META[role].label}
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-muted">
+      <p className="small text-body-secondary text-center mt-4 mb-0">
         New to RoomEase?{' '}
-        <Link to="/signup" state={{ role }} className="font-semibold text-accent hover:underline">
+        <Link to="/signup" state={{ role }} className="fw-semibold text-decoration-none">
           Create an account
         </Link>
       </p>
 
-      <div className="mt-6 rounded-xl border border-dashed border-line bg-white p-4">
-        <p className="text-xs font-semibold tracking-wide text-muted uppercase">Demo accounts</p>
-        <ul className="mt-3 space-y-3">
+      <div className="dashed-box bg-white rounded-3 p-3 mt-4">
+        <p className="text-xs fw-semibold text-uppercase text-body-secondary mb-3" style={{ letterSpacing: '0.05em' }}>
+          Demo accounts
+        </p>
+        <ul className="list-unstyled d-flex flex-column gap-3 mb-0">
           {DEMO_USERS.map((account) => (
-            <li key={account.id} className="flex items-center justify-between gap-3 text-sm">
-              <div className="min-w-0">
-                <p className="font-medium">
-                  {account.name} <span className="text-muted">· {ROLE_META[account.role].label}</span>
+            <li key={account.id} className="d-flex align-items-center justify-content-between gap-3 small">
+              <div style={{ minWidth: 0 }}>
+                <p className="fw-medium mb-0">
+                  {account.name} <span className="text-body-secondary">· {ROLE_META[account.role].label}</span>
                 </p>
-                <p className="truncate text-xs text-muted">
+                <p className="text-xs text-body-secondary text-truncate mb-0">
                   {account.email} / {account.password}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => fillDemo(account)}
-                className="shrink-0 rounded-md border border-line px-3 py-1.5 text-xs font-semibold hover:border-accent hover:text-accent"
-              >
+              <button type="button" onClick={() => fillDemo(account)} className="btn btn-sm btn-outline-secondary flex-shrink-0">
                 Use
               </button>
             </li>

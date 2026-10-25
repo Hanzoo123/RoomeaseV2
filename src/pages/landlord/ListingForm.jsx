@@ -85,7 +85,7 @@ function ListingForm({ listingId }) {
         title="Listing not found"
         body="It may have been deleted, or it belongs to another landlord."
         action={
-          <Link to="/landlord/listings" className="btn-primary">
+          <Link to="/landlord/listings" className="btn btn-primary">
             Back to my listings
           </Link>
         }
@@ -148,13 +148,14 @@ function ListingForm({ listingId }) {
   }
 
   const errorCount = Object.keys(errors).length
+  const backTo = existing ? `/landlord/listings/${existing.id}` : '/landlord/listings'
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="content-narrow">
       <PageHeader
         back={
-          <Link to={existing ? `/landlord/listings/${existing.id}` : '/landlord/listings'} className="mb-3 inline-flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink">
-            <ArrowLeft className="size-4" aria-hidden="true" />
+          <Link to={backTo} className="d-inline-flex align-items-center gap-1 small fw-medium link-secondary text-decoration-none mb-2">
+            <ArrowLeft size={16} aria-hidden="true" />
             Back
           </Link>
         }
@@ -162,105 +163,132 @@ function ListingForm({ listingId }) {
         subtitle={existing ? 'Changes are visible to boarders right away.' : 'New listings are reviewed by an admin before boarders can see them.'}
       />
 
-      <form onSubmit={handleSubmit} noValidate className="space-y-6">
+      <form onSubmit={handleSubmit} noValidate className="d-flex flex-column gap-4">
         {errorCount > 0 && <Notice tone="error">Please fix the {errorCount === 1 ? 'highlighted field' : `${errorCount} highlighted fields`} below.</Notice>}
 
-        <section className="card space-y-4 p-5 sm:p-6">
-          <h2 className="font-semibold">Basic information</h2>
-          <TextField id="name" label="Boarding house name" placeholder="e.g. Sunrise Boarding House" value={form.name} onChange={set('name')} error={errors.name} />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <SelectField id="area" label="Location" value={form.area} onChange={set('area')}>
-              {AREAS.map((area) => (
-                <option key={area}>{area}</option>
-              ))}
-            </SelectField>
-            <TextField id="address" label="Street address" placeholder="e.g. 12 Rizal St., Zone 3" value={form.address} onChange={set('address')} error={errors.address} />
-          </div>
-          <TextArea
-            id="description"
-            label="Description"
-            hint="Mention house rules, what’s included in the rent and nearby landmarks."
-            maxLength={800}
-            value={form.description}
-            onChange={set('description')}
-          />
-        </section>
-
-        <section className="card space-y-4 p-5 sm:p-6">
-          <h2 className="font-semibold">Rooms and pricing</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <TextField id="price" label="Monthly rent (₱)" inputMode="numeric" placeholder="3000" value={form.price} onChange={setNumber('price')} error={errors.price} />
-            <SelectField id="roomType" label="Room type" value={form.roomType} onChange={set('roomType')}>
-              {ROOM_TYPES.map((type) => (
-                <option key={type}>{type}</option>
-              ))}
-            </SelectField>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <TextField id="totalRooms" label="Total rooms" inputMode="numeric" value={form.totalRooms} onChange={setNumber('totalRooms')} error={errors.totalRooms} />
-            <TextField id="availableRooms" label="Rooms available" inputMode="numeric" value={form.availableRooms} onChange={setNumber('availableRooms')} error={errors.availableRooms} />
-            <TextField
-              id="availableSlots"
-              label="Open slots (beds)"
-              inputMode="numeric"
-              hint="Shared rooms can have several slots."
-              value={form.availableSlots}
-              onChange={setNumber('availableSlots')}
-              error={errors.availableSlots}
+        <section className="card">
+          <div className="card-body p-4 d-flex flex-column gap-3">
+            <h2 className="fs-6 fw-semibold mb-0">Basic information</h2>
+            <TextField id="name" label="Boarding house name" placeholder="e.g. Sunrise Boarding House" value={form.name} onChange={set('name')} error={errors.name} />
+            <div className="row g-3">
+              <div className="col-sm-6">
+                <SelectField id="area" label="Location" value={form.area} onChange={set('area')}>
+                  {AREAS.map((area) => (
+                    <option key={area}>{area}</option>
+                  ))}
+                </SelectField>
+              </div>
+              <div className="col-sm-6">
+                <TextField id="address" label="Street address" placeholder="e.g. 12 Rizal St., Zone 3" value={form.address} onChange={set('address')} error={errors.address} />
+              </div>
+            </div>
+            <TextArea
+              id="description"
+              label="Description"
+              hint="Mention house rules, what’s included in the rent and nearby landmarks."
+              maxLength={800}
+              value={form.description}
+              onChange={set('description')}
             />
           </div>
         </section>
 
-        <section className="card p-5 sm:p-6">
-          <h2 className="font-semibold">Amenities</h2>
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {AMENITIES.map((amenity) => {
-              const Icon = FEATURE_ICONS[amenity]
-              const checked = form.amenities.includes(amenity)
-              return (
-                <label
-                  key={amenity}
-                  className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-sm transition-colors ${checked ? 'border-accent bg-accent-soft' : 'border-line hover:border-accent/50'}`}
-                >
-                  <input type="checkbox" checked={checked} onChange={() => toggleAmenity(amenity)} className="size-4 accent-accent" />
-                  <Icon className="size-4 text-muted" aria-hidden="true" />
-                  {amenity}
+        <section className="card">
+          <div className="card-body p-4 d-flex flex-column gap-3">
+            <h2 className="fs-6 fw-semibold mb-0">Rooms and pricing</h2>
+            <div className="row g-3">
+              <div className="col-sm-6">
+                <TextField id="price" label="Monthly rent (₱)" inputMode="numeric" placeholder="3000" value={form.price} onChange={setNumber('price')} error={errors.price} />
+              </div>
+              <div className="col-sm-6">
+                <SelectField id="roomType" label="Room type" value={form.roomType} onChange={set('roomType')}>
+                  {ROOM_TYPES.map((type) => (
+                    <option key={type}>{type}</option>
+                  ))}
+                </SelectField>
+              </div>
+              <div className="col-sm-4">
+                <TextField id="totalRooms" label="Total rooms" inputMode="numeric" value={form.totalRooms} onChange={setNumber('totalRooms')} error={errors.totalRooms} />
+              </div>
+              <div className="col-sm-4">
+                <TextField id="availableRooms" label="Rooms available" inputMode="numeric" value={form.availableRooms} onChange={setNumber('availableRooms')} error={errors.availableRooms} />
+              </div>
+              <div className="col-sm-4">
+                <TextField
+                  id="availableSlots"
+                  label="Open slots (beds)"
+                  inputMode="numeric"
+                  hint="Shared rooms can have several slots."
+                  value={form.availableSlots}
+                  onChange={setNumber('availableSlots')}
+                  error={errors.availableSlots}
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="card">
+          <div className="card-body p-4">
+            <h2 className="fs-6 fw-semibold mb-3">Amenities</h2>
+            <div className="row g-2">
+              {AMENITIES.map((amenity) => {
+                const Icon = FEATURE_ICONS[amenity]
+                const checked = form.amenities.includes(amenity)
+                return (
+                  <div key={amenity} className="col-6 col-sm-3">
+                    <label className={`choice ${checked ? 'checked' : ''}`}>
+                      <input type="checkbox" className="form-check-input" checked={checked} onChange={() => toggleAmenity(amenity)} />
+                      <Icon size={16} className="text-body-secondary" aria-hidden="true" />
+                      {amenity}
+                    </label>
+                  </div>
+                )
+              })}
+            </div>
+            {errors.amenities && <div className="invalid-feedback d-block">{errors.amenities}</div>}
+          </div>
+        </section>
+
+        <section className="card">
+          <div className="card-body p-4">
+            <h2 className="fs-6 fw-semibold mb-1">Photo</h2>
+            <p className="small text-body-secondary mb-3">A clear photo of the house or a room gets more reservation requests.</p>
+            <div className="d-flex flex-column flex-sm-row align-items-sm-center gap-3">
+              <div className="dashed-box bg-page rounded-3 overflow-hidden flex-shrink-0" style={{ width: '14rem', maxWidth: '100%' }}>
+                <div className="ratio" style={{ '--bs-aspect-ratio': '62.5%' }}>
+                  {form.photo ? (
+                    <img src={form.photo} alt="Listing preview" />
+                  ) : (
+                    <div className="d-grid" style={{ placeItems: 'center' }}>
+                      <ImagePlus size={32} className="text-body-secondary" aria-hidden="true" />
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="d-flex flex-wrap gap-2">
+                <label className="btn btn-outline-secondary mb-0">
+                  <ImagePlus size={16} aria-hidden="true" />
+                  {form.photo ? 'Change photo' : 'Upload photo'}
+                  <input type="file" accept="image/*" onChange={handlePhoto} className="visually-hidden" />
                 </label>
-              )
-            })}
+                {form.photo && (
+                  <button type="button" onClick={() => setForm((current) => ({ ...current, photo: null }))} className="btn btn-outline-danger">
+                    <Trash2 size={16} aria-hidden="true" />
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+            {photoError && <div className="invalid-feedback d-block">{photoError}</div>}
           </div>
-          {errors.amenities && <p className="mt-2 text-xs text-red-600">{errors.amenities}</p>}
         </section>
 
-        <section className="card p-5 sm:p-6">
-          <h2 className="font-semibold">Photo</h2>
-          <p className="mt-1 text-sm text-muted">A clear photo of the house or a room gets more reservation requests.</p>
-          <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="grid aspect-[16/10] w-full shrink-0 place-items-center overflow-hidden rounded-xl border border-dashed border-line bg-page sm:w-56">
-              {form.photo ? <img src={form.photo} alt="Listing preview" className="size-full object-cover" /> : <ImagePlus className="size-8 text-muted" aria-hidden="true" />}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <label className="btn cursor-pointer border border-line hover:bg-page">
-                <ImagePlus className="size-4" aria-hidden="true" />
-                {form.photo ? 'Change photo' : 'Upload photo'}
-                <input type="file" accept="image/*" onChange={handlePhoto} className="sr-only" />
-              </label>
-              {form.photo && (
-                <button type="button" onClick={() => setForm((current) => ({ ...current, photo: null }))} className="btn border border-line text-red-600 hover:bg-red-50">
-                  <Trash2 className="size-4" aria-hidden="true" />
-                  Remove
-                </button>
-              )}
-            </div>
-          </div>
-          {photoError && <p className="mt-2 text-xs text-red-600">{photoError}</p>}
-        </section>
-
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Link to={existing ? `/landlord/listings/${existing.id}` : '/landlord/listings'} className="btn border border-line bg-white hover:bg-page">
+        <div className="d-flex flex-column-reverse flex-sm-row justify-content-sm-end gap-2">
+          <Link to={backTo} className="btn btn-outline-secondary">
             Cancel
           </Link>
-          <button type="submit" className="btn-primary">
+          <button type="submit" className="btn btn-primary">
             {existing ? 'Save changes' : 'Submit for review'}
           </button>
         </div>

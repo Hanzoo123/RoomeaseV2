@@ -24,32 +24,31 @@ export default function MyListings() {
         title="My Boarding Houses"
         subtitle="Edit details, check approval status and manage your listings."
         actions={
-          <Link to="/landlord/add-listing" className="btn-primary">
-            <Plus className="size-4" aria-hidden="true" />
+          <Link to="/landlord/add-listing" className="btn btn-primary">
+            <Plus size={16} aria-hidden="true" />
             Add New Listing
           </Link>
         }
       />
 
       {pendingCount > 0 && (
-        <div className="mb-5">
+        <div className="mb-4">
           <Notice tone="info">
-            {pendingCount} {pendingCount === 1 ? 'listing is' : 'listings are'} waiting for admin review. Boarders can see a listing once it’s approved,
-            usually within 1–2 days.
+            {pendingCount} {pendingCount === 1 ? 'listing is' : 'listings are'} waiting for admin review. Boarders can see a listing once it’s approved, usually within 1–2 days.
           </Notice>
         </div>
       )}
 
       <Tabs tabs={tabs} value={tab} onChange={setTab} label="Filter listings by approval status" />
 
-      <div className="mt-5 space-y-3">
+      <div className="d-flex flex-column gap-3 mt-4">
         {visible.length === 0 ? (
           <EmptyState
             icon={Building2}
             title={tab === 'All' ? 'No listings yet' : `No ${tab.toLowerCase()} listings`}
             body="Add a boarding house so boarders can discover it."
             action={
-              <Link to="/landlord/add-listing" className="btn-primary">
+              <Link to="/landlord/add-listing" className="btn btn-primary">
                 Add New Listing
               </Link>
             }
@@ -57,8 +56,8 @@ export default function MyListings() {
         ) : (
           visible.map((listing) => (
             <ListingRow key={listing.id} listing={listing}>
-              <button type="button" onClick={() => setDeleting(listing)} className="inline-flex items-center gap-1.5 text-red-600 hover:text-red-700">
-                <Trash2 className="size-4" aria-hidden="true" />
+              <button type="button" onClick={() => setDeleting(listing)} className="btn btn-link p-0 small fw-medium link-danger text-decoration-none d-inline-flex align-items-center gap-1">
+                <Trash2 size={16} aria-hidden="true" />
                 Delete
               </button>
             </ListingRow>
@@ -72,7 +71,7 @@ export default function MyListings() {
           onClose={() => setDeleting(null)}
           footer={
             <>
-              <button type="button" onClick={() => setDeleting(null)} className="btn border border-line hover:bg-page">
+              <button type="button" onClick={() => setDeleting(null)} className="btn btn-outline-secondary">
                 Keep listing
               </button>
               <button
@@ -81,15 +80,15 @@ export default function MyListings() {
                   deleteListing(deleting.id)
                   setDeleting(null)
                 }}
-                className="btn bg-red-600 text-white hover:bg-red-700"
+                className="btn btn-danger"
               >
                 Delete
               </button>
             </>
           }
         >
-          <p className="text-sm text-muted">
-            <strong className="text-ink">{deleting.name}</strong> will be removed from RoomEase and boarders won’t be able to find it. This can’t be undone.
+          <p className="small text-body-secondary mb-0">
+            <strong className="text-body">{deleting.name}</strong> will be removed from RoomEase and boarders won’t be able to find it. This can’t be undone.
           </p>
         </Modal>
       )}

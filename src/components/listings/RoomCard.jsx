@@ -16,14 +16,14 @@ export const FEATURE_ICONS = {
   Parking: SquareParking,
 }
 
-export function FeatureList({ features, className = '' }) {
+export function FeatureList({ features, className = 'text-xs', iconSize = 14 }) {
   return (
-    <ul className={`flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted ${className}`}>
+    <ul className={`list-unstyled d-flex flex-wrap column-gap-3 row-gap-1 text-body-secondary mb-0 ${className}`}>
       {features.map((feature) => {
         const Icon = FEATURE_ICONS[feature] ?? BedSingle
         return (
-          <li key={feature} className="flex items-center gap-1.5">
-            <Icon className="size-3.5 text-ink/70" aria-hidden="true" />
+          <li key={feature} className="d-flex align-items-center gap-1">
+            <Icon size={iconSize} className="text-body" aria-hidden="true" />
             {feature}
           </li>
         )
@@ -39,9 +39,9 @@ export function FavoriteButton({ listing, isFavorite, onToggle, className = '' }
       onClick={() => onToggle(listing.id)}
       aria-pressed={isFavorite}
       aria-label={isFavorite ? `Remove ${listing.name} from favorites` : `Save ${listing.name} to favorites`}
-      className={`grid size-8 place-items-center rounded-full bg-white shadow-md transition-transform hover:scale-105 ${className}`}
+      className={`fav-btn ${className}`}
     >
-      <Heart className={`size-4 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-ink'}`} aria-hidden="true" />
+      <Heart size={16} className={isFavorite ? 'text-danger' : 'text-body'} fill={isFavorite ? 'currentColor' : 'none'} aria-hidden="true" />
     </button>
   )
 }
@@ -50,25 +50,27 @@ export default function RoomCard({ listing, isFavorite, onToggleFavorite }) {
   const extra = listing.amenities.length - 2
   const features = [listing.roomType, ...listing.amenities.slice(0, 2)]
   return (
-    <article className="card flex flex-col overflow-hidden">
-      <div className="relative aspect-[16/10] overflow-hidden">
-        <ListingImage listing={listing} kind="room" className="absolute inset-0 size-full" />
-        <Tag className="absolute top-3 left-3 shadow-sm">{availabilityOf(listing)}</Tag>
-        <FavoriteButton listing={listing} isFavorite={isFavorite} onToggle={onToggleFavorite} className="absolute top-3 right-3" />
+    <article className="card h-100 overflow-hidden">
+      <div className="position-relative">
+        <div className="ratio" style={{ '--bs-aspect-ratio': '62.5%' }}>
+          <ListingImage listing={listing} kind="room" />
+        </div>
+        <Tag className="position-absolute top-0 start-0 m-3 shadow-sm">{availabilityOf(listing)}</Tag>
+        <FavoriteButton listing={listing} isFavorite={isFavorite} onToggle={onToggleFavorite} className="position-absolute top-0 end-0 m-3" />
       </div>
-      <div className="flex flex-1 flex-col p-4">
-        <h3 className="font-semibold">{listing.name}</h3>
-        <p className="mt-0.5 text-sm text-muted">
+      <div className="card-body d-flex flex-column">
+        <h3 className="fs-6 fw-semibold mb-1">{listing.name}</h3>
+        <p className="small text-body-secondary mb-3">
           {listing.area}, {listing.city}
         </p>
-        <p className="mt-3 text-sm text-muted">
-          <span className="text-lg font-bold text-ink">{formatPeso(listing.price)}</span> / month
+        <p className="small text-body-secondary mb-3">
+          <span className="fs-5 fw-bold text-body">{formatPeso(listing.price)}</span> / month
         </p>
-        <div className="mt-3 mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+        <div className="d-flex flex-wrap align-items-center column-gap-3 row-gap-1 mb-3">
           <FeatureList features={features} />
-          {extra > 0 && <span className="text-xs text-muted">+{extra} more</span>}
+          {extra > 0 && <span className="text-xs text-body-secondary">+{extra} more</span>}
         </div>
-        <Link to={`/boarder/rooms/${listing.id}`} className="btn-primary mt-auto w-full">
+        <Link to={`/boarder/rooms/${listing.id}`} className="btn btn-primary w-100 mt-auto">
           View Details
         </Link>
       </div>
