@@ -5,6 +5,7 @@ import { ROLE_META } from '../config/navigation'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { DEMO_USERS } from '../data/mockData'
+import { pathAfterSignIn } from '../context/SitePaths'
 import AuthShell, { IconField, RoleTabs, usePasswordToggle } from '../components/auth/AuthShell'
 
 export default function Login() {
@@ -12,27 +13,25 @@ export default function Login() {
   const navigate = useNavigate()
   const location = useLocation()
   const [role, setRole] = useState(location.state?.role ?? 'boarder')
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(location.state?.email ?? '')
   const [password, setPassword] = useState('')
   const [passwordType, passwordToggle] = usePasswordToggle()
   const [remember, setRemember] = useState(true)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
   const toast = useToast()
 
-  if (user) return <Navigate to={`/${user.role}`} replace />
+  // Also covers the render right after signing in, so it must agree with handleSubmit.
+  if (user) return <Navigate to={pathAfterSignIn(location.state?.from, user.role)} replace />
 
   function fillDemo(account) {
     setRole(account.role)
     setEmail(account.email)
     setPassword(account.password)
     setError('')
-    setNotice('')
   }
 
   function handleSubmit(event) {
     event.preventDefault()
-    setNotice('')
     if (!email.trim() || !password) {
       setError('Enter your email and password.')
       return
@@ -43,8 +42,7 @@ export default function Login() {
       return
     }
     toast(`Welcome back, ${result.firstName}!`)
-    const from = location.state?.from
-    navigate(from?.startsWith(`/${role}`) ? from : `/${role}`, { replace: true })
+    navigate(pathAfterSignIn(location.state?.from, role), { replace: true })
   }
 
   return (
@@ -53,6 +51,7 @@ export default function Login() {
       <p className="small text-body-secondary mb-4">Sign in to your RoomEase account.</p>
 
       <RoleTabs
+        roles={['boarder', 'landlord', 'admin']}
         role={role}
         onChange={(nextRole) => {
           setRole(nextRole)
@@ -90,13 +89,9 @@ export default function Login() {
               Remember me
             </label>
           </div>
-          <button
-            type="button"
-            onClick={() => setNotice('Password reset isn’t available in the demo yet. Use one of the demo accounts below.')}
-            className="btn btn-link p-0 small fw-medium text-decoration-none"
-          >
+          <Link to="/forgot-password" state={{ role, email: email.trim() }} className="small fw-medium text-decoration-none">
             Forgot password?
-          </button>
+          </Link>
         </div>
 
         {error && (
@@ -105,7 +100,6 @@ export default function Login() {
             {error}
           </div>
         )}
-        {notice && <div className="alert alert-primary small py-2 px-3 mb-0">{notice}</div>}
 
         <button type="submit" className="btn btn-primary w-100" style={{ height: '2.75rem' }}>
           Sign in as {ROLE_META[role].label}
@@ -114,7 +108,7 @@ export default function Login() {
 
       <p className="small text-body-secondary text-center mt-4 mb-0">
         New to RoomEase?{' '}
-        <Link to="/signup" state={{ role }} className="fw-semibold text-decoration-none">
+        <Link to="/signup" state={{ role: role === 'admin' ? 'boarder' : role, from: location.state?.from }} className="fw-semibold text-decoration-none">
           Create an account
         </Link>
       </p>
@@ -124,7 +118,7 @@ export default function Login() {
           Demo accounts
         </p>
         <ul className="list-unstyled d-flex flex-column gap-3 mb-0">
-          {DEMO_USERS.map((account) => (
+          {DEMO_USERS.filter((account) => account.demo).map((account) => (
             <li key={account.id} className="d-flex align-items-center justify-content-between gap-3 small">
               <div style={{ minWidth: 0 }}>
                 <p className="fw-medium mb-0">

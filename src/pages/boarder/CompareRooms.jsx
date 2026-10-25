@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Award, Check, Minus, Scale, X } from 'lucide-react'
 import { MAX_COMPARE, useData } from '../../context/DataContext'
+import { useSitePaths } from '../../context/SitePaths'
 import { AMENITIES, availabilityOf, BAYBAY_CENTER, distanceKm, formatDistance, formatPeso, VSU_COORDS } from '../../data/mockData'
 import { Stars } from '../../components/reviews/Stars'
 import { EmptyState, ListingImage, PageHeader, Tag } from '../../components/ui'
@@ -16,6 +17,7 @@ function BestBadge({ children }) {
 
 export default function CompareRooms() {
   const { compare, listingById, toggleCompare, clearCompare, ratingOf, ownerOf } = useData()
+  const paths = useSitePaths()
   const rooms = compare.map(listingById).filter(Boolean)
 
   if (rooms.length < 2) {
@@ -25,9 +27,9 @@ export default function CompareRooms() {
         <EmptyState
           icon={Scale}
           title={rooms.length ? 'Add one more room to compare' : 'No rooms selected yet'}
-          body="Tap the compare button (the scale icon) on any room card in Browse Rooms."
+          body={`Tap the compare button (the scale icon) on any room card in ${paths.isPublic ? 'Find Place to Stay' : 'Browse Rooms'}.`}
           action={
-            <Link to="/boarder/browse" className="btn btn-primary">
+            <Link to={paths.browse} className="btn btn-primary">
               Browse rooms
             </Link>
           }
@@ -117,7 +119,7 @@ export default function CompareRooms() {
         actions={
           <>
             {rooms.length < MAX_COMPARE && (
-              <Link to="/boarder/browse" className="btn btn-outline-secondary">
+              <Link to={paths.browse} className="btn btn-outline-secondary">
                 Add another room
               </Link>
             )}
@@ -151,7 +153,7 @@ export default function CompareRooms() {
                         <X size={14} />
                       </button>
                     </div>
-                    <Link to={`/boarder/rooms/${room.id}`} className="fw-semibold text-reset-link">
+                    <Link to={paths.room(room.id)} className="fw-semibold text-reset-link">
                       {room.name}
                     </Link>
                   </th>
@@ -175,7 +177,7 @@ export default function CompareRooms() {
                 <th scope="row" className="compare-label" />
                 {stats.map(({ room }) => (
                   <td key={room.id}>
-                    <Link to={`/boarder/rooms/${room.id}`} className="btn btn-primary btn-sm w-100">
+                    <Link to={paths.room(room.id)} className="btn btn-primary btn-sm w-100">
                       View & reserve
                     </Link>
                   </td>

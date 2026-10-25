@@ -58,8 +58,8 @@ export default function ReservationRequests() {
           reservation={selected}
           listingName={listingName(selected.listingId)}
           onClose={() => setSelectedId(null)}
-          onDecide={(status) => {
-            setReservationStatus(selected.id, status)
+          onDecide={(status, note) => {
+            setReservationStatus(selected.id, status, note)
             setSelectedId(null)
           }}
         />

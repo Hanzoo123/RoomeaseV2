@@ -4,6 +4,8 @@ import { LogOut, RotateCcw } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
 import { useToast } from '../../context/ToastContext'
+import { passwordIsStrong } from '../../data/validation'
+import PasswordChecklist from '../../components/auth/PasswordChecklist'
 import { TextField, Toggle } from '../../components/ui/form'
 import { Modal, Notice, PageHeader } from '../../components/ui'
 
@@ -16,7 +18,8 @@ function PasswordForm() {
 
   function handleSubmit(event) {
     event.preventDefault()
-    if (form.next.length < 8) return setStatus({ tone: 'error', text: 'Use at least 8 characters for your new password.' })
+    if (!passwordIsStrong(form.next)) return setStatus({ tone: 'error', text: 'Your new password needs everything on the checklist.' })
+    if (form.next === form.current) return setStatus({ tone: 'error', text: 'Choose a password you haven’t been using.' })
     if (form.next !== form.confirm) return setStatus({ tone: 'error', text: 'The new passwords don’t match.' })
     const result = changePassword(form.current, form.next)
     if (!result.ok) return setStatus({ tone: 'error', text: result.error })
@@ -32,12 +35,13 @@ function PasswordForm() {
         <TextField id="current-password" label="Current password" type="password" autoComplete="current-password" value={form.current} onChange={set('current')} />
         <div className="row g-3">
           <div className="col-sm-6">
-            <TextField id="new-password" label="New password" type="password" autoComplete="new-password" hint="At least 8 characters." value={form.next} onChange={set('next')} />
+            <TextField id="new-password" label="New password" type="password" autoComplete="new-password" aria-describedby="new-password-rules" value={form.next} onChange={set('next')} />
           </div>
           <div className="col-sm-6">
             <TextField id="confirm-password" label="Confirm new password" type="password" autoComplete="new-password" value={form.confirm} onChange={set('confirm')} />
           </div>
         </div>
+        <PasswordChecklist password={form.next} id="new-password-rules" />
         {status && <Notice tone={status.tone}>{status.text}</Notice>}
         <div className="d-flex justify-content-end">
           <button type="submit" className="btn btn-primary" disabled={!form.current || !form.next}>
@@ -49,13 +53,29 @@ function PasswordForm() {
   )
 }
 
+// The same two saved preferences, worded for each role.
+const TOGGLE_COPY = {
+  boarder: {
+    reservations: ['Reservation updates', 'Get notified when a landlord approves or declines your request.'],
+    tips: ['New listings near you', 'Hear about new boarding houses in your preferred areas.'],
+  },
+  landlord: {
+    reservations: ['New reservation requests', 'Get notified when a boarder requests a room.'],
+    tips: ['Listing tips', 'Occasional tips to get more reservations.'],
+  },
+  admin: {
+    reservations: ['Listings to review', 'Get notified when a landlord submits or resubmits a listing.'],
+    tips: ['Contact messages', 'Get notified when someone writes through the Contact Us page.'],
+  },
+}
+
 export default function Settings() {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const { preferences, setPreferences, resetDemoData } = useData()
   const [confirmReset, setConfirmReset] = useState(false)
   const toast = useToast()
-  const isLandlord = user.role === 'landlord'
+  const copy = TOGGLE_COPY[user.role]
 
   return (
     <div className="content-narrow d-flex flex-column gap-4">
@@ -67,8 +87,8 @@ export default function Settings() {
           <div className="border-top">
             <Toggle
               id="pref-reservations"
-              label={isLandlord ? 'New reservation requests' : 'Reservation updates'}
-              description={isLandlord ? 'Get notified when a boarder requests a room.' : 'Get notified when a landlord approves or declines your request.'}
+              label={copy.reservations[0]}
+              description={copy.reservations[1]}
               checked={preferences.reservationAlerts}
               onChange={(value) => {
                 setPreferences({ reservationAlerts: value })
@@ -91,8 +111,8 @@ export default function Settings() {
           <div className="border-top">
             <Toggle
               id="pref-tips"
-              label={isLandlord ? 'Listing tips' : 'New listings near you'}
-              description={isLandlord ? 'Occasional tips to get more reservations.' : 'Hear about new boarding houses in your preferred areas.'}
+              label={copy.tips[0]}
+              description={copy.tips[1]}
               checked={preferences.listingTips}
               onChange={(value) => {
                 setPreferences({ listingTips: value })

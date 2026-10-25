@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { Check, Scale, X } from 'lucide-react'
 import { MAX_COMPARE, useData } from '../../context/DataContext'
+import { useSitePaths } from '../../context/SitePaths'
 import { useToast } from '../../context/ToastContext'
 import { ListingImage } from '../ui'
 
@@ -34,7 +35,7 @@ export function CompareButton({ listing, className = '' }) {
 }
 
 // Pages where boarders pick rooms; elsewhere (messages, forms) the tray would cover content.
-const COMPARE_BAR_PAGES = [/^\/boarder$/, /^\/boarder\/browse$/, /^\/boarder\/rooms\//, /^\/boarder\/favorites$/]
+const COMPARE_BAR_PAGES = [/^\/boarder$/, /^\/boarder\/browse$/, /^\/boarder\/rooms\//, /^\/boarder\/favorites$/, /^\/rooms$/, /^\/rooms\/(?!compare$)/]
 
 export function useCompareBarVisible() {
   const { compare } = useData()
@@ -42,14 +43,15 @@ export function useCompareBarVisible() {
   return compare.length > 0 && COMPARE_BAR_PAGES.some((pattern) => pattern.test(pathname))
 }
 
-// Floating tray on boarder pages showing the rooms picked for comparison.
+// Floating tray on room pages showing the rooms picked for comparison.
 export function CompareBar() {
   const { compare, listingById, toggleCompare, clearCompare } = useData()
+  const paths = useSitePaths()
   const visible = useCompareBarVisible()
   if (!visible) return null
 
   return (
-    <div className="compare-bar card shadow-lg" role="region" aria-label="Rooms to compare">
+    <div className={`compare-bar card shadow-lg ${paths.isPublic ? 'compare-bar-centered' : ''}`} role="region" aria-label="Rooms to compare">
       <div className="card-body py-2 px-3 d-flex align-items-center gap-3">
         <div className="d-flex gap-2">
           {compare.map((id) => {
@@ -74,7 +76,7 @@ export function CompareBar() {
           <button type="button" className="btn btn-sm btn-outline-secondary" onClick={clearCompare}>
             Clear
           </button>
-          <Link to="/boarder/compare" className={`btn btn-sm btn-primary ${compare.length < 2 ? 'disabled' : ''}`} aria-disabled={compare.length < 2}>
+          <Link to={paths.compare} className={`btn btn-sm btn-primary ${compare.length < 2 ? 'disabled' : ''}`} aria-disabled={compare.length < 2}>
             <Scale size={14} aria-hidden="true" />
             Compare
           </Link>

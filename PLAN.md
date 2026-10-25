@@ -1,6 +1,6 @@
 # RoomEase — Build Plan
 
-Boarding house finder for Baybay City with two user roles: **Boarder** (looks for rooms) and **Landlord** (lists and manages properties).
+Boarding house finder for Baybay City with three user roles: **Boarder** (looks for rooms), **Landlord** (lists and manages properties) and **Admin** (reviews listings and manages accounts). Guests can browse rooms without an account.
 
 ## Phase 1 — Frontend prototype (this build) ✅
 
@@ -29,7 +29,7 @@ Boarding house finder for Baybay City with two user roles: **Boarder** (looks fo
 
 **Data:** `DataContext` acts as a stand-in backend. Listings, reservations, favorites and notifications are saved to `localStorage`, so both roles share them in the same browser (a boarder's request shows up for the landlord, and the landlord's decision notifies the boarder). Settings → *Reset demo data* restores the seed data.
 
-**Demo-only shortcuts:** new listings wait for admin review; since there's no admin panel yet, the listing page has an *Approve now (demo)* button. Notification toggles are saved but don't filter anything yet.
+**Demo-only shortcuts:** notification toggles are saved but don't filter anything yet. (New listings used to have an *Approve now (demo)* button; the admin panel in Phase 2.6 replaced it.)
 
 ## Phase 2.5 — Polish and extra features ✅
 
@@ -45,13 +45,29 @@ Boarding house finder for Baybay City with two user roles: **Boarder** (looks fo
 | Analytics | Chart.js: requests per month by status, status breakdown, occupancy and views per property, KPI tiles, performance table, table view for every chart |
 | Polish | Toast confirmations, page fade-ins, loading skeletons with lazy-loaded pages, relative demo dates |
 
+## Phase 2.6 — Parity with the PHP version ✅
+
+Features from [Hanzoo123/Roomease](https://github.com/Hanzoo123/Roomease) that the React app didn't have yet.
+
+| Feature | What's included |
+| --- | --- |
+| Find Place to Stay | Public browse, room and compare pages at `/rooms` (no account needed), public menu Home · Find Place to Stay · About Us · Contact Us, sign-in prompts that return the boarder to the same room |
+| Admin panel | Dashboard, Manage Listings (approve, reject with reason, remove/restore), listing review page with checklist and history, Manage Users (deactivate/reactivate), Reports with CSV export, Activity Log, Contact Inbox. Replaces the old *Approve now (demo)* button |
+| Stay terms | Curfew, minimum stay, who can stay, visitors, cooking, pets, payment methods, house rules and bills included, in the listing form and on the room page |
+| Room types | Single Room, Private Room, Double Sharing, Bed Spacer, Dormitory, with photo tiles on the landing page |
+| Decline reasons | Landlords can give a reason when declining; boarders see it |
+| Near me | Location-based sort, within-X-km filter, "Show my location" on the room map |
+| Public pages | About (with the capstone team), Contact (form to the admin inbox), Privacy Policy, Terms & Conditions |
+| Accounts | Forgot password with a 6-digit code, password checklist, PH mobile number check, profile photo |
+
 ## Phase 3 — Backend
 
 - Real authentication (hashed passwords, sessions/JWT) replacing `AuthContext` mock login
 - Database tables: users, boarding_houses, rooms, reservations, favorites, notifications
 - API for listings, search, reservations, approvals; image storage for listing photos
-- Admin role for approving listings (replaces the demo approve button)
+- Server-side admin checks (the admin panel exists, but roles are only enforced in the browser)
 - Real email / SMS notifications honoring the notification settings
 - Real-time messaging (e.g. WebSockets) instead of same-browser sync
 - Photo storage (e.g. cloud storage) instead of browser storage
-- Password reset
+- Email delivery for password reset codes and contact messages (the flow exists; codes are shown on screen)
+- Google sign-in, and several rooms with their own rent per boarding house (as in the PHP version)

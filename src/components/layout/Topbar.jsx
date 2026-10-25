@@ -6,18 +6,10 @@ import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
 import { useToast } from '../../context/ToastContext'
 import { useTheme } from '../../context/ThemeContext'
+import Avatar from '../ui/Avatar'
 import { ThemeToggle } from '../ui/feedback'
 
-const SEARCH_TARGET = { boarder: '/boarder/browse', landlord: '/landlord/listings' }
-
-function initials(name) {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0].toUpperCase())
-    .join('')
-}
+const SEARCH_TARGET = { boarder: '/boarder/browse', landlord: '/landlord/listings', admin: '/admin/listings' }
 
 function UserMenu({ role }) {
   const { user, logout } = useAuth()
@@ -57,7 +49,7 @@ function UserMenu({ role }) {
         aria-label={`Account menu for ${user.name}`}
         className="btn btn-link text-decoration-none text-body d-flex align-items-center gap-2 p-1 rounded-pill"
       >
-        <span className="avatar">{initials(user.name)}</span>
+        <Avatar person={user} />
         <span className="d-none d-sm-block text-start lh-sm">
           <span className="d-block small fw-semibold">{displayName}</span>
           <span className="d-block text-xs text-body-secondary fw-normal">{ROLE_META[role].label}</span>

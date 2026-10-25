@@ -2,13 +2,18 @@ import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import DashboardLayout from './components/layout/DashboardLayout'
+import PublicLayout, { PublicContainer } from './components/layout/PublicLayout'
 import { FullPageSpinner } from './components/ui/feedback'
 
 // Each page is its own chunk, loaded on first visit (the layout shows a skeleton meanwhile).
 const Landing = lazy(() => import('./pages/Landing'))
 const Login = lazy(() => import('./pages/Login'))
 const Signup = lazy(() => import('./pages/Signup'))
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'))
 const NotFound = lazy(() => import('./pages/NotFound'))
+const About = lazy(() => import('./pages/public/About'))
+const Contact = lazy(() => import('./pages/public/Contact'))
+const Legal = lazy(() => import('./pages/public/Legal'))
 const Notifications = lazy(() => import('./pages/shared/Notifications'))
 const Messages = lazy(() => import('./pages/shared/Messages'))
 const Profile = lazy(() => import('./pages/shared/Profile'))
@@ -26,6 +31,13 @@ const ListingView = lazy(() => import('./pages/landlord/ListingView'))
 const RoomAvailability = lazy(() => import('./pages/landlord/RoomAvailability'))
 const ReservationRequests = lazy(() => import('./pages/landlord/ReservationRequests'))
 const Analytics = lazy(() => import('./pages/landlord/Analytics'))
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
+const ManageListings = lazy(() => import('./pages/admin/ManageListings'))
+const ListingReview = lazy(() => import('./pages/admin/ListingReview'))
+const ManageUsers = lazy(() => import('./pages/admin/ManageUsers'))
+const Reports = lazy(() => import('./pages/admin/Reports'))
+const ActivityLog = lazy(() => import('./pages/admin/ActivityLog'))
+const ContactInbox = lazy(() => import('./pages/admin/ContactInbox'))
 
 // Sends signed-out visitors to /login and keeps each role inside its own dashboard.
 function RequireRole({ role, children }) {
@@ -41,9 +53,23 @@ export default function App() {
   return (
     <Suspense fallback={<FullPageSpinner />}>
       <Routes>
-        <Route path="/" element={<Landing />} />
+        {/* Public site: anyone can browse rooms without an account ("Find Place to Stay"). */}
+        <Route element={<PublicLayout />}>
+          <Route index element={<Landing />} />
+          <Route path="rooms" element={<PublicContainer />}>
+            <Route index element={<BrowseRooms />} />
+            <Route path="compare" element={<CompareRooms />} />
+            <Route path=":listingId" element={<RoomDetails />} />
+          </Route>
+          <Route path="about" element={<About />} />
+          <Route path="contact" element={<Contact />} />
+          <Route path="privacy" element={<Legal page="privacy" />} />
+          <Route path="terms" element={<Legal page="terms" />} />
+        </Route>
+
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
 
         <Route
           path="/boarder"
@@ -89,6 +115,27 @@ export default function App() {
           <Route path="profile" element={<Profile />} />
           <Route path="settings" element={<Settings />} />
           <Route path="*" element={<NotFound role="landlord" />} />
+        </Route>
+
+        <Route
+          path="/admin"
+          element={
+            <RequireRole role="admin">
+              <DashboardLayout role="admin" />
+            </RequireRole>
+          }
+        >
+          <Route index element={<AdminDashboard />} />
+          <Route path="listings" element={<ManageListings />} />
+          <Route path="listings/:listingId" element={<ListingReview />} />
+          <Route path="users" element={<ManageUsers />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="activity" element={<ActivityLog />} />
+          <Route path="inbox" element={<ContactInbox />} />
+          <Route path="notifications" element={<Notifications />} />
+          <Route path="profile" element={<Profile />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="*" element={<NotFound role="admin" />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

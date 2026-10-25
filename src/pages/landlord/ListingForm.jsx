@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ImagePlus, SearchX, Star, X } from 'lucide-react'
+import { ArrowLeft, CircleAlert, ImagePlus, SearchX, Star, X } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import { useToast } from '../../context/ToastContext'
-import { AMENITIES, AREA_CENTERS, AREAS, ROOM_TYPES } from '../../data/mockData'
+import { AMENITIES, AREA_CENTERS, AREAS, GENDER_POLICIES, PAYMENT_METHODS, ROOM_TYPES, UTILITIES } from '../../data/mockData'
+import { resizeImage } from '../../data/images'
 import MapView from '../../components/map/MapView'
 import { FEATURE_ICONS } from '../../components/listings/RoomCard'
 import { SelectField, TextArea, TextField } from '../../components/ui/form'
@@ -22,31 +23,30 @@ const EMPTY = {
   description: '',
   photos: [],
   coords: AREA_CENTERS[AREAS[0]],
+  curfew: '',
+  minimumStayMonths: '',
+  paymentMethods: ['Cash'],
+  genderPolicy: 'any',
+  visitorsAllowed: true,
+  cookingAllowed: true,
+  petsAllowed: false,
+  // Edited as one rule per line, saved as a list.
+  houseRulesText: '',
+  // { [utility name]: how it is billed } for the bills the landlord ticks.
+  utilities: {},
 }
+
+const CURFEWS = ['9:00 PM', '10:00 PM', '11:00 PM', '12:00 AM']
+const MINIMUM_STAYS = [1, 3, 5, 6, 10, 12]
+const MAX_RULES = 10
 
 const MAX_PHOTOS = 5
 
-// Shrinks an uploaded photo so several fit comfortably in localStorage.
-function resizeImage(file, maxSize = 1024) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onerror = reject
-    reader.onload = () => {
-      const image = new Image()
-      image.onerror = reject
-      image.onload = () => {
-        const scale = Math.min(1, maxSize / Math.max(image.width, image.height))
-        const canvas = document.createElement('canvas')
-        canvas.width = Math.round(image.width * scale)
-        canvas.height = Math.round(image.height * scale)
-        canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height)
-        resolve(canvas.toDataURL('image/jpeg', 0.72))
-      }
-      image.src = reader.result
-    }
-    reader.readAsDataURL(file)
-  })
-}
+const rulesFrom = (text) =>
+  text
+    .split('\n')
+    .map((line) => line.replace(/^[-•*\s]+/, '').trim())
+    .filter(Boolean)
 
 function validate(form) {
   const errors = {}
@@ -60,6 +60,10 @@ function validate(form) {
   if (form.availableSlots === '' || Number(form.availableSlots) < 0) errors.availableSlots = 'Enter 0 or more.'
   else if (Number(form.availableSlots) < Number(form.availableRooms)) errors.availableSlots = 'Should be at least the number of available rooms.'
   if (form.amenities.length === 0) errors.amenities = 'Pick at least one amenity.'
+  const rules = rulesFrom(form.houseRulesText)
+  if (rules.length > MAX_RULES) errors.houseRulesText = `Keep it to ${MAX_RULES} rules or fewer.`
+  else if (rules.some((rule) => rule.length > 120)) errors.houseRulesText = 'Keep each rule under 120 characters.'
+  if (Object.values(form.utilities).some((billing) => billing.length > 60)) errors.utilities = 'Keep each billing note under 60 characters.'
   return errors
 }
 
@@ -79,6 +83,10 @@ function ListingForm({ listingId }) {
           totalRooms: String(existing.totalRooms),
           availableRooms: String(existing.availableRooms),
           availableSlots: String(existing.availableSlots),
+          curfew: existing.curfew ?? '',
+          minimumStayMonths: existing.minimumStayMonths ? String(existing.minimumStayMonths) : '',
+          houseRulesText: (existing.houseRules ?? []).join('\n'),
+          utilities: Object.fromEntries((existing.utilities ?? []).map((utility) => [utility.name, utility.billing ?? ''])),
         }
       : EMPTY,
   )
@@ -86,6 +94,8 @@ function ListingForm({ listingId }) {
   const [photoError, setPhotoError] = useState('')
   const [pinMoved, setPinMoved] = useState(Boolean(existing))
   const pinMarkers = useMemo(() => [{ id: 'pin', coords: form.coords, label: form.name.trim() || 'Your boarding house', active: true }], [form.coords, form.name])
+
+  const resubmitting = existing?.approval === 'Rejected'
 
   if (listingId && !existing) {
     return (
@@ -172,10 +182,36 @@ function ListingForm({ listingId }) {
       description: form.description.trim(),
       photos: form.photos,
       coords: form.coords,
+      curfew: form.curfew || null,
+      minimumStayMonths: form.minimumStayMonths ? Number(form.minimumStayMonths) : null,
+      paymentMethods: PAYMENT_METHODS.filter((method) => form.paymentMethods.includes(method)),
+      genderPolicy: form.genderPolicy,
+      visitorsAllowed: form.visitorsAllowed,
+      cookingAllowed: form.cookingAllowed,
+      petsAllowed: form.petsAllowed,
+      houseRules: rulesFrom(form.houseRulesText),
+      utilities: UTILITIES.filter((name) => name in form.utilities).map((name) => ({ name, billing: form.utilities[name].trim() || 'Included in rent' })),
     }
     const id = saveListing(fields, existing?.id)
-    toast(existing ? 'Listing updated.' : 'Listing submitted for review.')
+    toast(resubmitting ? 'Changes saved and sent back for review.' : existing ? 'Listing updated.' : 'Listing submitted for review.')
     navigate(`/landlord/listings/${id}`, { state: { saved: existing ? 'updated' : 'created' } })
+  }
+
+  const togglePayment = (method) =>
+    setForm((current) => ({
+      ...current,
+      paymentMethods: current.paymentMethods.includes(method) ? current.paymentMethods.filter((item) => item !== method) : [...current.paymentMethods, method],
+    }))
+  const toggleUtility = (name) => {
+    setErrors(({ utilities: _cleared, ...rest }) => rest)
+    setForm((current) => {
+      const { [name]: removed, ...rest } = current.utilities
+      return { ...current, utilities: removed === undefined ? { ...current.utilities, [name]: '' } : rest }
+    })
+  }
+  const setBilling = (name, billing) => {
+    setErrors(({ utilities: _cleared, ...rest }) => rest)
+    setForm((current) => ({ ...current, utilities: { ...current.utilities, [name]: billing } }))
   }
 
   const errorCount = Object.keys(errors).length
@@ -191,10 +227,24 @@ function ListingForm({ listingId }) {
           </Link>
         }
         title={existing ? `Edit ${existing.name}` : 'Add New Listing'}
-        subtitle={existing ? 'Changes are visible to boarders right away.' : 'New listings are reviewed by an admin before boarders can see them.'}
+        subtitle={
+          resubmitting
+            ? 'Fix what the admin asked for, then save to send it back for review.'
+            : existing
+              ? 'Changes are visible to boarders right away.'
+              : 'New listings are reviewed by an admin before boarders can see them.'
+        }
       />
 
       <form onSubmit={handleSubmit} noValidate className="d-flex flex-column gap-4">
+        {resubmitting && existing.rejectionReason && (
+          <div className="alert alert-danger small d-flex gap-2 mb-0">
+            <CircleAlert size={16} className="flex-shrink-0 mt-1" aria-hidden="true" />
+            <span>
+              <strong>What the admin asked for:</strong> {existing.rejectionReason}
+            </span>
+          </div>
+        )}
         {errorCount > 0 && <Notice tone="error">Please fix the {errorCount === 1 ? 'highlighted field' : `${errorCount} highlighted fields`} below.</Notice>}
 
         <section className="card">
@@ -216,7 +266,7 @@ function ListingForm({ listingId }) {
             <TextArea
               id="description"
               label="Description"
-              hint="Mention house rules, what’s included in the rent and nearby landmarks."
+              hint="What the house is like and nearby landmarks. House rules and bills have their own sections below."
               maxLength={800}
               value={form.description}
               onChange={set('description')}
@@ -313,6 +363,118 @@ function ListingForm({ listingId }) {
         </section>
 
         <section className="card">
+          <div className="card-body p-4 d-flex flex-column gap-3">
+            <div>
+              <h2 className="fs-6 fw-semibold mb-1">Stay terms</h2>
+              <p className="small text-body-secondary mb-0">Boarders see these on your listing, so they know the rules before they visit.</p>
+            </div>
+            <div className="row g-3">
+              <div className="col-sm-4">
+                <SelectField id="genderPolicy" label="Who can stay" value={form.genderPolicy} onChange={set('genderPolicy')}>
+                  {Object.entries(GENDER_POLICIES).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </SelectField>
+              </div>
+              <div className="col-sm-4">
+                <SelectField id="curfew" label="Curfew" value={form.curfew} onChange={set('curfew')}>
+                  <option value="">No curfew</option>
+                  {[...new Set([...CURFEWS, ...(form.curfew ? [form.curfew] : [])])].map((time) => (
+                    <option key={time} value={time}>
+                      Gate closes {time}
+                    </option>
+                  ))}
+                </SelectField>
+              </div>
+              <div className="col-sm-4">
+                <SelectField id="minimumStay" label="Minimum stay" value={form.minimumStayMonths} onChange={set('minimumStayMonths')}>
+                  <option value="">No minimum</option>
+                  {[...new Set([...MINIMUM_STAYS, ...(form.minimumStayMonths ? [Number(form.minimumStayMonths)] : [])])]
+                    .sort((a, b) => a - b)
+                    .map((months) => (
+                      <option key={months} value={String(months)}>
+                        {months} {months === 1 ? 'month' : 'months'}
+                        {months === 5 ? ' (one semester)' : ''}
+                      </option>
+                    ))}
+                </SelectField>
+              </div>
+            </div>
+            <div className="d-flex flex-wrap column-gap-4 row-gap-2">
+              {[
+                ['visitorsAllowed', 'Visitors allowed'],
+                ['cookingAllowed', 'Cooking allowed'],
+                ['petsAllowed', 'Pets allowed'],
+              ].map(([key, label]) => (
+                <div key={key} className="form-check form-switch mb-0">
+                  <input id={key} type="checkbox" role="switch" className="form-check-input" checked={Boolean(form[key])} onChange={(event) => setField(key, event.target.checked)} />
+                  <label htmlFor={key} className="form-check-label small">
+                    {label}
+                  </label>
+                </div>
+              ))}
+            </div>
+            <fieldset>
+              <legend className="form-label mb-2">Payment accepted</legend>
+              <div className="d-flex flex-wrap gap-2">
+                {PAYMENT_METHODS.map((method) => (
+                  <label key={method} className={`choice ${form.paymentMethods.includes(method) ? 'checked' : ''}`} style={{ width: 'auto' }}>
+                    <input type="checkbox" className="form-check-input" checked={form.paymentMethods.includes(method)} onChange={() => togglePayment(method)} />
+                    {method}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <TextArea
+              id="houseRulesText"
+              label="House rules"
+              hint={`One rule per line, up to ${MAX_RULES}. For example: Quiet hours from 10 PM to 6 AM.`}
+              rows={4}
+              placeholder={'Visitors in the lobby only, until 8 PM\nNo smoking inside the house\nRent is due every 5th of the month'}
+              value={form.houseRulesText}
+              onChange={set('houseRulesText')}
+              error={errors.houseRulesText}
+            />
+          </div>
+        </section>
+
+        <section className="card">
+          <div className="card-body p-4">
+            <h2 className="fs-6 fw-semibold mb-1">Bills and what’s included</h2>
+            <p className="small text-body-secondary mb-3">Tick each bill the rent covers or that you collect, and say how it’s charged. Anything left unticked shows as a question boarders can ask you.</p>
+            <ul className="list-unstyled d-flex flex-column gap-2 mb-0">
+              {UTILITIES.map((name) => {
+                const included = name in form.utilities
+                return (
+                  <li key={name} className="row g-2 align-items-center">
+                    <div className="col-sm-5">
+                      <label className={`choice ${included ? 'checked' : ''}`}>
+                        <input type="checkbox" className="form-check-input" checked={included} onChange={() => toggleUtility(name)} />
+                        {name}
+                      </label>
+                    </div>
+                    <div className="col-sm-7">
+                      <input
+                        className="form-control"
+                        aria-label={`How ${name.toLowerCase()} is billed`}
+                        placeholder={included ? 'Included in rent' : 'Not included'}
+                        disabled={!included}
+                        maxLength={60}
+                        value={form.utilities[name] ?? ''}
+                        onChange={(event) => setBilling(name, event.target.value)}
+                      />
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+            {errors.utilities && <div className="invalid-feedback d-block">{errors.utilities}</div>}
+          </div>
+        </section>
+
+        <section className="card">
           <div className="card-body p-4">
             <div className="d-flex align-items-baseline justify-content-between gap-2">
               <h2 className="fs-6 fw-semibold mb-1">Photos</h2>
@@ -363,7 +525,7 @@ function ListingForm({ listingId }) {
             Cancel
           </Link>
           <button type="submit" className="btn btn-primary">
-            {existing ? 'Save changes' : 'Submit for review'}
+            {resubmitting ? 'Save and resubmit' : existing ? 'Save changes' : 'Submit for review'}
           </button>
         </div>
       </form>

@@ -1,7 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  ACTIVITY,
   AREA_CENTERS,
   BAYBAY_CENTER,
+  CONTACT_MESSAGES,
   CONVERSATIONS,
   INITIAL_FAVORITES,
   INITIAL_RECENTLY_VIEWED,
@@ -10,6 +12,7 @@ import {
   OTHER_LANDLORDS,
   RESERVATIONS,
   REVIEWS,
+  SHARED_ROOM_TYPES,
 } from '../data/mockData'
 import { loadJSON, newId, saveJSON } from '../data/storage'
 import { useAuth } from './AuthContext'
@@ -17,7 +20,7 @@ import { useAuth } from './AuthContext'
 // Stand-in for a backend: all app data lives here and is saved to localStorage,
 // so both roles see the same listings, reservations, reviews and messages in this browser.
 // Other tabs pick up changes through the `storage` event, so two signed-in tabs stay in sync.
-const DATA_KEY = 'roomease.data.v2'
+const DATA_KEY = 'roomease.data.v3'
 const DataContext = createContext(null)
 
 const DEFAULT_PREFERENCES = { emailUpdates: true, reservationAlerts: true, listingTips: false }
@@ -34,6 +37,8 @@ function seedState() {
     recentlyViewed: INITIAL_RECENTLY_VIEWED,
     compare: {},
     preferences: {},
+    activity: ACTIVITY,
+    contactMessages: CONTACT_MESSAGES,
   }
 }
 
@@ -44,6 +49,18 @@ function normalizeListing(listing) {
     photos: listing.photos ?? (listing.photo ? [listing.photo] : []),
     coords: listing.coords ?? AREA_CENTERS[listing.area] ?? BAYBAY_CENTER,
     views: listing.views ?? 0,
+    approval: listing.approval ?? 'Pending',
+    removed: listing.removed ?? false,
+    rejectionReason: listing.rejectionReason ?? null,
+    houseRules: listing.houseRules ?? [],
+    utilities: listing.utilities ?? [],
+    paymentMethods: listing.paymentMethods ?? [],
+    genderPolicy: listing.genderPolicy ?? 'any',
+    curfew: listing.curfew ?? null,
+    minimumStayMonths: listing.minimumStayMonths ?? null,
+    visitorsAllowed: listing.visitorsAllowed ?? null,
+    petsAllowed: listing.petsAllowed ?? null,
+    cookingAllowed: listing.cookingAllowed ?? null,
   }
 }
 
@@ -59,6 +76,25 @@ const today = () => new Date().toLocaleDateString('en-CA')
 function notification(userId, title, body, link) {
   return { id: newId('n'), userId, date: now(), title, body, link, read: false }
 }
+
+// One audit-log entry. `targetLabel` keeps the name as it was, so the log still reads well after a rename.
+function logEntry(actor, action, targetType, targetId, targetLabel, detail = null) {
+  return {
+    id: newId('a'),
+    date: now(),
+    actorId: actor?.id ?? null,
+    actorName: actor?.name ?? 'System',
+    actorRole: actor?.role ?? 'system',
+    action,
+    targetType,
+    targetId,
+    targetLabel,
+    detail,
+  }
+}
+
+const withLog = (activity, entry) => [entry, ...activity].slice(0, 400)
+const ADMINS = 'role:admin'
 
 function lastMessageDate(conversation) {
   return conversation.messages.at(-1)?.date ?? ''
@@ -165,8 +201,8 @@ export function DataProvider({ children }) {
   )
 
   const setReservationStatus = useCallback(
-    (reservationId, status) =>
-      update(({ reservations, notifications, listings }) => {
+    (actor, reservationId, status, note = '') =>
+      update(({ reservations, notifications, listings, activity }) => {
         const reservation = reservations.find((item) => item.id === reservationId)
         if (!reservation) return {}
         const listing = listings.find((item) => item.id === reservation.listingId)
@@ -179,39 +215,57 @@ export function DataProvider({ children }) {
                 `Reservation ${status.toLowerCase()}`,
                 status === 'Approved'
                   ? `Good news! ${listingName} approved your request. Contact the landlord to arrange your move-in.`
-                  : `${listingName} declined your request. You can browse other rooms.`,
+                  : `${listingName} declined your request${note ? `: “${note}”` : '.'} You can browse other rooms.`,
                 '/boarder/reservations',
               )
         return {
-          reservations: reservations.map((item) => (item.id === reservationId ? { ...item, status } : item)),
+          reservations: reservations.map((item) =>
+            item.id === reservationId ? { ...item, status, landlordNote: status === 'Declined' ? note || null : item.landlordNote ?? null, decidedAt: now() } : item,
+          ),
           notifications: [message, ...notifications],
+          activity: withLog(activity, logEntry(actor, `reservation.${status.toLowerCase()}`, 'reservation', reservationId, `${reservation.boarder} · ${listingName}`, note || null)),
         }
       }),
     [update],
   )
 
+  // New listings go to the admin queue. Editing a listing that was sent back resubmits it.
   const saveListing = useCallback(
-    (ownerId, fields, listingId) => {
+    (actor, fields, listingId) => {
       const id = listingId ?? newId('l')
-      update(({ listings, notifications }) => {
+      update(({ listings, notifications, activity }) => {
         if (listingId) {
-          return { listings: listings.map((item) => (item.id === listingId ? { ...item, ...fields } : item)) }
+          const existing = listings.find((item) => item.id === listingId)
+          if (!existing) return {}
+          const resubmit = existing.approval === 'Rejected'
+          return {
+            listings: listings.map((item) =>
+              item.id === listingId ? { ...item, ...fields, ...(resubmit ? { approval: 'Pending', rejectionReason: null, submittedAt: now(), moderatedAt: null } : {}) } : item,
+            ),
+            notifications: resubmit
+              ? [notification(ADMINS, 'Listing resubmitted', `${actor.name} updated ${fields.name} after it was sent back.`, `/admin/listings/${listingId}`), ...notifications]
+              : notifications,
+            activity: withLog(activity, logEntry(actor, resubmit ? 'listing.resubmitted' : 'listing.updated', 'listing', listingId, fields.name)),
+          }
         }
         const listing = normalizeListing({
           ...fields,
           id,
-          ownerId,
+          ownerId: actor.id,
           city: 'Baybay City',
           approval: 'Pending',
+          submittedAt: now(),
           views: 0,
-          art: { house: listings.length % 3, room: fields.roomType === 'Shared Room' ? 'bunk' : 'single' },
+          art: { house: listings.length % 3, room: SHARED_ROOM_TYPES.includes(fields.roomType) ? 'bunk' : 'single' },
         })
         return {
           listings: [listing, ...listings],
           notifications: [
-            notification(ownerId, 'Listing submitted for review', `${fields.name} will be visible to boarders once an admin approves it.`, `/landlord/listings/${id}`),
+            notification(actor.id, 'Listing submitted for review', `${fields.name} will be visible to boarders once an admin approves it.`, `/landlord/listings/${id}`),
+            notification(ADMINS, 'New listing to review', `${actor.name} submitted ${fields.name}.`, `/admin/listings/${id}`),
             ...notifications,
           ],
+          activity: withLog(activity, logEntry(actor, 'listing.submitted', 'listing', id, fields.name)),
         }
       })
       return id
@@ -219,7 +273,89 @@ export function DataProvider({ children }) {
     [update],
   )
 
-  const deleteListing = useCallback((listingId) => update(({ listings }) => ({ listings: listings.filter((item) => item.id !== listingId) })), [update])
+  // Admin: approve, or send back with a reason the landlord sees.
+  const moderateListing = useCallback(
+    (actor, listingId, decision, reason = '') =>
+      update(({ listings, notifications, activity }) => {
+        const listing = listings.find((item) => item.id === listingId)
+        if (!listing) return {}
+        const approved = decision === 'Approved'
+        return {
+          listings: listings.map((item) =>
+            item.id === listingId ? { ...item, approval: decision, rejectionReason: approved ? null : reason, moderatedAt: now() } : item,
+          ),
+          notifications: [
+            approved
+              ? notification(listing.ownerId, 'Listing approved', `${listing.name} is now live. Boarders can find it, save it and request a room.`, `/landlord/listings/${listingId}`)
+              : notification(listing.ownerId, 'Listing needs changes', `${listing.name}: ${reason}`, `/landlord/listings/${listingId}`),
+            ...notifications,
+          ],
+          activity: withLog(activity, logEntry(actor, approved ? 'listing.approved' : 'listing.rejected', 'listing', listingId, listing.name, approved ? null : reason)),
+        }
+      }),
+    [update],
+  )
+
+  // Admin: hide a listing from the site (archived, not deleted), or bring it back.
+  const setListingRemoved = useCallback(
+    (actor, listingId, removed, reason = '') =>
+      update(({ listings, notifications, activity }) => {
+        const listing = listings.find((item) => item.id === listingId)
+        if (!listing) return {}
+        return {
+          listings: listings.map((item) => (item.id === listingId ? { ...item, removed, removedReason: removed ? reason : null } : item)),
+          notifications: [
+            notification(
+              listing.ownerId,
+              removed ? 'Listing removed' : 'Listing restored',
+              removed ? `${listing.name} was removed by an administrator${reason ? `: ${reason}` : '.'}` : `${listing.name} is back on RoomEase.`,
+              `/landlord/listings/${listingId}`,
+            ),
+            ...notifications,
+          ],
+          activity: withLog(activity, logEntry(actor, removed ? 'listing.removed' : 'listing.restored', 'listing', listingId, listing.name, reason || null)),
+        }
+      }),
+    [update],
+  )
+
+  // For actions that live outside this store (e.g. deactivating an account in AuthContext).
+  const logEvent = useCallback(
+    (actor, action, targetType, targetId, targetLabel, detail) =>
+      update(({ activity }) => ({ activity: withLog(activity, logEntry(actor, action, targetType, targetId, targetLabel, detail)) })),
+    [update],
+  )
+
+  const sendContactMessage = useCallback(
+    (fields) =>
+      update(({ contactMessages, notifications }) => ({
+        contactMessages: [{ id: newId('cm'), date: now(), read: false, ...fields }, ...contactMessages],
+        notifications: [notification(ADMINS, 'New contact message', `${fields.name}: ${fields.topic}`, '/admin/inbox'), ...notifications],
+      })),
+    [update],
+  )
+
+  const setContactRead = useCallback(
+    (messageId, read) => update(({ contactMessages }) => ({ contactMessages: contactMessages.map((item) => (item.id === messageId ? { ...item, read } : item)) })),
+    [update],
+  )
+
+  const deleteContactMessage = useCallback(
+    (messageId) => update(({ contactMessages }) => ({ contactMessages: contactMessages.filter((item) => item.id !== messageId) })),
+    [update],
+  )
+
+  const deleteListing = useCallback(
+    (actor, listingId) =>
+      update(({ listings, activity }) => {
+        const listing = listings.find((item) => item.id === listingId)
+        return {
+          listings: listings.filter((item) => item.id !== listingId),
+          activity: withLog(activity, logEntry(actor, 'listing.deleted', 'listing', listingId, listing?.name ?? 'Listing')),
+        }
+      }),
+    [update],
+  )
 
   const updateListing = useCallback(
     (listingId, changes) => update(({ listings }) => ({ listings: listings.map((item) => (item.id === listingId ? { ...item, ...changes } : item)) })),
@@ -307,7 +443,7 @@ export function DataProvider({ children }) {
   )
 
   const markAllRead = useCallback(
-    (userId) => update(({ notifications }) => ({ notifications: notifications.map((item) => (item.userId === userId ? { ...item, read: true } : item)) })),
+    (userIds) => update(({ notifications }) => ({ notifications: notifications.map((item) => (userIds.includes(item.userId) ? { ...item, read: true } : item)) })),
     [update],
   )
 
@@ -325,9 +461,11 @@ export function DataProvider({ children }) {
   const resetDemoData = useCallback(() => setState(seedState()), [])
 
   const value = useMemo(() => {
-    const { listings, reservations, notifications, reviews, conversations, favorites, recentlyViewed, compare, preferences } = state
+    const { listings, reservations, notifications, reviews, conversations, favorites, recentlyViewed, compare, preferences, activity, contactMessages } = state
     const userId = user?.id
-    const myNotifications = notifications.filter((item) => item.userId === userId)
+    // Personal notifications plus ones sent to the whole role (e.g. every admin).
+    const myNotificationIds = user ? [user.id, `role:${user.role}`] : []
+    const myNotifications = notifications.filter((item) => myNotificationIds.includes(item.userId))
     const myListingIds = new Set(listings.filter((item) => item.ownerId === userId).map((item) => item.id))
 
     const listingById = (id) => listings.find((item) => item.id === id)
@@ -357,14 +495,18 @@ export function DataProvider({ children }) {
       })
       .sort((a, b) => lastMessageDate(b).localeCompare(lastMessageDate(a)))
 
-    const myCompare = (compare[userId] ?? []).filter((id) => listings.some((item) => item.id === id && item.approval === 'Approved'))
+    // Guests can compare rooms too; their picks are kept under "guest".
+    const compareKey = userId ?? 'guest'
+    const myCompare = (compare[compareKey] ?? []).filter((id) => listings.some((item) => item.id === id && item.approval === 'Approved' && !item.removed))
 
     return {
       listings,
       reservations,
       reviews,
       // Boarders only see listings an admin has approved.
-      publicListings: listings.filter((item) => item.approval === 'Approved'),
+      publicListings: listings.filter((item) => item.approval === 'Approved' && !item.removed),
+      activity,
+      contactMessages,
       myListings: listings.filter((item) => item.ownerId === userId),
       myReservations: reservations.filter((item) => item.boarderId === userId),
       incomingReservations: reservations.filter((item) => myListingIds.has(item.listingId)),
@@ -384,15 +526,25 @@ export function DataProvider({ children }) {
         notifications: myNotifications.filter((item) => !item.read).length,
         pendingReservations: reservations.filter((item) => myListingIds.has(item.listingId) && item.status === 'Pending').length,
         messages: myConversations.reduce((sum, item) => sum + item.unread, 0),
+        pendingListings: listings.filter((item) => item.approval === 'Pending' && !item.removed).length,
+        unreadContact: contactMessages.filter((item) => !item.read).length,
       },
       toggleFavorite: (listingId) => toggleFavorite(userId, listingId),
-      recordView: (listingId) => recordView(userId, listingId),
-      toggleCompare: (listingId) => toggleCompare(userId, listingId),
-      clearCompare: () => clearCompare(userId),
+      recordView: (listingId) => recordView(compareKey, listingId),
+      toggleCompare: (listingId) => toggleCompare(compareKey, listingId),
+      clearCompare: () => clearCompare(compareKey),
       createReservation,
-      setReservationStatus,
-      saveListing: (fields, listingId) => saveListing(userId, fields, listingId),
-      deleteListing,
+      setReservationStatus: (reservationId, status, note) => setReservationStatus(user, reservationId, status, note),
+      saveListing: (fields, listingId) => saveListing(user, fields, listingId),
+      deleteListing: (listingId) => deleteListing(user, listingId),
+      moderateListing: (listingId, decision, reason) => moderateListing(user, listingId, decision, reason),
+      setListingRemoved: (listingId, removed, reason) => setListingRemoved(user, listingId, removed, reason),
+      logEvent: (action, targetType, targetId, targetLabel, detail) => logEvent(user, action, targetType, targetId, targetLabel, detail),
+      // For the moment right after sign-up, before the new account is the signed-in user.
+      logEventAs: logEvent,
+      sendContactMessage,
+      setContactRead,
+      deleteContactMessage,
       updateListing,
       saveReview: (listing, fields) => saveReview(user, listing, fields),
       deleteReview,
@@ -405,7 +557,7 @@ export function DataProvider({ children }) {
       sendMessage: (conversationId, text) => sendMessage(userId, conversationId, text),
       markConversationRead: (conversationId) => markConversationRead(userId, conversationId),
       markNotificationRead,
-      markAllRead: () => markAllRead(userId),
+      markAllRead: () => markAllRead(myNotificationIds),
       deleteNotification,
       setPreferences: (changes) => setPreferences(userId, changes),
       resetDemoData,
@@ -423,6 +575,12 @@ export function DataProvider({ children }) {
     saveListing,
     deleteListing,
     updateListing,
+    moderateListing,
+    setListingRemoved,
+    logEvent,
+    sendContactMessage,
+    setContactRead,
+    deleteContactMessage,
     saveReview,
     deleteReview,
     replyToReview,

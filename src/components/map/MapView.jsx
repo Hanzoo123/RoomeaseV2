@@ -8,7 +8,8 @@ const ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">Op
 
 const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`)
 
-// Leaflet map with labelled pins. `markers`: [{ id, coords: [lat, lng], label, active }].
+// Leaflet map with labelled pins. `markers`: [{ id, coords: [lat, lng], label, active, kind }];
+// kind 'me' draws the visitor's own position as a dot instead of a pin.
 // Pins are HTML (L.divIcon), so they render even if map tiles can't load.
 export default function MapView({ markers = [], onMarkerClick, onMapClick, center = BAYBAY_CENTER, zoom = 14, fit = true, className = '', style, label = 'Map' }) {
   const containerRef = useRef(null)
@@ -63,7 +64,10 @@ export default function MapView({ markers = [], onMarkerClick, onMapClick, cente
     for (const marker of markers) {
       const icon = L.divIcon({
         className: 'map-pin-anchor',
-        html: `<span class="map-pin${marker.active ? ' active' : ''}">${escapeHtml(marker.label)}</span>`,
+        html:
+          marker.kind === 'me'
+            ? '<span class="map-me"></span>'
+            : `<span class="map-pin${marker.active ? ' active' : ''}">${escapeHtml(marker.label)}</span>`,
         iconSize: [0, 0],
         iconAnchor: [0, 0],
       })

@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom'
 import { Eye, SquarePen } from 'lucide-react'
 import { formatPeso } from '../../data/mockData'
-import { ListingImage, Tag } from '../ui'
+import ListingStatus from './ListingStatus'
+import { ListingImage } from '../ui'
 
 // Landlord-side summary row for one boarding house.
 export default function ListingRow({ listing, children }) {
@@ -16,8 +17,13 @@ export default function ListingRow({ listing, children }) {
         <div className="flex-grow-1" style={{ minWidth: 0 }}>
           <div className="d-flex flex-wrap align-items-center gap-2">
             <h3 className="fs-6 fw-semibold mb-0">{listing.name}</h3>
-            <Tag tone="approval">{listing.approval}</Tag>
+            <ListingStatus listing={listing} />
           </div>
+          {listing.approval === 'Rejected' && !listing.removed && listing.rejectionReason && (
+            <p className="small text-danger-emphasis mt-1 mb-0">
+              <strong>Needs changes:</strong> {listing.rejectionReason}
+            </p>
+          )}
           <p className="small text-body-secondary mt-1 mb-1">
             {listing.area}, {listing.city}
           </p>

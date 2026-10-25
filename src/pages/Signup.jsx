@@ -3,7 +3,11 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { Lock, Mail, Phone, User } from 'lucide-react'
 import { ROLE_META } from '../config/navigation'
 import { useAuth, validateEmail } from '../context/AuthContext'
+import { passwordIsStrong, validatePhone } from '../data/validation'
+import PasswordChecklist from '../components/auth/PasswordChecklist'
+import { useData } from '../context/DataContext'
 import { useToast } from '../context/ToastContext'
+import { pathAfterSignIn } from '../context/SitePaths'
 import AuthShell, { IconField, RoleTabs, usePasswordToggle } from '../components/auth/AuthShell'
 import { Notice } from '../components/ui'
 
@@ -13,14 +17,15 @@ function validate(form) {
   const errors = {}
   if (form.name.trim().split(/\s+/).length < 2) errors.name = 'Enter your first and last name.'
   if (!validateEmail(form.email)) errors.email = 'Enter a valid email address.'
-  if (form.phone.replace(/\D/g, '').length < 10) errors.phone = 'Enter a valid mobile number, e.g. 0917 123 4567.'
-  if (form.password.length < 8) errors.password = 'Use at least 8 characters.'
+  if (!validatePhone(form.phone)) errors.phone = 'Enter an 11-digit mobile number starting with 09, e.g. 0917 123 4567.'
+  if (!passwordIsStrong(form.password)) errors.password = 'Your password needs everything on the list below.'
   if (form.confirm !== form.password) errors.confirm = 'Passwords don’t match.'
   return errors
 }
 
 export default function Signup() {
   const { user, register } = useAuth()
+  const { logEventAs } = useData()
   const navigate = useNavigate()
   const location = useLocation()
   const [role, setRole] = useState(location.state?.role ?? 'boarder')
@@ -31,7 +36,8 @@ export default function Signup() {
   const [passwordType, passwordToggle] = usePasswordToggle()
   const toast = useToast()
 
-  if (user) return <Navigate to={`/${user.role}`} replace />
+  // Also covers the render right after signing in, so it must agree with handleSubmit.
+  if (user) return <Navigate to={pathAfterSignIn(location.state?.from, user.role)} replace />
 
   const set = (key) => (event) => {
     setForm((current) => ({ ...current, [key]: event.target.value }))
@@ -47,8 +53,9 @@ export default function Signup() {
 
     const result = register({ name: form.name, email: form.email, phone: form.phone, password: form.password, role })
     if (!result.ok) return setError(result.error)
+    logEventAs(result.user, 'user.created', 'user', result.user.id, result.user.name, `Signed up as a ${role}`)
     toast('Account created. Welcome to RoomEase!')
-    navigate(`/${role}`, { replace: true })
+    navigate(pathAfterSignIn(location.state?.from, role), { replace: true })
   }
 
   return (
@@ -72,6 +79,7 @@ export default function Signup() {
               type={passwordType}
               autoComplete="new-password"
               placeholder="8+ characters"
+              aria-describedby="password-rules"
               value={form.password}
               onChange={set('password')}
               error={errors.password}
@@ -82,11 +90,20 @@ export default function Signup() {
             <IconField id="confirm" label="Confirm password" icon={Lock} type={passwordType} autoComplete="new-password" value={form.confirm} onChange={set('confirm')} error={errors.confirm} />
           </div>
         </div>
+        <PasswordChecklist password={form.password} id="password-rules" />
 
         <div className="form-check small mb-0">
           <input id="agree" type="checkbox" className="form-check-input" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} />
           <label htmlFor="agree" className="form-check-label">
-            I agree to the RoomEase Terms & Conditions and Privacy Policy.
+            I agree to the RoomEase{' '}
+            <Link to="/terms" target="_blank" rel="noopener">
+              Terms & Conditions
+            </Link>{' '}
+            and{' '}
+            <Link to="/privacy" target="_blank" rel="noopener">
+              Privacy Policy
+            </Link>
+            .
           </label>
         </div>
 
@@ -99,7 +116,7 @@ export default function Signup() {
 
       <p className="small text-body-secondary text-center mt-4 mb-0">
         Already have an account?{' '}
-        <Link to="/login" state={{ role }} className="fw-semibold text-decoration-none">
+        <Link to="/login" state={{ role, from: location.state?.from }} className="fw-semibold text-decoration-none">
           Sign in
         </Link>
       </p>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { ArrowLeft, MessageCircle, Send } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
@@ -61,7 +61,9 @@ function ConversationList({ conversations, activeId, role }) {
 function Thread({ conversation, role }) {
   const { user } = useAuth()
   const { sendMessage, markConversationRead } = useData()
-  const [text, setText] = useState('')
+  // A question picked on the room page ("Worth asking the landlord") arrives as a draft.
+  const location = useLocation()
+  const [text, setText] = useState(() => location.state?.draft ?? '')
   const scrollRef = useRef(null)
   const messageCount = conversation.messages.length
 

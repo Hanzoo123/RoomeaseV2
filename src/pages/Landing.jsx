@@ -6,34 +6,21 @@ import {
   CalendarCheck,
   ChartColumn,
   CircleCheck,
+  CircleDashed,
+  CircleX,
   MapPin,
-  Menu,
   MessageCircle,
   Quote,
   Scale,
   Search,
   ShieldCheck,
   Star,
-  X,
 } from 'lucide-react'
-import { useAuth } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
-import { AREAS, availabilityOf, distanceKm, formatDistance, formatPeso, LOCATIONS, VSU_COORDS } from '../data/mockData'
+import { AREAS, availabilityOf, distanceKm, formatDistance, formatPeso, LOCATIONS, ROOM_TYPE_INFO, ROOM_TYPES, VSU_COORDS } from '../data/mockData'
 import StreetArt from '../components/illustrations/StreetArt'
 import { RatingBadge, Stars } from '../components/reviews/Stars'
 import { ListingImage, Tag } from '../components/ui'
-import { ThemeToggle } from '../components/ui/feedback'
-import Logo from '../components/ui/Logo'
-
-const YEAR = new Date().getFullYear()
-
-const NAV_LINKS = [
-  ['#features', 'Features'],
-  ['#rooms', 'Rooms'],
-  ['#how-it-works', 'How it works'],
-  ['#areas', 'Areas'],
-  ['#faq', 'FAQ'],
-]
 
 const FEATURES = [
   { icon: Search, title: 'Search & map', body: 'Filter by area, budget, room type and amenities, then see every house on a map with prices.' },
@@ -60,62 +47,11 @@ const STEPS = {
 const FAQS = [
   ['Is RoomEase free for boarders?', 'Yes. Searching, saving, messaging and sending reservation requests are all free for boarders.'],
   ['How are listings checked?', 'Every new listing is reviewed by an admin before boarders can see it. Reviews can only be written by boarders with an approved stay.'],
+  ['Do I need an account to look at rooms?', 'No. Anyone can open Find Place to Stay and every listing. An account is only needed to save rooms, send a request or message a landlord.'],
   ['Do I pay when I send a reservation request?', 'No. A request only asks the landlord to hold a room. You arrange payment directly with the landlord after approval.'],
   ['Can I list more than one boarding house?', 'Yes. Landlords can add as many properties as they manage and track each one separately.'],
   ['Which areas are covered?', `Baybay City, Leyte, including ${AREAS.join(', ')}.`],
 ]
-
-function LandingNav() {
-  const { user } = useAuth()
-  const [open, setOpen] = useState(false)
-
-  return (
-    <nav className="navbar navbar-expand-lg sticky-top topbar border-bottom" aria-label="Main">
-      <div className="container">
-        <Link to="/" className="navbar-brand py-0" aria-label="RoomEase home">
-          <Logo tone="dark" />
-        </Link>
-        <div className="d-flex align-items-center gap-1 d-lg-none">
-          <ThemeToggle />
-          <button className="icon-btn" type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-controls="landing-nav" aria-label="Toggle navigation">
-            {open ? <X size={22} /> : <Menu size={22} />}
-          </button>
-        </div>
-        <div id="landing-nav" className={`collapse navbar-collapse ${open ? 'show' : ''}`}>
-          <ul className="navbar-nav mx-auto gap-lg-2 py-2 py-lg-0">
-            {NAV_LINKS.map(([href, label]) => (
-              <li key={href} className="nav-item">
-                <a className="nav-link small fw-medium" href={href} onClick={() => setOpen(false)}>
-                  {label}
-                </a>
-              </li>
-            ))}
-          </ul>
-          <div className="d-flex align-items-center gap-2 pb-3 pb-lg-0">
-            <span className="d-none d-lg-inline-flex">
-              <ThemeToggle />
-            </span>
-            {user ? (
-              <Link to={`/${user.role}`} className="btn btn-primary">
-                Go to dashboard
-                <ArrowRight size={16} aria-hidden="true" />
-              </Link>
-            ) : (
-              <>
-                <Link to="/login" className="btn btn-outline-secondary">
-                  Sign in
-                </Link>
-                <Link to="/signup" className="btn btn-primary">
-                  Get started
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    </nav>
-  )
-}
 
 function HeroSearch() {
   const navigate = useNavigate()
@@ -129,7 +65,7 @@ function HeroSearch() {
       onSubmit={(event) => {
         event.preventDefault()
         const params = new URLSearchParams(Object.entries({ location, max: budget }).filter(([, value]) => value))
-        navigate(`/boarder/browse${params.size ? `?${params}` : ''}`)
+        navigate(`/rooms${params.size ? `?${params}` : ''}`)
       }}
     >
       <div className="row g-2 align-items-center">
@@ -261,7 +197,7 @@ function PublicRoomCard({ listing, rating }) {
         <p className="small text-body-secondary mb-3">
           <span className="fs-5 fw-bold text-body">{formatPeso(listing.price)}</span> / month
         </p>
-        <Link to={`/boarder/rooms/${listing.id}`} className="btn btn-outline-primary w-100 mt-auto">
+        <Link to={`/rooms/${listing.id}`} className="btn btn-outline-primary w-100 mt-auto">
           View details
         </Link>
       </div>
@@ -353,50 +289,57 @@ function Faq() {
   )
 }
 
-function Footer() {
+// Photo tiles for the five room types, each opening Find Place to Stay filtered to that type.
+function RoomTypes({ listings }) {
   return (
-    <footer className="bg-sidebar-gradient text-white pt-5 pb-4">
-      <div className="container">
-        <div className="row g-4">
-          <div className="col-lg-4">
-            <Logo tagline="Find Your Perfect Room" />
-            <p className="small text-white text-opacity-75 mt-3 mb-0" style={{ maxWidth: '20rem' }}>
-              Helping students and workers in Baybay City find safe, affordable boarding houses, and helping landlords fill them.
-            </p>
-          </div>
-          {[
-            ['For boarders', [['/boarder/browse', 'Browse rooms'], ['/signup', 'Create an account'], ['/login', 'Sign in']]],
-            ['For landlords', [['/signup', 'List your property'], ['/landlord/analytics', 'Landlord analytics'], ['/login', 'Landlord sign in']]],
-          ].map(([heading, links]) => (
-            <div key={heading} className="col-6 col-lg-2">
-              <h2 className="small fw-semibold text-uppercase text-white text-opacity-75 mb-3" style={{ letterSpacing: '0.06em' }}>
-                {heading}
-              </h2>
-              <ul className="list-unstyled small d-flex flex-column gap-2 mb-0">
-                {links.map(([to, label]) => (
-                  <li key={label}>
-                    <Link to={to} state={heading === 'For landlords' ? { role: 'landlord' } : undefined} className="link-light link-opacity-75 link-opacity-100-hover text-decoration-none">
-                      {label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-          <div className="col-lg-4">
-            <h2 className="small fw-semibold text-uppercase text-white text-opacity-75 mb-3" style={{ letterSpacing: '0.06em' }}>
-              Contact
-            </h2>
-            <p className="small text-white text-opacity-75 mb-1">hello@roomease.ph</p>
-            <p className="small text-white text-opacity-75 mb-0">Baybay City, Leyte, Philippines</p>
-          </div>
-        </div>
-        <div className="d-flex flex-column flex-sm-row justify-content-between gap-2 border-top border-white border-opacity-10 pt-4 mt-5 text-xs text-white text-opacity-50">
-          <span>© {YEAR} RoomEase. All rights reserved.</span>
-          <span>Privacy Policy · Terms & Conditions</span>
+    <section id="room-types" className="pb-5">
+      <div className="container pb-lg-4">
+        <SectionTitle eyebrow="By room type" title="Pick the kind of room you want" body="From a room of your own to a bed in a shared dorm, sorted the way boarders ask for them." />
+        <div className="row row-cols-2 row-cols-md-3 row-cols-lg-5 g-3">
+          {ROOM_TYPES.map((type) => {
+            const count = listings.filter((listing) => listing.roomType === type).length
+            return (
+              <div key={type} className="col">
+                <Link to={`/rooms?roomType=${encodeURIComponent(type)}`} className="room-type-tile card h-100 overflow-hidden text-reset-link card-hover">
+                  <div className="ratio ratio-4x3">
+                    <img src={ROOM_TYPE_INFO[type].photo} alt="" loading="lazy" />
+                  </div>
+                  <div className="card-body p-3">
+                    <p className="fw-semibold mb-0">{type}</p>
+                    <p className="text-xs text-body-secondary mb-1">{ROOM_TYPE_INFO[type].blurb}</p>
+                    <p className="text-xs fw-medium text-primary mb-0">
+                      {count ? `${count} ${count === 1 ? 'house' : 'houses'}` : 'None listed yet'}
+                    </p>
+                  </div>
+                </Link>
+              </div>
+            )
+          })}
         </div>
       </div>
-    </footer>
+    </section>
+  )
+}
+
+// The three states a landlord sees on a listing after submitting it.
+function ReviewSteps() {
+  const steps = [
+    { icon: CircleDashed, label: 'In review', body: 'An admin checks it first' },
+    { icon: CircleCheck, label: 'Live', body: 'Boarders can find it' },
+    { icon: CircleX, label: 'Needs changes', body: 'You see why, fix it and resubmit' },
+  ]
+  return (
+    <ol className="review-steps list-unstyled d-flex flex-wrap gap-2 mt-4 mb-0" aria-label="How a new listing is reviewed">
+      {steps.map(({ icon: Icon, label, body }) => (
+        <li key={label} className="review-step d-flex align-items-center gap-2">
+          <Icon size={16} className="flex-shrink-0" aria-hidden="true" />
+          <span>
+            <span className="d-block small fw-semibold">{label}</span>
+            <span className="d-block text-2xs text-white text-opacity-75">{body}</span>
+          </span>
+        </li>
+      ))}
+    </ol>
   )
 }
 
@@ -412,26 +355,24 @@ export default function Landing() {
     rooms: publicListings.reduce((sum, listing) => sum + listing.availableRooms, 0),
     reviews: publicReviews.length,
     rating: publicReviews.length ? publicReviews.reduce((sum, item) => sum + item.rating, 0) / publicReviews.length : 0,
+    // What it costs to move in somewhere today, not the cheapest full house.
+    lowestOpen: Math.min(...publicListings.filter((listing) => listing.availableRooms > 0).map((listing) => listing.price)),
   }
   const testimonials = publicReviews.filter((item) => item.rating === 5).slice(0, 3)
 
   return (
-    <div data-theme="boarder" className="landing">
-      <a href="#main" className="visually-hidden-focusable position-absolute top-0 start-0 m-2 btn btn-primary z-3">
-        Skip to content
-      </a>
-      <LandingNav />
+    <>
       <Hero stats={stats} />
 
-      <main id="main">
+      <div>
         <section aria-label="RoomEase in numbers" className="container">
           <div className="card stats-strip shadow">
             <div className="row g-0 text-center">
               {[
                 [stats.houses, 'Approved boarding houses'],
                 [stats.rooms, 'Rooms available now'],
+                [Number.isFinite(stats.lowestOpen) ? formatPeso(stats.lowestOpen) : '—', 'Lowest monthly rent with a free slot'],
                 [stats.reviews, 'Verified reviews'],
-                [AREAS.length, 'Areas in Baybay City'],
               ].map(([value, label]) => (
                 <div key={label} className="col-6 col-md-3 py-4 px-2">
                   <p className="display-6 fw-bold text-primary mb-0">{value}</p>
@@ -472,7 +413,7 @@ export default function Landing() {
                 </p>
                 <h2 className="h1 fw-bold tracking-tight mb-0">Boarders’ favorites right now</h2>
               </div>
-              <Link to="/boarder/browse" className="btn btn-outline-secondary align-self-start align-self-md-auto">
+              <Link to="/rooms" className="btn btn-outline-secondary align-self-start align-self-md-auto">
                 See all rooms
                 <ArrowRight size={16} aria-hidden="true" />
               </Link>
@@ -487,6 +428,8 @@ export default function Landing() {
           </div>
         </section>
 
+        <RoomTypes listings={publicListings} />
+
         <HowItWorks />
 
         <section id="areas" className="py-5">
@@ -497,7 +440,7 @@ export default function Landing() {
                 const count = publicListings.filter((listing) => listing.area === location.name).length
                 return (
                   <div key={location.id} className="col-6 col-lg-3">
-                    <Link to={`/boarder/browse?location=${encodeURIComponent(location.name)}`} className="card h-100 p-2 text-reset-link hover-zoom card-hover">
+                    <Link to={`/rooms?location=${encodeURIComponent(location.name)}`} className="card h-100 p-2 text-reset-link hover-zoom card-hover">
                       <div className="ratio rounded-3 overflow-hidden" style={{ '--bs-aspect-ratio': '70%' }}>
                         <StreetArt variant={location.art} />
                       </div>
@@ -564,6 +507,7 @@ export default function Landing() {
                     </li>
                   ))}
                 </ul>
+                <ReviewSteps />
               </div>
               <Link to="/signup" state={{ role: 'landlord' }} className="btn btn-light btn-lg text-primary fw-semibold flex-shrink-0">
                 List your property
@@ -584,15 +528,13 @@ export default function Landing() {
               <Link to="/signup" className="btn btn-primary btn-lg">
                 Get started
               </Link>
-              <Link to="/boarder/browse" className="btn btn-outline-secondary btn-lg">
-                Browse rooms
+              <Link to="/rooms" className="btn btn-outline-secondary btn-lg">
+                Find a place to stay
               </Link>
             </div>
           </div>
         </section>
-      </main>
-
-      <Footer />
-    </div>
+      </div>
+    </>
   )
 }

@@ -1,22 +1,22 @@
 import { useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
-import { ArrowLeft, DoorOpen, House, MapPin, SearchX, SquarePen, Users } from 'lucide-react'
+import { ArrowLeft, CircleAlert, Clock, DoorOpen, ExternalLink, House, MapPin, SearchX, SquarePen, Users } from 'lucide-react'
 import { useData } from '../../context/DataContext'
-import { useToast } from '../../context/ToastContext'
 import { formatPeso } from '../../data/mockData'
+import LivingHere from '../../components/listings/LivingHere'
+import ListingStatus from '../../components/listings/ListingStatus'
 import PhotoGallery from '../../components/listings/PhotoGallery'
 import { FeatureList } from '../../components/listings/RoomCard'
 import ReservationDialog from '../../components/reservations/ReservationDialog'
 import ReviewsSection from '../../components/reviews/ReviewsSection'
 import ReservationsTable from '../../components/reservations/ReservationsTable'
-import { EmptyState, Notice, SectionHeader, Tag } from '../../components/ui'
+import { EmptyState, Notice, SectionHeader } from '../../components/ui'
 
 export default function ListingView() {
   const { listingId } = useParams()
   const { state } = useLocation()
-  const { myListings, incomingReservations, setReservationStatus, updateListing } = useData()
+  const { myListings, incomingReservations, setReservationStatus } = useData()
   const [selectedId, setSelectedId] = useState(null)
-  const toast = useToast()
   const listing = myListings.find((item) => item.id === listingId)
 
   if (!listing) {
@@ -52,7 +52,7 @@ export default function ListingView() {
           </Link>
           <div className="d-flex flex-wrap align-items-center gap-2">
             <h1 className="h4 fw-bold tracking-tight mb-0">{listing.name}</h1>
-            <Tag tone="approval">{listing.approval}</Tag>
+            <ListingStatus listing={listing} />
           </div>
           <p className="d-flex align-items-center gap-1 small text-body-secondary mt-1 mb-0">
             <MapPin size={16} className="flex-shrink-0" aria-hidden="true" />
@@ -60,32 +60,51 @@ export default function ListingView() {
             {listing.area}, {listing.city}
           </p>
         </div>
-        <Link to={`/landlord/listings/${listing.id}/edit`} className="btn btn-primary align-self-start align-self-sm-auto">
-          <SquarePen size={16} aria-hidden="true" />
-          Edit listing
-        </Link>
+        <div className="d-flex flex-wrap gap-2 align-self-start align-self-sm-auto">
+          {listing.approval === 'Approved' && !listing.removed && (
+            <Link to={`/rooms/${listing.id}`} className="btn btn-outline-secondary" target="_blank" rel="noopener">
+              <ExternalLink size={16} aria-hidden="true" />
+              See it as boarders do
+            </Link>
+          )}
+          <Link to={`/landlord/listings/${listing.id}/edit`} className="btn btn-primary">
+            <SquarePen size={16} aria-hidden="true" />
+            {listing.approval === 'Rejected' && !listing.removed ? 'Edit and resubmit' : 'Edit listing'}
+          </Link>
+        </div>
       </div>
 
       {state?.saved && <Notice>{state.saved === 'created' ? 'Listing submitted! It’s now waiting for admin review.' : 'Changes saved.'}</Notice>}
 
-      {listing.approval === 'Pending' && (
-        <div className="alert alert-warning d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 small mb-0">
+      {listing.removed ? (
+        <div className="alert alert-dark d-flex gap-2 small mb-0">
+          <CircleAlert size={16} className="flex-shrink-0 mt-1" aria-hidden="true" />
           <p className="mb-0">
-            <strong>Waiting for admin review.</strong> Boarders can’t see this listing until it’s approved.
+            <strong>Removed by an administrator</strong>
+            {listing.removedReason ? `: ${listing.removedReason}` : '.'} Boarders can’t see it. If you think this is a mistake, <Link to="/contact">contact the RoomEase team</Link>.
           </p>
-          <button
-            type="button"
-            onClick={() => {
-              updateListing(listing.id, { approval: 'Approved' })
-              toast('Listing approved. Boarders can see it now.')
-            }}
-            className="btn btn-sm btn-light border flex-shrink-0"
-            title="There is no admin panel yet, so this simulates the approval."
-          >
-            Approve now (demo)
-          </button>
         </div>
-      )}
+      ) : listing.approval === 'Rejected' ? (
+        <div className="alert alert-danger d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 small mb-0">
+          <p className="d-flex gap-2 mb-0">
+            <CircleAlert size={16} className="flex-shrink-0 mt-1" aria-hidden="true" />
+            <span>
+              <strong>Needs changes:</strong> {listing.rejectionReason || 'An admin asked for changes.'} Fix it and save, and it goes back for review.
+            </span>
+          </p>
+          <Link to={`/landlord/listings/${listing.id}/edit`} className="btn btn-sm btn-danger flex-shrink-0">
+            Fix and resubmit
+          </Link>
+        </div>
+      ) : listing.approval === 'Pending' ? (
+        <div className="alert alert-warning d-flex gap-2 small mb-0">
+          <Clock size={16} className="flex-shrink-0 mt-1" aria-hidden="true" />
+          <p className="mb-0">
+            <strong>In review.</strong> An admin checks every new listing, usually within a few days. Boarders can’t see it until it’s approved.
+            <span className="d-block text-body-secondary mt-1">Demo: sign in as admin@roomease.ph (password admin123) to approve it from the admin panel.</span>
+          </p>
+        </div>
+      ) : null}
 
       <div className="row g-4">
         <div className="col-lg-6">
@@ -119,6 +138,8 @@ export default function ListingView() {
         </div>
       </div>
 
+      <LivingHere listing={listing} title="Stay terms" />
+
       <ReviewsSection listing={listing} landlordMode />
 
       <section>
@@ -135,8 +156,8 @@ export default function ListingView() {
           reservation={selected}
           listingName={listing.name}
           onClose={() => setSelectedId(null)}
-          onDecide={(status) => {
-            setReservationStatus(selected.id, status)
+          onDecide={(status, note) => {
+            setReservationStatus(selected.id, status, note)
             setSelectedId(null)
           }}
         />

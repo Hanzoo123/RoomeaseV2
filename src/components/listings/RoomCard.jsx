@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
-import { AirVent, Bath, BedDouble, BedSingle, BookOpen, Cctv, CookingPot, Heart, SquareParking, WashingMachine, Wifi } from 'lucide-react'
+import { AirVent, Bath, Bed, BedDouble, BedSingle, BookOpen, Cctv, CookingPot, DoorClosed, Heart, Navigation, SquareParking, Users, WashingMachine, Wifi } from 'lucide-react'
 import { useData } from '../../context/DataContext'
+import { useRequireBoarder, useSitePaths } from '../../context/SitePaths'
 import { useToast } from '../../context/ToastContext'
 import { availabilityOf, formatPeso } from '../../data/mockData'
 import { RatingBadge } from '../reviews/Stars'
@@ -9,7 +10,10 @@ import { ListingImage, Tag } from '../ui'
 
 export const FEATURE_ICONS = {
   'Single Room': BedSingle,
-  'Shared Room': BedDouble,
+  'Private Room': DoorClosed,
+  'Double Sharing': BedDouble,
+  'Bed Spacer': Bed,
+  Dormitory: Users,
   'Wi-Fi': Wifi,
   Aircon: AirVent,
   'Private CR': Bath,
@@ -38,10 +42,12 @@ export function FeatureList({ features, className = 'text-xs', iconSize = 14 }) 
 
 export function FavoriteButton({ listing, isFavorite, onToggle, className = '' }) {
   const toast = useToast()
+  const requireBoarder = useRequireBoarder()
   return (
     <button
       type="button"
       onClick={() => {
+        if (!requireBoarder('save rooms to your favorites')) return
         onToggle(listing.id)
         toast(isFavorite ? `${listing.name} removed from favorites.` : `${listing.name} saved to favorites.`, isFavorite ? 'info' : 'success')
       }}
@@ -54,8 +60,9 @@ export function FavoriteButton({ listing, isFavorite, onToggle, className = '' }
   )
 }
 
-export default function RoomCard({ listing, isFavorite, onToggleFavorite }) {
+export default function RoomCard({ listing, isFavorite, onToggleFavorite, distance }) {
   const { ratingOf } = useData()
+  const paths = useSitePaths()
   const extra = listing.amenities.length - 2
   const features = [listing.roomType, ...listing.amenities.slice(0, 2)]
   return (
@@ -72,6 +79,12 @@ export default function RoomCard({ listing, isFavorite, onToggleFavorite }) {
         <p className="small text-body-secondary mb-1">
           {listing.area}, {listing.city}
         </p>
+        {distance && (
+          <p className="d-flex align-items-center gap-1 text-xs fw-medium text-primary mb-1">
+            <Navigation size={12} aria-hidden="true" />
+            {distance}
+          </p>
+        )}
         <RatingBadge rating={ratingOf(listing.id)} className="mb-2" />
         <p className="small text-body-secondary mb-3">
           <span className="fs-5 fw-bold text-body">{formatPeso(listing.price)}</span> / month
@@ -81,7 +94,7 @@ export default function RoomCard({ listing, isFavorite, onToggleFavorite }) {
           {extra > 0 && <span className="text-xs text-body-secondary">+{extra} more</span>}
         </div>
         <div className="d-flex gap-2 mt-auto">
-          <Link to={`/boarder/rooms/${listing.id}`} className="btn btn-primary flex-grow-1">
+          <Link to={paths.room(listing.id)} className="btn btn-primary flex-grow-1">
             View Details
           </Link>
           <CompareButton listing={listing} />

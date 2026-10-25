@@ -2,7 +2,7 @@
 
 /*
  * RoomEase theme on top of Bootstrap 5.3.
- * 1. Role colors (blue for boarders, green for landlords) as CSS variables.
+ * 1. Role colors (blue for boarders, green for landlords, violet for admins) as CSS variables.
  * 2. Bootstrap variables pointed at those colors, so .btn-primary, .text-primary,
  *    .nav-pills, form focus rings, etc. follow the active role.
  * 3. A few app-specific classes Bootstrap doesn't provide (sidebar, banners, media).
@@ -21,6 +21,7 @@
   --sidebar-art: #2d63dc;
   --accent-light: #8db0ff;
   --accent-light-rgb: 141, 176, 255;
+  --accent-end: #3a78ee;
 }
 
 [data-theme="landlord"] {
@@ -34,6 +35,21 @@
   --sidebar-art: #4f8466;
   --accent-light: #6fd39b;
   --accent-light-rgb: 111, 211, 155;
+  --accent-end: #1c8a4f;
+}
+
+[data-theme="admin"] {
+  --accent: #5b4bd6;
+  --accent-rgb: 91, 75, 214;
+  --accent-hover: #4a3cbc;
+  --accent-soft: #efedff;
+  --sidebar: #231f4f;
+  --sidebar-deep: #17143a;
+  --sidebar-active: #4b3fc9;
+  --sidebar-art: #5a50c8;
+  --accent-light: #b3abff;
+  --accent-light-rgb: 179, 171, 255;
+  --accent-end: #7a68e8;
 }
 
 /* ---------- 2. Bootstrap overrides ---------- */
@@ -382,7 +398,7 @@ body {
 }
 
 .cta-accent {
-  background: linear-gradient(to right, var(--accent), #1c8a4f);
+  background: linear-gradient(to right, var(--accent), var(--accent-end));
   box-shadow: 0 10px 30px -12px rgba(var(--accent-rgb), 0.55);
 }
 
@@ -1214,4 +1230,205 @@ html:has(.landing) {
 
 main.pb-compare {
   padding-bottom: 7rem !important;
+}
+
+/* The visitor's own position on a map ("Near me", "Show my location"). */
+.map-me {
+  position: absolute;
+  width: 1.1rem;
+  height: 1.1rem;
+  transform: translate(-50%, -50%);
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: #1a73e8;
+  box-shadow: 0 0 0 0 rgba(26, 115, 232, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+  animation: me-pulse 2s ease-out infinite;
+}
+
+@keyframes me-pulse {
+  70% {
+    box-shadow: 0 0 0 14px rgba(26, 115, 232, 0), 0 2px 6px rgba(0, 0, 0, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(26, 115, 232, 0), 0 2px 6px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Public pages have no sidebar, so the compare tray stays centered. */
+@media (min-width: 992px) {
+  .compare-bar.compare-bar-centered {
+    left: 50%;
+    width: min(36rem, calc(100vw - 2rem));
+    transform: translateX(-50%);
+  }
+}
+
+/* ---------- Public site ---------- */
+.public-nav-link {
+  position: relative;
+  color: var(--muted);
+}
+
+.public-nav-link:hover {
+  color: var(--ink);
+}
+
+.public-nav-link.active {
+  color: var(--accent);
+  font-weight: 600 !important;
+}
+
+@media (min-width: 992px) {
+  .public-nav-link.active::after {
+    content: "";
+    position: absolute;
+    left: 0.5rem;
+    right: 0.5rem;
+    bottom: -0.15rem;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--accent);
+  }
+}
+
+[data-bs-theme="dark"] .public-nav-link.active {
+  color: var(--accent-light);
+}
+
+[data-bs-theme="dark"] .public-nav-link.active::after {
+  background: var(--accent-light);
+}
+
+.room-type-tile img {
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.room-type-tile:hover img {
+  transform: scale(1.05);
+}
+
+.review-step {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Full-bleed photo header on About, Contact and the legal pages. */
+.page-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  color: #fff;
+  background: var(--sidebar-deep);
+}
+
+.page-hero > img {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.page-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(100deg, rgba(10, 28, 72, 0.92) 20%, rgba(10, 28, 72, 0.55));
+}
+
+.legal-body h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+}
+
+.legal-body li + li {
+  margin-top: 0.4rem;
+}
+
+.photo-stack {
+  position: relative;
+  padding: 0 0 3rem 3rem;
+}
+
+.photo-stack img {
+  width: 100%;
+  border-radius: 1rem;
+  object-fit: cover;
+}
+
+.photo-stack .photo-back {
+  aspect-ratio: 4 / 3;
+}
+
+.photo-stack .photo-front {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 55%;
+  aspect-ratio: 1;
+  border: 6px solid var(--bs-body-bg);
+  box-shadow: 0 16px 32px -12px rgba(0, 0, 0, 0.35);
+}
+
+.photo-stack .figure-card {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  max-width: 14rem;
+}
+
+.honeypot {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.team-card {
+  width: 11rem;
+}
+
+.activity-list > li:last-child {
+  border-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.avatar-photo {
+  object-fit: cover;
+  background: var(--page);
+}
+
+/* Keeps absolutely positioned children (e.g. .visually-hidden header labels) inside the
+   scroll area, so a wide table can't widen the page on phones. */
+.table-responsive {
+  position: relative;
+}
+
+.reset-steps li {
+  padding-top: 0.5rem;
+  border-top: 3px solid var(--line);
+  color: var(--muted);
+}
+
+.reset-steps li.done {
+  border-top-color: var(--accent);
+  color: var(--ink);
 }

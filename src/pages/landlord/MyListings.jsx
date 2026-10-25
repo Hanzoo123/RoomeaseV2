@@ -4,7 +4,12 @@ import { Building2, Plus, Trash2 } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import { useToast } from '../../context/ToastContext'
 import ListingRow from '../../components/listings/ListingRow'
+import { listingStatus } from '../../components/listings/ListingStatus'
 import { EmptyState, Modal, Notice, PageHeader, Tabs } from '../../components/ui'
+
+// Same states as the admin sees: In review → Live, or Needs changes (with the reason).
+const TAB_KEYS = { All: null, Live: 'live', 'In review': 'review', 'Needs changes': 'changes', Removed: 'removed' }
+const inTab = (listing, value) => !TAB_KEYS[value] || listingStatus(listing).key === TAB_KEYS[value]
 
 export default function MyListings() {
   const { myListings, deleteListing } = useData()
@@ -12,13 +17,12 @@ export default function MyListings() {
   const [deleting, setDeleting] = useState(null)
   const toast = useToast()
 
-  const tabs = ['All', 'Approved', 'Pending'].map((value) => ({
-    value,
-    label: value,
-    count: value === 'All' ? myListings.length : myListings.filter((listing) => listing.approval === value).length,
-  }))
-  const visible = tab === 'All' ? myListings : myListings.filter((listing) => listing.approval === tab)
-  const pendingCount = tabs[2].count
+  const tabs = Object.keys(TAB_KEYS)
+    .map((value) => ({ value, label: value, count: myListings.filter((listing) => inTab(listing, value)).length }))
+    .filter((item) => item.value !== 'Removed' || item.count > 0)
+  const visible = myListings.filter((listing) => inTab(listing, tab))
+  const pendingCount = myListings.filter((listing) => inTab(listing, 'In review')).length
+  const changesCount = myListings.filter((listing) => inTab(listing, 'Needs changes')).length
 
   return (
     <div>
@@ -33,10 +37,17 @@ export default function MyListings() {
         }
       />
 
+      {changesCount > 0 && (
+        <div className="mb-3">
+          <Notice tone="error">
+            {changesCount} {changesCount === 1 ? 'listing needs' : 'listings need'} changes before boarders can see {changesCount === 1 ? 'it' : 'them'}. The admin’s reason is shown on each one.
+          </Notice>
+        </div>
+      )}
       {pendingCount > 0 && (
         <div className="mb-4">
           <Notice tone="info">
-            {pendingCount} {pendingCount === 1 ? 'listing is' : 'listings are'} waiting for admin review. Boarders can see a listing once it’s approved, usually within 1–2 days.
+            {pendingCount} {pendingCount === 1 ? 'listing is' : 'listings are'} in review. Boarders can see a listing once an admin approves it, usually within a few days.
           </Notice>
         </div>
       )}
@@ -47,7 +58,7 @@ export default function MyListings() {
         {visible.length === 0 ? (
           <EmptyState
             icon={Building2}
-            title={tab === 'All' ? 'No listings yet' : `No ${tab.toLowerCase()} listings`}
+            title={tab === 'All' ? 'No listings yet' : `Nothing under “${tab}”`}
             body="Add a boarding house so boarders can discover it."
             action={
               <Link to="/landlord/add-listing" className="btn btn-primary">

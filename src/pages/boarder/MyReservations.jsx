@@ -69,6 +69,11 @@ export default function MyReservations() {
                     Requested {formatDate(reservation.date)}
                     {reservation.moveIn && ` · Move-in ${formatDate(reservation.moveIn)}`}
                   </p>
+                  {reservation.status === 'Declined' && reservation.landlordNote && (
+                    <p className="small bg-danger-subtle text-danger-emphasis rounded-3 px-3 py-2 mt-2 mb-0">
+                      <strong>Landlord’s reason:</strong> {reservation.landlordNote}
+                    </p>
+                  )}
                   {reservation.status === 'Approved' && owner?.phone && (
                     <p className="small mt-2 mb-0">
                       Contact <strong>{owner.name}</strong> to arrange your move-in.
