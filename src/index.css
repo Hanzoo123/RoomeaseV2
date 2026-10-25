@@ -1,0 +1,66 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink: #0f1b33;
+  --color-muted: #66728a;
+  --color-line: #e4e8f1;
+  --color-page: #f5f7fb;
+}
+
+/* Role colors resolve at runtime, so one set of utilities serves both dashboards. */
+@theme inline {
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-deep: var(--sidebar-deep);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-art: var(--sidebar-art);
+}
+
+:root,
+[data-theme="boarder"] {
+  --accent: #1d5bd8;
+  --accent-hover: #174bb6;
+  --accent-soft: #eaf1ff;
+  --sidebar: #0d2763;
+  --sidebar-deep: #0a1c48;
+  --sidebar-active: #1f62e6;
+  --sidebar-art: #2d63dc;
+}
+
+[data-theme="landlord"] {
+  --accent: #16703f;
+  --accent-hover: #115c33;
+  --accent-soft: #e9f6ee;
+  --sidebar: #12502f;
+  --sidebar-deep: #0c3c23;
+  --sidebar-active: #237a4c;
+  --sidebar-art: #4f8466;
+}
+
+@layer base {
+  body {
+    @apply bg-page font-sans text-ink antialiased;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+@utility card {
+  @apply rounded-2xl border border-line bg-white shadow-[0_1px_2px_rgba(15,27,51,0.04),0_4px_16px_-8px_rgba(15,27,51,0.08)];
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60;
+}
+
+@utility btn-primary {
+  @apply btn bg-accent text-white hover:bg-accent-hover;
+}
