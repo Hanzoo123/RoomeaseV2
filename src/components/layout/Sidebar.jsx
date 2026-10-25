@@ -22,7 +22,7 @@ function SidebarContent({ role, onNavigate, onClose }) {
 
       <nav aria-label="Main" className="flex-1 space-y-1 overflow-y-auto px-3">
         {NAVIGATION[role].map(({ label, to, icon: Icon, end, badge }) => {
-          const count = badge ? counts[role][badge] : 0
+          const count = badge ? counts[badge] : 0
           return (
             <NavLink
               key={to}

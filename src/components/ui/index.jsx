@@ -51,12 +51,14 @@ const AVAILABILITY_STYLES = {
 const APPROVAL_STYLES = {
   Approved: 'bg-green-500 text-white',
   Pending: 'bg-amber-500 text-white',
+  Rejected: 'bg-red-500 text-white',
 }
 
 const RESERVATION_STYLES = {
   Pending: 'bg-amber-100 text-amber-700',
   Approved: 'bg-green-100 text-green-700',
   Declined: 'bg-red-100 text-red-700',
+  Cancelled: 'bg-slate-100 text-slate-600',
 }
 
 export function Tag({ children, tone = 'availability', className = '' }) {
@@ -128,6 +130,69 @@ export function Modal({ title, onClose, children, footer }) {
         <div className="px-5 py-4">{children}</div>
         {footer && <div className="flex justify-end gap-2 border-t border-line px-5 py-4">{footer}</div>}
       </div>
+    </div>
+  )
+}
+
+export function PageHeader({ title, subtitle, actions, back }) {
+  return (
+    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        {back}
+        <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+        {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
+      </div>
+      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+    </div>
+  )
+}
+
+export function EmptyState({ icon: Icon, title, body, action }) {
+  return (
+    <div className="card flex flex-col items-center px-6 py-12 text-center">
+      <span className="grid size-12 place-items-center rounded-2xl bg-accent-soft text-accent">
+        <Icon className="size-6" aria-hidden="true" />
+      </span>
+      <p className="mt-4 font-semibold">{title}</p>
+      {body && <p className="mt-1 max-w-sm text-sm text-muted">{body}</p>}
+      {action && <div className="mt-5">{action}</div>}
+    </div>
+  )
+}
+
+export function Notice({ tone = 'success', children }) {
+  const styles = {
+    success: 'border-green-200 bg-green-50 text-green-800',
+    error: 'border-red-200 bg-red-50 text-red-700',
+    info: 'border-accent/20 bg-accent-soft text-ink',
+  }
+  return (
+    <p role={tone === 'error' ? 'alert' : 'status'} className={`rounded-lg border px-3.5 py-2.5 text-sm ${styles[tone]}`}>
+      {children}
+    </p>
+  )
+}
+
+export function Tabs({ tabs, value, onChange, label }) {
+  return (
+    <div role="tablist" aria-label={label} className="flex gap-1 overflow-x-auto rounded-xl border border-line bg-white p-1">
+      {tabs.map((tab) => (
+        <button
+          key={tab.value}
+          type="button"
+          role="tab"
+          aria-selected={value === tab.value}
+          onClick={() => onChange(tab.value)}
+          className={`flex shrink-0 items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors ${
+            value === tab.value ? 'bg-accent text-white shadow-sm' : 'text-muted hover:text-ink'
+          }`}
+        >
+          {tab.label}
+          {tab.count !== undefined && (
+            <span className={`rounded-full px-1.5 text-xs ${value === tab.value ? 'bg-white/20' : 'bg-page'}`}>{tab.count}</span>
+          )}
+        </button>
+      ))}
     </div>
   )
 }

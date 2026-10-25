@@ -91,7 +91,7 @@ export default function Topbar({ role, onMenu }) {
   const navigate = useNavigate()
   const { counts } = useData()
   const [query, setQuery] = useState('')
-  const notifications = counts[role].notifications
+  const notifications = counts.notifications
 
   function handleSearch(event) {
     event.preventDefault()
