@@ -6,7 +6,7 @@ export default function ReservationsTable({ reservations, listingName, onView })
     <div className="card overflow-hidden">
       <div className="table-responsive">
         <table className="table table-hover align-middle mb-0 table-min">
-          <thead className="table-light">
+          <thead>
             <tr className="text-xs">
               {['Date', 'Boarder', 'Property', 'Room Type', 'Status', 'Action'].map((heading) => (
                 <th key={heading} scope="col" className="px-4 py-3 fw-semibold">

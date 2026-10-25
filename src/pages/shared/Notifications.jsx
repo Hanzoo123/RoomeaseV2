@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BellOff, CheckCheck } from 'lucide-react'
 import { useData } from '../../context/DataContext'
+import { useToast } from '../../context/ToastContext'
 import { formatDateTime } from '../../data/mockData'
 import { EmptyState, PageHeader, Tabs } from '../../components/ui'
 
@@ -9,6 +10,7 @@ export default function Notifications() {
   const navigate = useNavigate()
   const { notifications, counts, markNotificationRead, markAllRead, deleteNotification } = useData()
   const [tab, setTab] = useState('All')
+  const toast = useToast()
 
   const sorted = [...notifications].sort((a, b) => b.date.localeCompare(a.date))
   const visible = tab === 'Unread' ? sorted.filter((item) => !item.read) : sorted
@@ -25,7 +27,14 @@ export default function Notifications() {
         subtitle={counts.notifications ? `You have ${counts.notifications} unread ${counts.notifications === 1 ? 'notification' : 'notifications'}.` : 'You’re all caught up.'}
         actions={
           counts.notifications > 0 && (
-            <button type="button" onClick={markAllRead} className="btn btn-outline-secondary">
+            <button
+              type="button"
+              onClick={() => {
+                markAllRead()
+                toast('All notifications marked as read.')
+              }}
+              className="btn btn-outline-secondary"
+            >
               <CheckCheck size={16} aria-hidden="true" />
               Mark all as read
             </button>

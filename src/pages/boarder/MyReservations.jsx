@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CalendarX, Phone } from 'lucide-react'
 import { useData } from '../../context/DataContext'
+import { useToast } from '../../context/ToastContext'
 import { formatDate, formatPeso } from '../../data/mockData'
 import { EmptyState, ListingImage, Modal, PageHeader, StatusPill, Tabs } from '../../components/ui'
 
@@ -11,6 +12,7 @@ export default function MyReservations() {
   const { myReservations, listingById, ownerOf, setReservationStatus } = useData()
   const [tab, setTab] = useState('All')
   const [cancelling, setCancelling] = useState(null)
+  const toast = useToast()
 
   const tabs = [
     { value: 'All', label: 'All', count: myReservations.length },
@@ -111,6 +113,7 @@ export default function MyReservations() {
                 onClick={() => {
                   setReservationStatus(cancelling.id, 'Cancelled')
                   setCancelling(null)
+                  toast('Reservation request cancelled.', 'info')
                 }}
                 className="btn btn-danger"
               >

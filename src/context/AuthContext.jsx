@@ -12,7 +12,8 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function readSession() {
   try {
-    const raw = localStorage.getItem(SESSION_KEY) ?? sessionStorage.getItem(SESSION_KEY)
+    // A tab-only session ("Remember me" off) wins, so two tabs can be signed in as different users.
+    const raw = sessionStorage.getItem(SESSION_KEY) ?? localStorage.getItem(SESSION_KEY)
     return raw ? JSON.parse(raw) : null
   } catch {
     return null
@@ -79,7 +80,7 @@ export function AuthProvider({ children }) {
       }
       writeSession(match.id, remember)
       setSession({ userId: match.id })
-      return { ok: true }
+      return { ok: true, firstName: toSessionUser(match).firstName }
     },
     [accounts],
   )

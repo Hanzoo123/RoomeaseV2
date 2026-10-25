@@ -2,17 +2,21 @@ import { useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { ArrowLeft, DoorOpen, House, MapPin, SearchX, SquarePen, Users } from 'lucide-react'
 import { useData } from '../../context/DataContext'
+import { useToast } from '../../context/ToastContext'
 import { formatPeso } from '../../data/mockData'
+import PhotoGallery from '../../components/listings/PhotoGallery'
 import { FeatureList } from '../../components/listings/RoomCard'
 import ReservationDialog from '../../components/reservations/ReservationDialog'
+import ReviewsSection from '../../components/reviews/ReviewsSection'
 import ReservationsTable from '../../components/reservations/ReservationsTable'
-import { EmptyState, ListingImage, Notice, SectionHeader, Tag } from '../../components/ui'
+import { EmptyState, Notice, SectionHeader, Tag } from '../../components/ui'
 
 export default function ListingView() {
   const { listingId } = useParams()
   const { state } = useLocation()
   const { myListings, incomingReservations, setReservationStatus, updateListing } = useData()
   const [selectedId, setSelectedId] = useState(null)
+  const toast = useToast()
   const listing = myListings.find((item) => item.id === listingId)
 
   if (!listing) {
@@ -71,7 +75,10 @@ export default function ListingView() {
           </p>
           <button
             type="button"
-            onClick={() => updateListing(listing.id, { approval: 'Approved' })}
+            onClick={() => {
+              updateListing(listing.id, { approval: 'Approved' })
+              toast('Listing approved. Boarders can see it now.')
+            }}
             className="btn btn-sm btn-light border flex-shrink-0"
             title="There is no admin panel yet, so this simulates the approval."
           >
@@ -82,9 +89,7 @@ export default function ListingView() {
 
       <div className="row g-4">
         <div className="col-lg-6">
-          <div className="ratio rounded-4 overflow-hidden" style={{ '--bs-aspect-ratio': '62.5%' }}>
-            <ListingImage listing={listing} kind="house" />
-          </div>
+          <PhotoGallery listing={listing} />
         </div>
         <div className="col-lg-6">
           <section className="card h-100">
@@ -113,6 +118,8 @@ export default function ListingView() {
           </section>
         </div>
       </div>
+
+      <ReviewsSection listing={listing} landlordMode />
 
       <section>
         <SectionHeader title={`Reservation requests (${reservations.length})`} actionTo="/landlord/reservations" />

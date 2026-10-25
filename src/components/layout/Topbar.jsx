@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Bell, ChevronDown, LogOut, Menu, Search, Settings, User } from 'lucide-react'
+import { Bell, ChevronDown, LogOut, Menu, Moon, Search, Settings, Sun, User } from 'lucide-react'
 import { ROLE_META } from '../../config/navigation'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
+import { useToast } from '../../context/ToastContext'
+import { useTheme } from '../../context/ThemeContext'
+import { ThemeToggle } from '../ui/feedback'
 
 const SEARCH_TARGET = { boarder: '/boarder/browse', landlord: '/landlord/listings' }
 
@@ -21,6 +24,8 @@ function UserMenu({ role }) {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const menuRef = useRef(null)
+  const toast = useToast()
+  const { theme, toggleTheme } = useTheme()
 
   useEffect(() => {
     if (!open) return
@@ -38,6 +43,7 @@ function UserMenu({ role }) {
 
   function handleLogout() {
     logout()
+    toast('You’ve been signed out.', 'info')
     navigate('/login', { replace: true, state: { role } })
   }
 
@@ -71,6 +77,10 @@ function UserMenu({ role }) {
           <Link role="menuitem" to={`/${role}/settings`} onClick={() => setOpen(false)} className="dropdown-item d-flex align-items-center gap-2">
             <Settings size={16} className="text-body-secondary" /> Settings
           </Link>
+          <button role="menuitem" type="button" onClick={toggleTheme} className="dropdown-item d-flex align-items-center gap-2">
+            {theme === 'dark' ? <Sun size={16} className="text-body-secondary" /> : <Moon size={16} className="text-body-secondary" />}
+            {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          </button>
           <div className="dropdown-divider" />
           <button role="menuitem" type="button" onClick={handleLogout} className="dropdown-item d-flex align-items-center gap-2 text-danger">
             <LogOut size={16} /> Log out
@@ -113,7 +123,8 @@ export default function Topbar({ role, onMenu }) {
           />
         </form>
 
-        <div className="ms-auto d-flex align-items-center gap-1 gap-sm-3">
+        <div className="ms-auto d-flex align-items-center gap-1 gap-sm-2">
+          <ThemeToggle className="icon-btn d-none d-sm-inline-grid" />
           <Link to={`/${role}/notifications`} aria-label={`Notifications, ${notifications} unread`} className="icon-btn">
             <Bell size={20} />
             {notifications > 0 && <span className="count-badge count-badge-sm">{notifications}</span>}

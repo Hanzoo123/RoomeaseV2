@@ -3,6 +3,7 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { Lock, Mail, Phone, User } from 'lucide-react'
 import { ROLE_META } from '../config/navigation'
 import { useAuth, validateEmail } from '../context/AuthContext'
+import { useToast } from '../context/ToastContext'
 import AuthShell, { IconField, RoleTabs, usePasswordToggle } from '../components/auth/AuthShell'
 import { Notice } from '../components/ui'
 
@@ -28,6 +29,7 @@ export default function Signup() {
   const [error, setError] = useState('')
   const [agreed, setAgreed] = useState(false)
   const [passwordType, passwordToggle] = usePasswordToggle()
+  const toast = useToast()
 
   if (user) return <Navigate to={`/${user.role}`} replace />
 
@@ -45,6 +47,7 @@ export default function Signup() {
 
     const result = register({ name: form.name, email: form.email, phone: form.phone, password: form.password, role })
     if (!result.ok) return setError(result.error)
+    toast('Account created. Welcome to RoomEase!')
     navigate(`/${role}`, { replace: true })
   }
 

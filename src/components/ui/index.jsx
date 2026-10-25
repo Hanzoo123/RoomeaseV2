@@ -62,17 +62,18 @@ const RESERVATION_STYLES = {
 
 export function Tag({ children, tone = 'availability', className = '' }) {
   const styles = tone === 'approval' ? APPROVAL_STYLES : AVAILABILITY_STYLES
-  return <span className={`badge ${styles[children] ?? 'text-bg-light'} ${className}`}>{children}</span>
+  return <span className={`badge ${styles[children] ?? 'text-bg-secondary'} ${className}`}>{children}</span>
 }
 
 export function StatusPill({ status }) {
-  return <span className={`badge rounded-pill px-3 py-2 ${RESERVATION_STYLES[status] ?? 'text-bg-light'}`}>{status}</span>
+  return <span className={`badge rounded-pill px-3 py-2 ${RESERVATION_STYLES[status] ?? 'text-bg-secondary'}`}>{status}</span>
 }
 
 // Real photo when the listing has one, otherwise the matching illustration.
 export function ListingImage({ listing, kind, className = '' }) {
-  if (listing.photo) {
-    return <img src={listing.photo} alt={listing.name} className={className} style={{ objectFit: 'cover' }} loading="lazy" />
+  const cover = listing.photos?.[0] ?? listing.photo
+  if (cover) {
+    return <img src={cover} alt={listing.name} className={className} style={{ objectFit: 'cover' }} loading="lazy" />
   }
   return kind === 'room' ? (
     <RoomArt variant={listing.art.room} className={className} />
@@ -174,7 +175,7 @@ export function Notice({ tone = 'success', children }) {
 
 export function Tabs({ tabs, value, onChange, label }) {
   return (
-    <div className="bg-white border rounded-3 p-1 overflow-x-auto">
+    <div className="bg-body border rounded-3 p-1 overflow-x-auto">
       <ul role="tablist" aria-label={label} className="nav nav-pills flex-nowrap gap-1">
         {tabs.map((tab) => {
           const active = value === tab.value
@@ -189,7 +190,7 @@ export function Tabs({ tabs, value, onChange, label }) {
               >
                 {tab.label}
                 {tab.count !== undefined && (
-                  <span className={`badge rounded-pill ${active ? 'bg-white bg-opacity-25' : 'text-bg-light'}`}>{tab.count}</span>
+                  <span className={`badge rounded-pill ${active ? 'bg-white bg-opacity-25' : 'bg-secondary-subtle text-secondary-emphasis'}`}>{tab.count}</span>
                 )}
               </button>
             </li>

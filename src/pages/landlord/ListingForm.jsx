@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ImagePlus, SearchX, Trash2 } from 'lucide-react'
+import { ArrowLeft, ImagePlus, SearchX, Star, X } from 'lucide-react'
 import { useData } from '../../context/DataContext'
-import { AMENITIES, AREAS, ROOM_TYPES } from '../../data/mockData'
+import { useToast } from '../../context/ToastContext'
+import { AMENITIES, AREA_CENTERS, AREAS, ROOM_TYPES } from '../../data/mockData'
+import MapView from '../../components/map/MapView'
 import { FEATURE_ICONS } from '../../components/listings/RoomCard'
 import { SelectField, TextArea, TextField } from '../../components/ui/form'
 import { EmptyState, Notice, PageHeader } from '../../components/ui'
@@ -18,11 +20,14 @@ const EMPTY = {
   availableSlots: '',
   amenities: ['Wi-Fi'],
   description: '',
-  photo: null,
+  photos: [],
+  coords: AREA_CENTERS[AREAS[0]],
 }
 
-// Shrinks an uploaded photo so it fits comfortably in localStorage.
-function resizeImage(file, maxSize = 960) {
+const MAX_PHOTOS = 5
+
+// Shrinks an uploaded photo so several fit comfortably in localStorage.
+function resizeImage(file, maxSize = 1024) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onerror = reject
@@ -35,7 +40,7 @@ function resizeImage(file, maxSize = 960) {
         canvas.width = Math.round(image.width * scale)
         canvas.height = Math.round(image.height * scale)
         canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height)
-        resolve(canvas.toDataURL('image/jpeg', 0.8))
+        resolve(canvas.toDataURL('image/jpeg', 0.72))
       }
       image.src = reader.result
     }
@@ -61,6 +66,7 @@ function validate(form) {
 function ListingForm({ listingId }) {
   const navigate = useNavigate()
   const { myListings, saveListing } = useData()
+  const toast = useToast()
   const existing = listingId ? myListings.find((listing) => listing.id === listingId) : null
 
   const [form, setForm] = useState(() =>
@@ -68,6 +74,7 @@ function ListingForm({ listingId }) {
       ? {
           ...EMPTY,
           ...existing,
+          photos: existing.photos ?? [],
           price: String(existing.price),
           totalRooms: String(existing.totalRooms),
           availableRooms: String(existing.availableRooms),
@@ -77,6 +84,8 @@ function ListingForm({ listingId }) {
   )
   const [errors, setErrors] = useState({})
   const [photoError, setPhotoError] = useState('')
+  const [pinMoved, setPinMoved] = useState(Boolean(existing))
+  const pinMarkers = useMemo(() => [{ id: 'pin', coords: form.coords, label: form.name.trim() || 'Your boarding house', active: true }], [form.coords, form.name])
 
   if (listingId && !existing) {
     return (
@@ -99,6 +108,11 @@ function ListingForm({ listingId }) {
     setErrors(({ [key]: _cleared, ...rest }) => rest)
   }
   const set = (key) => (event) => setField(key, event.target.value)
+  // Until the landlord drops a pin, the pin follows the chosen area.
+  const setArea = (event) => {
+    const area = event.target.value
+    setForm((current) => ({ ...current, area, coords: pinMoved ? current.coords : AREA_CENTERS[area] }))
+  }
   const setNumber = (key) => (event) => setField(key, event.target.value.replace(/\D/g, '').slice(0, 6))
 
   function toggleAmenity(amenity) {
@@ -109,20 +123,35 @@ function ListingForm({ listingId }) {
     }))
   }
 
-  async function handlePhoto(event) {
-    const file = event.target.files?.[0]
+  async function handlePhotos(event) {
+    const files = [...(event.target.files ?? [])]
     event.target.value = ''
-    if (!file) return
-    if (!file.type.startsWith('image/')) return setPhotoError('Choose an image file (JPG or PNG).')
-    if (file.size > 10 * 1024 * 1024) return setPhotoError('Choose an image smaller than 10 MB.')
-    try {
-      const photo = await resizeImage(file)
-      setForm((current) => ({ ...current, photo }))
-      setPhotoError('')
-    } catch {
-      setPhotoError('That image couldn’t be read. Try another file.')
+    if (!files.length) return
+    const room = MAX_PHOTOS - form.photos.length
+    const images = files.filter((file) => file.type.startsWith('image/'))
+    const problems = []
+    if (images.length < files.length) problems.push('Only image files (JPG or PNG) can be added.')
+    if (images.length > room) problems.push(`You can add up to ${MAX_PHOTOS} photos.`)
+    const accepted = images.slice(0, Math.max(room, 0)).filter((file) => {
+      if (file.size <= 10 * 1024 * 1024) return true
+      problems.push(`${file.name} is larger than 10 MB.`)
+      return false
+    })
+    const added = []
+    for (const file of accepted) {
+      try {
+        added.push(await resizeImage(file))
+      } catch {
+        problems.push(`${file.name} couldn’t be read.`)
+      }
     }
+    if (added.length) setForm((current) => ({ ...current, photos: [...current.photos, ...added].slice(0, MAX_PHOTOS) }))
+    setPhotoError(problems.join(' '))
   }
+
+  const removePhoto = (position) => setForm((current) => ({ ...current, photos: current.photos.filter((_, index) => index !== position) }))
+  const makeCover = (position) =>
+    setForm((current) => ({ ...current, photos: [current.photos[position], ...current.photos.filter((_, index) => index !== position)] }))
 
   function handleSubmit(event) {
     event.preventDefault()
@@ -141,9 +170,11 @@ function ListingForm({ listingId }) {
       availableSlots: Number(form.availableSlots),
       amenities: AMENITIES.filter((amenity) => form.amenities.includes(amenity)),
       description: form.description.trim(),
-      photo: form.photo,
+      photos: form.photos,
+      coords: form.coords,
     }
     const id = saveListing(fields, existing?.id)
+    toast(existing ? 'Listing updated.' : 'Listing submitted for review.')
     navigate(`/landlord/listings/${id}`, { state: { saved: existing ? 'updated' : 'created' } })
   }
 
@@ -172,7 +203,7 @@ function ListingForm({ listingId }) {
             <TextField id="name" label="Boarding house name" placeholder="e.g. Sunrise Boarding House" value={form.name} onChange={set('name')} error={errors.name} />
             <div className="row g-3">
               <div className="col-sm-6">
-                <SelectField id="area" label="Location" value={form.area} onChange={set('area')}>
+                <SelectField id="area" label="Location" value={form.area} onChange={setArea}>
                   {AREAS.map((area) => (
                     <option key={area}>{area}</option>
                   ))}
@@ -190,6 +221,37 @@ function ListingForm({ listingId }) {
               value={form.description}
               onChange={set('description')}
             />
+          </div>
+        </section>
+
+        <section className="card">
+          <div className="card-body p-4">
+            <h2 className="fs-6 fw-semibold mb-1">Map pin</h2>
+            <p className="small text-body-secondary mb-3">Click the map where your boarding house is so boarders can see how far it is from school and town.</p>
+            <MapView
+              markers={pinMarkers}
+              onMapClick={(coords) => {
+                setPinMoved(true)
+                setForm((current) => ({ ...current, coords }))
+              }}
+              style={{ height: '16rem', cursor: 'crosshair' }}
+              label="Pick the location of your boarding house"
+            />
+            <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-2">
+              <span className="text-xs text-body-secondary">
+                {form.coords[0].toFixed(5)}, {form.coords[1].toFixed(5)}
+              </span>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary"
+                onClick={() => {
+                  setPinMoved(false)
+                  setForm((current) => ({ ...current, coords: AREA_CENTERS[current.area] }))
+                }}
+              >
+                Reset to {form.area}
+              </button>
+            </div>
           </div>
         </section>
 
@@ -252,33 +314,45 @@ function ListingForm({ listingId }) {
 
         <section className="card">
           <div className="card-body p-4">
-            <h2 className="fs-6 fw-semibold mb-1">Photo</h2>
-            <p className="small text-body-secondary mb-3">A clear photo of the house or a room gets more reservation requests.</p>
-            <div className="d-flex flex-column flex-sm-row align-items-sm-center gap-3">
-              <div className="dashed-box bg-page rounded-3 overflow-hidden flex-shrink-0" style={{ width: '14rem', maxWidth: '100%' }}>
-                <div className="ratio" style={{ '--bs-aspect-ratio': '62.5%' }}>
-                  {form.photo ? (
-                    <img src={form.photo} alt="Listing preview" />
-                  ) : (
-                    <div className="d-grid" style={{ placeItems: 'center' }}>
-                      <ImagePlus size={32} className="text-body-secondary" aria-hidden="true" />
+            <div className="d-flex align-items-baseline justify-content-between gap-2">
+              <h2 className="fs-6 fw-semibold mb-1">Photos</h2>
+              <span className="text-xs text-body-secondary">
+                {form.photos.length} / {MAX_PHOTOS}
+              </span>
+            </div>
+            <p className="small text-body-secondary mb-3">Clear photos of the house and rooms get more reservation requests. The first photo is the cover.</p>
+            <div className="row g-2">
+              {form.photos.map((src, position) => (
+                <div key={`${position}-${src.slice(-24)}`} className="col-6 col-sm-4">
+                  <div className="photo-tile">
+                    <div className="ratio" style={{ '--bs-aspect-ratio': '62.5%' }}>
+                      <img src={src} alt={`Listing photo ${position + 1}`} />
                     </div>
-                  )}
+                    {position === 0 && <span className="badge text-bg-dark bg-opacity-75 position-absolute top-0 start-0 m-2">Cover</span>}
+                    <div className="tile-actions">
+                      {position > 0 && (
+                        <button type="button" className="btn btn-sm btn-light px-2" onClick={() => makeCover(position)} aria-label={`Make photo ${position + 1} the cover`} title="Make cover">
+                          <Star size={14} />
+                        </button>
+                      )}
+                      <button type="button" className="btn btn-sm btn-light px-2 text-danger" onClick={() => removePhoto(position)} aria-label={`Remove photo ${position + 1}`} title="Remove">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="d-flex flex-wrap gap-2">
-                <label className="btn btn-outline-secondary mb-0">
-                  <ImagePlus size={16} aria-hidden="true" />
-                  {form.photo ? 'Change photo' : 'Upload photo'}
-                  <input type="file" accept="image/*" onChange={handlePhoto} className="visually-hidden" />
-                </label>
-                {form.photo && (
-                  <button type="button" onClick={() => setForm((current) => ({ ...current, photo: null }))} className="btn btn-outline-danger">
-                    <Trash2 size={16} aria-hidden="true" />
-                    Remove
-                  </button>
-                )}
-              </div>
+              ))}
+              {form.photos.length < MAX_PHOTOS && (
+                <div className="col-6 col-sm-4">
+                  <label className="photo-add ratio mb-0" style={{ '--bs-aspect-ratio': '62.5%' }}>
+                    <span className="d-grid align-content-center justify-items-center gap-1" style={{ placeItems: 'center' }}>
+                      <ImagePlus size={24} aria-hidden="true" />
+                      Add photos
+                      <input type="file" accept="image/*" multiple onChange={handlePhotos} className="visually-hidden" />
+                    </span>
+                  </label>
+                </div>
+              )}
             </div>
             {photoError && <div className="invalid-feedback d-block">{photoError}</div>}
           </div>

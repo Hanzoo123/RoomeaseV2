@@ -1,13 +1,15 @@
-import { useSearchParams } from 'react-router-dom'
-import { ArrowUpDown, MapPin, Search, SearchX } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { ArrowUpDown, LayoutGrid, Map as MapIcon, MapPin, Scale, Search, SearchX } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import { AMENITIES, AREAS, ROOM_TYPES } from '../../data/mockData'
 import RoomCard, { FEATURE_ICONS } from '../../components/listings/RoomCard'
+import ResultsMap from '../../components/map/ResultsMap'
 import { RentBox, SelectBox } from '../../components/listings/FilterFields'
 import { EmptyState, PageHeader } from '../../components/ui'
 
 const SORTS = {
   recommended: { label: 'Recommended', compare: () => 0 },
+  rating: { label: 'Top rated', compare: (a, b, ratingOf) => ratingOf(b.id).average - ratingOf(a.id).average },
   'price-asc': { label: 'Price: low to high', compare: (a, b) => a.price - b.price },
   'price-desc': { label: 'Price: high to low', compare: (a, b) => b.price - a.price },
   availability: { label: 'Most rooms available', compare: (a, b) => b.availableRooms - a.availableRooms },
@@ -26,7 +28,7 @@ function matches(listing, filters) {
 }
 
 export default function BrowseRooms() {
-  const { publicListings, favorites, toggleFavorite } = useData()
+  const { publicListings, favorites, toggleFavorite, ratingOf, compare } = useData()
   const [params, setParams] = useSearchParams()
 
   const filters = {
@@ -57,14 +59,26 @@ export default function BrowseRooms() {
     setFilter('amenities', next.join(','))
   }
 
-  const clearFilters = () => setParams({}, { replace: true })
+  const clearFilters = () => setParams(params.get('view') === 'map' ? { view: 'map' } : {}, { replace: true })
   const priceError = filters.min && filters.max && Number(filters.min) > Number(filters.max)
-  const results = publicListings.filter((listing) => matches(listing, filters)).sort(SORTS[filters.sort].compare)
-  const hasFilters = [...params.keys()].some((key) => key !== 'sort')
+  const results = publicListings.filter((listing) => matches(listing, filters)).sort((a, b) => SORTS[filters.sort].compare(a, b, ratingOf))
+  const hasFilters = [...params.keys()].some((key) => key !== 'sort' && key !== 'view')
+  const view = params.get('view') === 'map' ? 'map' : 'grid'
 
   return (
     <div>
-      <PageHeader title="Browse Rooms" subtitle={`${publicListings.length} approved boarding houses in Baybay City`} />
+      <PageHeader
+        title="Browse Rooms"
+        subtitle={`${publicListings.length} approved boarding houses in Baybay City`}
+        actions={
+          compare.length > 0 && (
+            <Link to="/boarder/compare" className="btn btn-outline-primary">
+              <Scale size={16} aria-hidden="true" />
+              Compare ({compare.length})
+            </Link>
+          )
+        }
+      />
 
       <section className="card">
         <div className="card-body p-3 p-sm-4 d-flex flex-column gap-3">
@@ -176,12 +190,33 @@ export default function BrowseRooms() {
         </div>
       </section>
 
-      <p className="small text-body-secondary mt-4 mb-3" aria-live="polite">
-        Showing <strong className="text-body">{results.length}</strong> {results.length === 1 ? 'boarding house' : 'boarding houses'}
-      </p>
+      <div className="d-flex align-items-center justify-content-between gap-3 mt-4 mb-3">
+        <p className="small text-body-secondary mb-0" aria-live="polite">
+          Showing <strong className="text-body">{results.length}</strong> {results.length === 1 ? 'boarding house' : 'boarding houses'}
+        </p>
+        <div className="btn-group btn-group-sm" role="group" aria-label="Results view">
+          {[
+            ['grid', 'Grid', LayoutGrid],
+            ['map', 'Map', MapIcon],
+          ].map(([value, label, Icon]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={view === value}
+              onClick={() => setFilter('view', value === 'map' ? 'map' : '')}
+              className={`btn ${view === value ? 'btn-primary' : 'btn-outline-secondary'}`}
+            >
+              <Icon size={14} aria-hidden="true" />
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      {results.length > 0 ? (
-        <div className="row g-4">
+      {results.length > 0 && view === 'map' ? (
+        <ResultsMap listings={results} />
+      ) : results.length > 0 ? (
+        <div className="row g-4 stagger">
           {results.map((listing) => (
             <div key={listing.id} className="col-sm-6 col-xl-4">
               <RoomCard listing={listing} isFavorite={favorites.includes(listing.id)} onToggleFavorite={toggleFavorite} />

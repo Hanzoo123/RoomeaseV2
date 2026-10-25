@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Building2, Check, Eye, EyeOff, Search } from 'lucide-react'
+import { ThemeToggle } from '../ui/feedback'
 import { ROLE_META } from '../../config/navigation'
 import StreetArt from '../illustrations/StreetArt'
 import Logo from '../ui/Logo'
@@ -31,7 +33,9 @@ export default function AuthShell({ role, children }) {
     <div data-theme={role} className="container-fluid">
       <div className="row min-vh-100">
         <aside className="col-lg-6 d-none d-lg-flex flex-column justify-content-between bg-sidebar-gradient text-white p-5">
-          <Logo tagline={ROLE_META[role].tagline} />
+          <Link to="/" className="text-decoration-none" aria-label="RoomEase home">
+            <Logo tagline={ROLE_META[role].tagline} />
+          </Link>
           <div className="my-5" style={{ maxWidth: '32rem' }}>
             <h1 className="display-6 fw-bold tracking-tight">{copy.heading}</h1>
             <p className="text-white text-opacity-75 mt-3">{copy.body}</p>
@@ -54,8 +58,14 @@ export default function AuthShell({ role, children }) {
 
         <main className="col-lg-6 d-flex align-items-center justify-content-center py-5 px-3">
           <div className="w-100" style={{ maxWidth: '28rem' }}>
-            <div className="mb-4 d-lg-none">
-              <Logo tagline={ROLE_META[role].tagline} tone="dark" />
+            <div className="d-flex align-items-center justify-content-between mb-4">
+              <Link to="/" className="text-decoration-none d-lg-none" aria-label="RoomEase home">
+                <Logo tagline={ROLE_META[role].tagline} tone="dark" />
+              </Link>
+              <Link to="/" className="d-none d-lg-inline small fw-medium link-secondary text-decoration-none">
+                ← Back to home
+              </Link>
+              <ThemeToggle />
             </div>
             {children}
           </div>
@@ -67,7 +77,7 @@ export default function AuthShell({ role, children }) {
 
 export function RoleTabs({ role, onChange, label = 'Account type' }) {
   return (
-    <div className="bg-white border rounded-3 p-1">
+    <div className="bg-body border rounded-3 p-1">
       <ul role="tablist" aria-label={label} className="nav nav-pills nav-fill gap-1">
         {ROLES.map(({ id, label: roleLabel, icon: Icon }) => {
           const selected = role === id

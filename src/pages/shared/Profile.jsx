@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuth, validateEmail } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
+import { useToast } from '../../context/ToastContext'
 import { ROLE_META } from '../../config/navigation'
 import { TextField } from '../../components/ui/form'
 import { Notice, PageHeader } from '../../components/ui'
@@ -11,6 +12,7 @@ export default function Profile() {
   const [form, setForm] = useState({ name: user.name, email: user.email, phone: user.phone ?? '' })
   const [errors, setErrors] = useState({})
   const [status, setStatus] = useState(null)
+  const toast = useToast()
 
   const set = (key) => (event) => {
     setForm((current) => ({ ...current, [key]: event.target.value }))
@@ -46,7 +48,8 @@ export default function Profile() {
     if (Object.keys(nextErrors).length) return
 
     const result = updateProfile({ name: form.name.trim(), email: form.email.trim(), phone: form.phone.trim() })
-    setStatus(result.ok ? { tone: 'success', text: 'Profile updated.' } : { tone: 'error', text: result.error })
+    if (result.ok) toast('Profile updated.')
+    setStatus(result.ok ? null : { tone: 'error', text: result.error })
   }
 
   return (

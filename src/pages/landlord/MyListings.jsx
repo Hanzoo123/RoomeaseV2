@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Building2, Plus, Trash2 } from 'lucide-react'
 import { useData } from '../../context/DataContext'
+import { useToast } from '../../context/ToastContext'
 import ListingRow from '../../components/listings/ListingRow'
 import { EmptyState, Modal, Notice, PageHeader, Tabs } from '../../components/ui'
 
@@ -9,6 +10,7 @@ export default function MyListings() {
   const { myListings, deleteListing } = useData()
   const [tab, setTab] = useState('All')
   const [deleting, setDeleting] = useState(null)
+  const toast = useToast()
 
   const tabs = ['All', 'Approved', 'Pending'].map((value) => ({
     value,
@@ -78,6 +80,7 @@ export default function MyListings() {
                 type="button"
                 onClick={() => {
                   deleteListing(deleting.id)
+                  toast(`${deleting.name} was deleted.`, 'info')
                   setDeleting(null)
                 }}
                 className="btn btn-danger"

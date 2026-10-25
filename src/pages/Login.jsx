@@ -3,6 +3,7 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { CircleAlert, Lock, Mail } from 'lucide-react'
 import { ROLE_META } from '../config/navigation'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '../context/ToastContext'
 import { DEMO_USERS } from '../data/mockData'
 import AuthShell, { IconField, RoleTabs, usePasswordToggle } from '../components/auth/AuthShell'
 
@@ -17,6 +18,7 @@ export default function Login() {
   const [remember, setRemember] = useState(true)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const toast = useToast()
 
   if (user) return <Navigate to={`/${user.role}`} replace />
 
@@ -40,6 +42,7 @@ export default function Login() {
       setError(result.error)
       return
     }
+    toast(`Welcome back, ${result.firstName}!`)
     const from = location.state?.from
     navigate(from?.startsWith(`/${role}`) ? from : `/${role}`, { replace: true })
   }
@@ -116,7 +119,7 @@ export default function Login() {
         </Link>
       </p>
 
-      <div className="dashed-box bg-white rounded-3 p-3 mt-4">
+      <div className="dashed-box bg-body rounded-3 p-3 mt-4">
         <p className="text-xs fw-semibold text-uppercase text-body-secondary mb-3" style={{ letterSpacing: '0.05em' }}>
           Demo accounts
         </p>

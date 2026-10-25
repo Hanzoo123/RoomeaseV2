@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { LogOut, RotateCcw } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
+import { useToast } from '../../context/ToastContext'
 import { TextField, Toggle } from '../../components/ui/form'
 import { Modal, Notice, PageHeader } from '../../components/ui'
 
@@ -10,6 +11,7 @@ function PasswordForm() {
   const { changePassword } = useAuth()
   const [form, setForm] = useState({ current: '', next: '', confirm: '' })
   const [status, setStatus] = useState(null)
+  const toast = useToast()
   const set = (key) => (event) => setForm((value) => ({ ...value, [key]: event.target.value }))
 
   function handleSubmit(event) {
@@ -19,7 +21,8 @@ function PasswordForm() {
     const result = changePassword(form.current, form.next)
     if (!result.ok) return setStatus({ tone: 'error', text: result.error })
     setForm({ current: '', next: '', confirm: '' })
-    setStatus({ tone: 'success', text: 'Password changed. Use your new password next time you sign in.' })
+    setStatus(null)
+    toast('Password changed. Use your new password next time you sign in.')
   }
 
   return (
@@ -51,7 +54,7 @@ export default function Settings() {
   const { user, logout } = useAuth()
   const { preferences, setPreferences, resetDemoData } = useData()
   const [confirmReset, setConfirmReset] = useState(false)
-  const [resetDone, setResetDone] = useState(false)
+  const toast = useToast()
   const isLandlord = user.role === 'landlord'
 
   return (
@@ -67,7 +70,10 @@ export default function Settings() {
               label={isLandlord ? 'New reservation requests' : 'Reservation updates'}
               description={isLandlord ? 'Get notified when a boarder requests a room.' : 'Get notified when a landlord approves or declines your request.'}
               checked={preferences.reservationAlerts}
-              onChange={(value) => setPreferences({ reservationAlerts: value })}
+              onChange={(value) => {
+                setPreferences({ reservationAlerts: value })
+                toast('Notification settings saved.')
+              }}
             />
           </div>
           <div className="border-top">
@@ -76,7 +82,10 @@ export default function Settings() {
               label="Email updates"
               description={`Also send important updates to ${user.email}.`}
               checked={preferences.emailUpdates}
-              onChange={(value) => setPreferences({ emailUpdates: value })}
+              onChange={(value) => {
+                setPreferences({ emailUpdates: value })
+                toast('Notification settings saved.')
+              }}
             />
           </div>
           <div className="border-top">
@@ -85,7 +94,10 @@ export default function Settings() {
               label={isLandlord ? 'Listing tips' : 'New listings near you'}
               description={isLandlord ? 'Occasional tips to get more reservations.' : 'Hear about new boarding houses in your preferred areas.'}
               checked={preferences.listingTips}
-              onChange={(value) => setPreferences({ listingTips: value })}
+              onChange={(value) => {
+                setPreferences({ listingTips: value })
+                toast('Notification settings saved.')
+              }}
             />
           </div>
         </div>
@@ -97,7 +109,6 @@ export default function Settings() {
         <div className="card-body p-4 d-flex flex-column gap-3 align-items-start">
           <h2 className="fs-6 fw-semibold mb-0">Demo data</h2>
           <p className="small text-body-secondary mb-0">Listings, reservations and notifications are saved in this browser. Reset them to start the demo over (accounts are kept).</p>
-          {resetDone && <Notice>Demo data restored.</Notice>}
           <button type="button" onClick={() => setConfirmReset(true)} className="btn btn-outline-secondary">
             <RotateCcw size={16} aria-hidden="true" />
             Reset demo data
@@ -115,6 +126,7 @@ export default function Settings() {
             type="button"
             onClick={() => {
               logout()
+              toast('You’ve been signed out.', 'info')
               navigate('/login', { replace: true, state: { role: user.role } })
             }}
             className="btn btn-outline-danger"
@@ -139,7 +151,7 @@ export default function Settings() {
                 onClick={() => {
                   resetDemoData()
                   setConfirmReset(false)
-                  setResetDone(true)
+                  toast('Demo data restored.')
                 }}
                 className="btn btn-danger"
               >

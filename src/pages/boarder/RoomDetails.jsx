@@ -1,48 +1,17 @@
-import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, CalendarCheck, DoorOpen, House, MapPin, Phone, SearchX, Users } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { ArrowLeft, CalendarCheck, DoorOpen, GraduationCap, House, MapPin, MessageCircle, Navigation, Phone, SearchX, Users } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
-import { availabilityOf, formatDate, formatPeso } from '../../data/mockData'
-import HouseArt from '../../components/illustrations/HouseArt'
-import RoomArt from '../../components/illustrations/RoomArt'
+import { useToast } from '../../context/ToastContext'
+import { availabilityOf, BAYBAY_CENTER, distanceKm, formatDate, formatDistance, formatPeso, VSU_COORDS } from '../../data/mockData'
+import MapView from '../../components/map/MapView'
+import PhotoGallery from '../../components/listings/PhotoGallery'
 import { FavoriteButton, FeatureList } from '../../components/listings/RoomCard'
+import ReviewsSection from '../../components/reviews/ReviewsSection'
+import { RatingBadge } from '../../components/reviews/Stars'
 import { TextArea, TextField } from '../../components/ui/form'
-import { EmptyState, ListingImage, Notice, StatusPill, Tag } from '../../components/ui'
-
-function Gallery({ listing }) {
-  const views = listing.photo ? ['photo', 'room', 'house'] : ['room', 'house']
-  const [active, setActive] = useState(views[0])
-
-  const render = (view) => {
-    if (view === 'photo') return <ListingImage listing={listing} kind="room" />
-    if (view === 'room') return <RoomArt variant={listing.art.room} />
-    return <HouseArt variant={listing.art.house} />
-  }
-
-  return (
-    <div>
-      <div className="ratio ratio-16x9 rounded-4 overflow-hidden">{render(active)}</div>
-      <div className="d-flex gap-3 mt-3">
-        {views.map((view) => (
-          <button
-            key={view}
-            type="button"
-            onClick={() => setActive(view)}
-            aria-label={`Show ${view === 'house' ? 'outside view' : 'room view'}`}
-            aria-pressed={active === view}
-            className={`btn d-block p-0 border-2 rounded-3 overflow-hidden ${active === view ? 'border-primary' : 'border-transparent opacity-75'}`}
-            style={{ width: '7rem' }}
-          >
-            <div className="ratio" style={{ '--bs-aspect-ratio': '62.5%' }}>
-              {render(view)}
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
+import { EmptyState, Notice, StatusPill, Tag } from '../../components/ui'
 
 function ReservePanel({ listing }) {
   const { user } = useAuth()
@@ -50,7 +19,7 @@ function ReservePanel({ listing }) {
   const [moveIn, setMoveIn] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
-  const [sent, setSent] = useState(false)
+  const toast = useToast()
   const [todayIso] = useState(() => new Date().toLocaleDateString('en-CA'))
 
   const active = myReservations.find((item) => item.listingId === listing.id && ['Pending', 'Approved'].includes(item.status))
@@ -62,7 +31,7 @@ function ReservePanel({ listing }) {
     if (moveIn < todayIso) return setError('The move-in date can’t be in the past.')
     createReservation({ boarder: user, listing, roomType: listing.roomType, moveIn, message: message.trim() })
     setError('')
-    setSent(true)
+    toast('Reservation request sent! You’ll be notified when the landlord responds.')
   }
 
   return (
@@ -75,7 +44,6 @@ function ReservePanel({ listing }) {
 
         {active ? (
           <div className="d-flex flex-column gap-3 mt-4">
-            {sent && <Notice>Request sent! The landlord will get back to you here and in your notifications.</Notice>}
             <div className="border rounded-3 p-3 small">
               <div className="d-flex align-items-center justify-content-between">
                 <span className="fw-medium">Your reservation</span>
@@ -93,7 +61,7 @@ function ReservePanel({ listing }) {
                 type="button"
                 onClick={() => {
                   setReservationStatus(active.id, 'Cancelled')
-                  setSent(false)
+                  toast('Reservation request cancelled.', 'info')
                 }}
                 className="btn btn-outline-danger w-100"
               >
@@ -129,9 +97,52 @@ function ReservePanel({ listing }) {
   )
 }
 
+function LocationCard({ listing }) {
+  const markers = useMemo(() => [{ id: listing.id, coords: listing.coords, label: listing.name, active: true }], [listing.id, listing.coords, listing.name])
+  const places = [
+    { icon: GraduationCap, label: 'Visayas State University', distance: distanceKm(listing.coords, VSU_COORDS) },
+    { icon: MapPin, label: 'Baybay town center', distance: distanceKm(listing.coords, BAYBAY_CENTER) },
+  ]
+  const [lat, lng] = listing.coords
+
+  return (
+    <section className="card">
+      <div className="card-body p-4">
+        <div className="d-flex align-items-center justify-content-between gap-3 mb-3">
+          <h2 className="h5 fw-semibold mb-0">Location</h2>
+          <a
+            href={`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-sm btn-outline-secondary"
+          >
+            <Navigation size={14} aria-hidden="true" />
+            Get directions
+          </a>
+        </div>
+        <MapView markers={markers} style={{ height: '16rem' }} label={`Map showing ${listing.name}`} />
+        <ul className="list-unstyled row g-2 small mt-2 mb-0">
+          {places.map(({ icon: Icon, label, distance }) => (
+            <li key={label} className="col-sm-6">
+              <div className="fact-tile d-flex align-items-center gap-2">
+                <Icon size={16} className="text-primary flex-shrink-0" aria-hidden="true" />
+                <span className="flex-grow-1">{label}</span>
+                <strong>{formatDistance(distance)}</strong>
+              </div>
+            </li>
+          ))}
+        </ul>
+        <p className="text-xs text-body-secondary mt-2 mb-0">Straight-line distance. The pin shows the approximate location.</p>
+      </div>
+    </section>
+  )
+}
+
 export default function RoomDetails() {
   const { listingId } = useParams()
-  const { publicListings, favorites, toggleFavorite, recordView, ownerOf } = useData()
+  const navigate = useNavigate()
+  const { user } = useAuth()
+  const { publicListings, favorites, toggleFavorite, recordView, ownerOf, ratingOf, startConversation } = useData()
   const listing = publicListings.find((item) => item.id === listingId)
 
   useEffect(() => {
@@ -169,7 +180,7 @@ export default function RoomDetails() {
 
       <div className="row g-4">
         <div className="col-lg-8 d-flex flex-column gap-4">
-          <Gallery listing={listing} />
+          <PhotoGallery listing={listing} />
 
           <section className="card">
             <div className="card-body p-4">
@@ -184,6 +195,9 @@ export default function RoomDetails() {
                     {listing.address ? `${listing.address}, ` : ''}
                     {listing.area}, {listing.city}
                   </p>
+                  <a href="#reviews" className="d-inline-block mt-2 text-decoration-none">
+                    <RatingBadge rating={ratingOf(listing.id)} />
+                  </a>
                 </div>
                 <FavoriteButton listing={listing} isFavorite={favorites.includes(listing.id)} onToggle={toggleFavorite} className="border flex-shrink-0" />
               </div>
@@ -210,6 +224,10 @@ export default function RoomDetails() {
             </div>
           </section>
 
+          <LocationCard listing={listing} />
+
+          <ReviewsSection listing={listing} />
+
           <section className="card">
             <div className="card-body p-4 d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
               <div className="d-flex align-items-center gap-3">
@@ -225,12 +243,25 @@ export default function RoomDetails() {
                   <p className="fw-semibold mb-0">{owner.name}</p>
                 </div>
               </div>
-              {owner.phone && (
-                <a href={`tel:${owner.phone.replace(/\s/g, '')}`} className="btn btn-outline-secondary">
-                  <Phone size={16} aria-hidden="true" />
-                  {owner.phone}
-                </a>
-              )}
+              <div className="d-flex flex-wrap gap-2">
+                {owner.phone && (
+                  <a href={`tel:${owner.phone.replace(/\s/g, '')}`} className="btn btn-outline-secondary">
+                    <Phone size={16} aria-hidden="true" />
+                    {owner.phone}
+                  </a>
+                )}
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    const id = startConversation({ listing, boarderId: user.id, boarderName: user.name, landlordName: owner.name })
+                    navigate(`/boarder/messages/${id}`)
+                  }}
+                >
+                  <MessageCircle size={16} aria-hidden="true" />
+                  Message landlord
+                </button>
+              </div>
             </div>
           </section>
         </div>

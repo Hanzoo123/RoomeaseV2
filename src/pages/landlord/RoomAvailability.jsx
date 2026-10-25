@@ -12,7 +12,7 @@ function Stepper({ label, value, min, max, onChange }) {
         <button type="button" className="btn btn-outline-secondary px-2" onClick={() => onChange(value - 1)} disabled={value <= min} aria-label={`Decrease ${label.toLowerCase()}`}>
           <Minus size={16} />
         </button>
-        <span className="input-group-text bg-white justify-content-center fw-semibold flex-grow-1" aria-live="polite">
+        <span className="input-group-text bg-body justify-content-center fw-semibold flex-grow-1" aria-live="polite">
           {value}
         </span>
         <button type="button" className="btn btn-outline-secondary px-2" onClick={() => onChange(value + 1)} disabled={value >= max} aria-label={`Increase ${label.toLowerCase()}`}>

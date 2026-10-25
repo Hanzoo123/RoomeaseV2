@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Building2, CalendarDays, Clock, DoorOpen, House, Plus, ShieldCheck } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
@@ -8,6 +8,16 @@ import ListingRow from '../../components/listings/ListingRow'
 import ReservationDialog from '../../components/reservations/ReservationDialog'
 import ReservationsTable from '../../components/reservations/ReservationsTable'
 import { EmptyState, SectionHeader, StatCard, WelcomeBanner } from '../../components/ui'
+
+const DashboardInsights = lazy(() => import('./DashboardInsights'))
+
+function InsightsPlaceholder() {
+  return (
+    <div className="placeholder-glow" aria-busy="true" aria-label="Loading insights">
+      <span className="placeholder col-12 rounded-4" style={{ height: '20rem' }} />
+    </div>
+  )
+}
 
 export default function LandlordDashboard() {
   const { user } = useAuth()
@@ -50,6 +60,10 @@ export default function LandlordDashboard() {
           <StatCard icon={CalendarDays} value={incomingReservations.length} label="Reservation Requests" iconClassName="text-info" />
         </div>
       </div>
+
+      <Suspense fallback={<InsightsPlaceholder />}>
+        <DashboardInsights />
+      </Suspense>
 
       <section>
         <SectionHeader title="My Boarding Houses" actionTo="/landlord/listings" />

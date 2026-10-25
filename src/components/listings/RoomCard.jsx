@@ -1,6 +1,10 @@
 import { Link } from 'react-router-dom'
 import { AirVent, Bath, BedDouble, BedSingle, BookOpen, Cctv, CookingPot, Heart, SquareParking, WashingMachine, Wifi } from 'lucide-react'
+import { useData } from '../../context/DataContext'
+import { useToast } from '../../context/ToastContext'
 import { availabilityOf, formatPeso } from '../../data/mockData'
+import { RatingBadge } from '../reviews/Stars'
+import { CompareButton } from './CompareControls'
 import { ListingImage, Tag } from '../ui'
 
 export const FEATURE_ICONS = {
@@ -33,10 +37,14 @@ export function FeatureList({ features, className = 'text-xs', iconSize = 14 }) 
 }
 
 export function FavoriteButton({ listing, isFavorite, onToggle, className = '' }) {
+  const toast = useToast()
   return (
     <button
       type="button"
-      onClick={() => onToggle(listing.id)}
+      onClick={() => {
+        onToggle(listing.id)
+        toast(isFavorite ? `${listing.name} removed from favorites.` : `${listing.name} saved to favorites.`, isFavorite ? 'info' : 'success')
+      }}
       aria-pressed={isFavorite}
       aria-label={isFavorite ? `Remove ${listing.name} from favorites` : `Save ${listing.name} to favorites`}
       className={`fav-btn ${className}`}
@@ -47,6 +55,7 @@ export function FavoriteButton({ listing, isFavorite, onToggle, className = '' }
 }
 
 export default function RoomCard({ listing, isFavorite, onToggleFavorite }) {
+  const { ratingOf } = useData()
   const extra = listing.amenities.length - 2
   const features = [listing.roomType, ...listing.amenities.slice(0, 2)]
   return (
@@ -60,9 +69,10 @@ export default function RoomCard({ listing, isFavorite, onToggleFavorite }) {
       </div>
       <div className="card-body d-flex flex-column">
         <h3 className="fs-6 fw-semibold mb-1">{listing.name}</h3>
-        <p className="small text-body-secondary mb-3">
+        <p className="small text-body-secondary mb-1">
           {listing.area}, {listing.city}
         </p>
+        <RatingBadge rating={ratingOf(listing.id)} className="mb-2" />
         <p className="small text-body-secondary mb-3">
           <span className="fs-5 fw-bold text-body">{formatPeso(listing.price)}</span> / month
         </p>
@@ -70,9 +80,12 @@ export default function RoomCard({ listing, isFavorite, onToggleFavorite }) {
           <FeatureList features={features} />
           {extra > 0 && <span className="text-xs text-body-secondary">+{extra} more</span>}
         </div>
-        <Link to={`/boarder/rooms/${listing.id}`} className="btn btn-primary w-100 mt-auto">
-          View Details
-        </Link>
+        <div className="d-flex gap-2 mt-auto">
+          <Link to={`/boarder/rooms/${listing.id}`} className="btn btn-primary flex-grow-1">
+            View Details
+          </Link>
+          <CompareButton listing={listing} />
+        </div>
       </div>
     </article>
   )
