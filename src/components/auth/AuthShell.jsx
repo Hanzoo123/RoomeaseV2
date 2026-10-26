@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Building2, Check, Eye, EyeOff, Search, ShieldCheck } from 'lucide-react'
+import { Building2, Check, Eye, EyeOff, Search } from 'lucide-react'
 import { ThemeToggle } from '../ui/feedback'
 import { ROLE_META } from '../../config/navigation'
 import StreetArt from '../illustrations/StreetArt'
@@ -11,7 +11,6 @@ const YEAR = new Date().getFullYear()
 const ROLES = {
   boarder: { label: 'Boarder', icon: Search },
   landlord: { label: 'Landlord', icon: Building2 },
-  admin: { label: 'Admin', icon: ShieldCheck },
 }
 
 const PANEL_COPY = {
@@ -24,11 +23,6 @@ const PANEL_COPY = {
     heading: 'Manage your boarding houses in one place.',
     body: 'List rooms, keep availability up to date and respond to reservation requests from boarders.',
     points: ['Publish listings for admin approval', 'Track available slots per property', 'Approve or decline reservation requests'],
-  },
-  admin: {
-    heading: 'Keep every listing worth the trip.',
-    body: 'Review new boarding houses before boarders see them, manage accounts and answer messages from the contact page.',
-    points: ['Approve, reject or take down listings', 'Deactivate accounts that break the rules', 'Reports, activity log and contact inbox'],
   },
 }
 
@@ -46,7 +40,7 @@ export default function AuthShell({ role, children }) {
             <h1 className="display-6 fw-bold tracking-tight">{copy.heading}</h1>
             <p className="text-white text-opacity-75 mt-3">{copy.body}</p>
             <div className="ratio ratio-16x9 rounded-4 overflow-hidden shadow-lg border border-white border-opacity-25 mt-4">
-              <StreetArt variant={{ boarder: 0, landlord: 1, admin: 2 }[role]} />
+              <StreetArt variant={role === 'boarder' ? 0 : 1} />
             </div>
             <ul className="list-unstyled small d-flex flex-column gap-3 mt-4 mb-0">
               {copy.points.map((point) => (
@@ -81,12 +75,11 @@ export default function AuthShell({ role, children }) {
   )
 }
 
-// Sign-up offers boarder and landlord only; admin accounts are created by the RoomEase team.
-export function RoleTabs({ role, onChange, label = 'Account type', roles = ['boarder', 'landlord'] }) {
+export function RoleTabs({ role, onChange, label = 'Account type' }) {
   return (
     <div className="bg-body border rounded-3 p-1">
       <ul role="tablist" aria-label={label} className="nav nav-pills nav-fill gap-1">
-        {roles.map((id) => {
+        {Object.keys(ROLES).map((id) => {
           const { label: roleLabel, icon: Icon } = ROLES[id]
           const selected = role === id
           return (

@@ -9,7 +9,7 @@ import { useTheme } from '../../context/ThemeContext'
 import Avatar from '../ui/Avatar'
 import { ThemeToggle } from '../ui/feedback'
 
-const SEARCH_TARGET = { boarder: '/boarder/browse', landlord: '/landlord/listings', admin: '/admin/listings' }
+const SEARCH_TARGET = { boarder: '/boarder/browse', landlord: '/landlord/listings' }
 
 function UserMenu({ role }) {
   const { user, logout } = useAuth()

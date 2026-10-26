@@ -1,4 +1,4 @@
-import { Bell, CalendarCheck, CalendarDays, ChartColumn, CirclePlus, ClipboardCheck, ClipboardList, Heart, History, House, Inbox, MessageCircle, Search, Settings, User, Users } from 'lucide-react'
+import { Bell, CalendarCheck, CalendarDays, ChartColumn, CirclePlus, ClipboardList, Heart, House, MessageCircle, Search, Settings, User } from 'lucide-react'
 
 // `badge` names a key in DataContext `counts[role]`.
 export const NAVIGATION = {
@@ -24,17 +24,6 @@ export const NAVIGATION = {
     { label: 'My Profile', to: '/landlord/profile', icon: User },
     { label: 'Settings', to: '/landlord/settings', icon: Settings },
   ],
-  admin: [
-    { label: 'Dashboard', to: '/admin', icon: House, end: true },
-    { label: 'Manage Listings', to: '/admin/listings', icon: ClipboardCheck, badge: 'pendingListings' },
-    { label: 'Manage Users', to: '/admin/users', icon: Users },
-    { label: 'Reports', to: '/admin/reports', icon: ChartColumn },
-    { label: 'Activity Log', to: '/admin/activity', icon: History },
-    { label: 'Contact Inbox', to: '/admin/inbox', icon: Inbox, badge: 'unreadContact' },
-    { label: 'Notifications', to: '/admin/notifications', icon: Bell, badge: 'notifications' },
-    { label: 'My Profile', to: '/admin/profile', icon: User },
-    { label: 'Settings', to: '/admin/settings', icon: Settings },
-  ],
 }
 
 export const ROLE_META = {
@@ -50,10 +39,8 @@ export const ROLE_META = {
     searchPlaceholder: 'Search your listings...',
     sidebarCaption: ['More Listings', 'More Opportunities'],
   },
-  admin: {
-    label: 'Administrator',
-    tagline: 'Keep Listings Trustworthy',
-    searchPlaceholder: 'Search listings...',
-    sidebarCaption: ['Checked Listings', 'Confident Boarders'],
-  },
 }
+
+// Admins and super admins sign in to the AdminLTE panel served by WAMP (backend/admin).
+// Set VITE_ADMIN_URL in .env if the project sits in another folder under C:\wamp64\www.
+export const ADMIN_PANEL_URL = import.meta.env.VITE_ADMIN_URL || 'http://localhost/RoomeaseV2/backend/admin/'

@@ -101,7 +101,7 @@ export default function ListingView() {
           <Clock size={16} className="flex-shrink-0 mt-1" aria-hidden="true" />
           <p className="mb-0">
             <strong>In review.</strong> An admin checks every new listing, usually within a few days. Boarders can’t see it until it’s approved.
-            <span className="d-block text-body-secondary mt-1">Demo: sign in as admin@roomease.ph (password admin123) to approve it from the admin panel.</span>
+            <span className="d-block text-body-secondary mt-1">Admins review listings in the RoomEase admin panel. This demo version keeps its data in the browser, so it isn’t connected to the admin panel yet.</span>
           </p>
         </div>
       ) : null}

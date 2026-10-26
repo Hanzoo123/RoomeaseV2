@@ -8,11 +8,10 @@ const daysAhead = (days) => localDate(new Date(Date.now() + days * DAY))
 const stampAgo = (days, hours = 0) => new Date(Date.now() - days * DAY - hours * 60 * 60 * 1000).toISOString()
 
 // Demo-only credentials. Never ship real passwords in client code.
-// `demo: true` accounts are listed on the login page. The others fill in the admin's user list.
+// `demo: true` accounts are listed on the login page. The same people are in database/roomease.sql.
 export const DEMO_USERS = [
   { id: 'u-boarder-1', role: 'boarder', name: 'Maria Santos', email: 'maria@roomease.ph', phone: '0917 123 4567', password: 'boarder123', demo: true, createdAt: stampAgo(160) },
   { id: 'u-landlord-1', role: 'landlord', name: 'Juan Dela Cruz', email: 'juan@roomease.ph', phone: '0918 765 4321', password: 'landlord123', demo: true, createdAt: stampAgo(240) },
-  { id: 'u-admin-1', role: 'admin', name: 'Grace Villamor', email: 'admin@roomease.ph', phone: '0920 555 0101', password: 'admin123', demo: true, createdAt: stampAgo(300) },
   { id: 'u-landlord-2', role: 'landlord', name: 'Rosa Villanueva', email: 'rosa@roomease.ph', phone: '0919 222 3344', password: 'landlord123', createdAt: stampAgo(210) },
   { id: 'u-landlord-3', role: 'landlord', name: 'Ramon Bautista', email: 'ramon@roomease.ph', phone: '0927 555 0182', password: 'landlord123', createdAt: stampAgo(45) },
   { id: 'u-boarder-2', role: 'boarder', name: 'John Reyes', email: 'john.reyes@example.com', phone: '0915 300 1122', password: 'boarder123', createdAt: stampAgo(20) },
@@ -474,9 +473,6 @@ export const NOTIFICATIONS = [
   { id: 'n-4', userId: 'u-landlord-1', date: stampAgo(2, 2), title: 'New reservation request', body: 'Maria Santos wants a Single Room at Sunrise Boarding House.', link: '/landlord/reservations', read: false },
   { id: 'n-5', userId: 'u-landlord-1', date: stampAgo(3, 6), title: 'New reservation request', body: 'John Reyes wants a Dormitory bed at Riverside Dormitory.', link: '/landlord/reservations', read: false },
   { id: 'n-6', userId: 'u-landlord-1', date: stampAgo(9), title: 'Listing approved', body: 'City View Boarding House is now visible to boarders.', link: '/landlord/listings/city-view', read: true },
-  // `role:admin` notifications are shared by every administrator.
-  { id: 'n-7', userId: 'role:admin', date: stampAgo(1), title: 'New listing to review', body: 'Ramon Bautista submitted Mountain View Bedspace.', link: '/admin/listings/mountain-view', read: false },
-  { id: 'n-8', userId: 'role:admin', date: stampAgo(4), title: 'New listing to review', body: 'Juan Dela Cruz submitted Riverside Dormitory.', link: '/admin/listings/riverside', read: false },
   { id: 'n-9', userId: 'u-landlord-2', date: stampAgo(2), title: 'Listing needs changes', body: 'Kalinaw Boarding House: Please add the full street address and at least one photo of a room.', link: '/landlord/listings/kalinaw', read: false },
 ]
 
@@ -497,7 +493,7 @@ const JUAN = { id: 'u-landlord-1', name: 'Juan Dela Cruz', role: 'landlord' }
 const RAMON = { id: 'u-landlord-3', name: 'Ramon Bautista', role: 'landlord' }
 const ROSA = { id: 'u-landlord-2', name: 'Rosa Villanueva', role: 'landlord' }
 
-// Audit log, newest first (the admin's Activity Log page).
+// Audit log, newest first. In MySQL this is audit_logs, shown in the AdminLTE Activity Log.
 export const ACTIVITY = [
   activity('a-8', 1, RAMON, 'listing.submitted', 'listing', 'mountain-view', 'Mountain View Bedspace'),
   activity('a-7', 2, GRACE, 'listing.rejected', 'listing', 'kalinaw', 'Kalinaw Boarding House', 'Please add the full street address and at least one photo of a room.'),
@@ -509,7 +505,7 @@ export const ACTIVITY = [
   activity('a-1', 45, GRACE, 'user.created', 'user', 'u-landlord-3', 'Ramon Bautista'),
 ]
 
-// Messages sent through the public Contact page (the admin's inbox).
+// Messages sent through the public Contact page. In MySQL: contact_messages (AdminLTE Contact Inbox).
 export const CONTACT_MESSAGES = [
   { id: 'cm-2', name: 'Paolo Ramos', email: 'paolo.ramos@example.com', topic: 'A listing is wrong', message: 'The rent shown for Seaside Boarding House seems outdated. The landlord told me it is now ₱2,300.', date: stampAgo(0, 5), read: false },
   { id: 'cm-1', name: 'Liza Navarro', email: 'liza.n@example.com', topic: 'My account', message: 'How do I change the email address on my account?', date: stampAgo(3), read: true },

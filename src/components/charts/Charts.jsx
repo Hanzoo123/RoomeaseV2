@@ -10,19 +10,13 @@ ChartJS.defaults.font.family = '"Inter Variable", system-ui, sans-serif'
 
 // Chart chrome per theme: recessive hairline grid, secondary-ink text, card surface for gaps.
 const THEMES = {
-  light: { text: '#66728a', grid: '#e4e8f1', surface: '#ffffff', tooltipBg: '#0f1b33' },
-  dark: { text: '#9aa4b5', grid: '#2b3445', surface: '#161d28', tooltipBg: '#000000' },
+  light: { text: '#66728a', grid: '#e4e8f1', surface: '#ffffff', accent: '#16703f', tooltipBg: '#0f1b33' },
+  dark: { text: '#9aa4b5', grid: '#2b3445', surface: '#161d28', accent: '#6fd39b', tooltipBg: '#000000' },
 }
 
-// Bar color per dashboard: landlord green by default, violet on the admin reports.
-const ACCENTS = {
-  landlord: { light: '#16703f', dark: '#6fd39b' },
-  admin: { light: '#5b4bd6', dark: '#b3abff' },
-}
-
-function useChartTheme(tone = 'landlord') {
+function useChartTheme() {
   const { theme } = useTheme()
-  return { mode: theme, ...THEMES[theme], accent: ACCENTS[tone][theme] }
+  return { mode: theme, ...THEMES[theme] }
 }
 
 function baseOptions(colors) {
@@ -194,8 +188,8 @@ export function StatusBreakdownChart({ totals }) {
 }
 
 // One measure per chart, as horizontal bars (names are long, so they read better on the y-axis).
-export function ListingBarChart({ title, subtitle, rows, valueLabel, max, format = (value) => value, tone }) {
-  const colors = useChartTheme(tone)
+export function ListingBarChart({ title, subtitle, rows, valueLabel, max, format = (value) => value }) {
+  const colors = useChartTheme()
   const data = {
     labels: rows.map((row) => row.label),
     datasets: [
@@ -238,41 +232,6 @@ export function ListingBarChart({ title, subtitle, rows, valueLabel, max, format
   return (
     <ChartCard title={title} subtitle={subtitle} table={table} height={Math.max(160, rows.length * 44)}>
       <Bar data={data} options={options} aria-label={`Bar chart: ${title}`} role="img" />
-    </ChartCard>
-  )
-}
-
-// One count per month as columns (e.g. new accounts), with the same table fallback.
-export function MonthlyBarChart({ title, subtitle, months, values, valueLabel, tone }) {
-  const colors = useChartTheme(tone)
-  const data = {
-    labels: months.map((month) => month.label),
-    datasets: [{ label: valueLabel, data: values, backgroundColor: colors.accent, borderRadius: 4, borderSkipped: 'start', maxBarThickness: 28 }],
-  }
-  const options = {
-    ...baseOptions(colors),
-    scales: {
-      x: { grid: { display: false }, border: { display: false }, ticks: axisText(colors) },
-      y: { beginAtZero: true, ticks: { ...axisText(colors), precision: 0 }, grid: { color: colors.grid, lineWidth: 1 }, border: { display: false } },
-    },
-  }
-  const table = (
-    <table className="table table-sm small mb-0">
-      <tbody>
-        {months.map((month, index) => (
-          <tr key={month.key}>
-            <th scope="row" className="fw-normal">
-              {month.label}
-            </th>
-            <td className="text-end">{values[index]}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  )
-  return (
-    <ChartCard title={title} subtitle={subtitle} table={table}>
-      <Bar data={data} options={options} aria-label={`Column chart: ${title}`} role="img" />
     </ChartCard>
   )
 }

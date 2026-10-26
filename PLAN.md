@@ -1,6 +1,6 @@
 # RoomEase — Build Plan
 
-Boarding house finder for Baybay City with three user roles: **Boarder** (looks for rooms), **Landlord** (lists and manages properties) and **Admin** (reviews listings and manages accounts). Guests can browse rooms without an account.
+Boarding house finder for Baybay City with four user roles: **Boarder** (looks for rooms) and **Landlord** (lists and manages properties) use the React website. **Admin** and **Super Admin** (review listings, manage accounts) use the AdminLTE panel. Guests can browse rooms without an account.
 
 ## Phase 1 — Frontend prototype (this build) ✅
 
@@ -52,7 +52,7 @@ Features from [Hanzoo123/Roomease](https://github.com/Hanzoo123/Roomease) that t
 | Feature | What's included |
 | --- | --- |
 | Find Place to Stay | Public browse, room and compare pages at `/rooms` (no account needed), public menu Home · Find Place to Stay · About Us · Contact Us, sign-in prompts that return the boarder to the same room |
-| Admin panel | Dashboard, Manage Listings (approve, reject with reason, remove/restore), listing review page with checklist and history, Manage Users (deactivate/reactivate), Reports with CSV export, Activity Log, Contact Inbox. Replaces the old *Approve now (demo)* button |
+| Admin panel | A first React admin panel (replaced in Phase 2.7 by the AdminLTE panel, which is required for admins and super admins). It also replaced the old *Approve now (demo)* button |
 | Stay terms | Curfew, minimum stay, who can stay, visitors, cooking, pets, payment methods, house rules and bills included, in the listing form and on the room page |
 | Room types | Single Room, Private Room, Double Sharing, Bed Spacer, Dormitory, with photo tiles on the landing page |
 | Decline reasons | Landlords can give a reason when declining; boarders see it |
@@ -60,14 +60,22 @@ Features from [Hanzoo123/Roomease](https://github.com/Hanzoo123/Roomease) that t
 | Public pages | About (with the capstone team), Contact (form to the admin inbox), Privacy Policy, Terms & Conditions |
 | Accounts | Forgot password with a 6-digit code, password checklist, PH mobile number check, profile photo |
 
-## Phase 3 — Backend
+## Phase 2.7 — AdminLTE admin panel and MySQL ✅
 
-- Real authentication (hashed passwords, sessions/JWT) replacing `AuthContext` mock login
-- Database tables: users, boarding_houses, rooms, reservations, favorites, notifications
-- API for listings, search, reservations, approvals; image storage for listing photos
-- Server-side admin checks (the admin panel exists, but roles are only enforced in the browser)
-- Real email / SMS notifications honoring the notification settings
-- Real-time messaging (e.g. WebSockets) instead of same-browser sync
-- Photo storage (e.g. cloud storage) instead of browser storage
-- Email delivery for password reset codes and contact messages (the flow exists; codes are shown on screen)
-- Google sign-in, and several rooms with their own rent per boarding house (as in the PHP version)
+| Part | What's included |
+| --- | --- |
+| Admin panel | The uploaded AdminLTE template (design unchanged) in `backend/admin/`, PHP + MySQL for WAMP64. Admin and Super Admin roles, listing moderation with reasons, boarders and landlords, reports with exports, contact inbox, admin accounts and activity log (super admin) |
+| Database | `database/roomease.sql`: the PHP version's schema plus reviews, conversations, messages, notifications and contact messages, with the same demo data as the website |
+| Website | The React admin pages were removed; admins are sent to the AdminLTE panel |
+
+## Phase 3 — Backend (see [BACKEND_PLAN.md](BACKEND_PLAN.md))
+
+The database and the admin panel are done. What remains is a PHP JSON API in `backend/api/` that connects the React website to the same MySQL database. It is built in phases:
+
+1. Accounts (sign-up, sign-in, sessions, CSRF), with the React `AuthContext` switched to the API
+2. Public listings (Find Place to Stay and room pages from MySQL)
+3. Landlord listings, several rooms per house with their own rent, photos and availability
+4. Reservations, favorites, reviews and analytics
+5. Messages, notifications (polling) and the contact form into the AdminLTE inbox
+6. Real email for password reset codes; "Remember me"
+7. A production build served by WAMP

@@ -12,7 +12,7 @@ import { Notice, PageHeader } from '../../components/ui'
 
 export default function Profile() {
   const { user, updateProfile } = useAuth()
-  const { myListings, myReservations, favorites, counts } = useData()
+  const { myListings, myReservations, favorites } = useData()
   const fileRef = useRef(null)
   const [form, setForm] = useState({ name: user.name, email: user.email, phone: user.phone ?? '' })
   const [errors, setErrors] = useState({})
@@ -33,10 +33,6 @@ export default function Profile() {
     boarder: [
       ['Reservations', myReservations.length],
       ['Saved rooms', favorites.length],
-    ],
-    admin: [
-      ['To review', counts.pendingListings],
-      ['Unread messages', counts.unreadContact],
     ],
   }[user.role]
 
@@ -125,7 +121,7 @@ export default function Profile() {
                 autoComplete="tel"
                 placeholder="0917 123 4567"
                 hint={
-                  { landlord: 'Shown to boarders on your listings.', boarder: 'Shared with landlords when you request a room.', admin: 'Only other administrators can see it.' }[user.role]
+                  { landlord: 'Shown to boarders on your listings.', boarder: 'Shared with landlords when you request a room.' }[user.role]
                 }
                 value={form.phone}
                 onChange={set('phone')}

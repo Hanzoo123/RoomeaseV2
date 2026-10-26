@@ -2,7 +2,7 @@
 
 /*
  * RoomEase theme on top of Bootstrap 5.3.
- * 1. Role colors (blue for boarders, green for landlords, violet for admins) as CSS variables.
+ * 1. Role colors (blue for boarders, green for landlords) as CSS variables.
  * 2. Bootstrap variables pointed at those colors, so .btn-primary, .text-primary,
  *    .nav-pills, form focus rings, etc. follow the active role.
  * 3. A few app-specific classes Bootstrap doesn't provide (sidebar, banners, media).
@@ -36,20 +36,6 @@
   --accent-light: #6fd39b;
   --accent-light-rgb: 111, 211, 155;
   --accent-end: #1c8a4f;
-}
-
-[data-theme="admin"] {
-  --accent: #5b4bd6;
-  --accent-rgb: 91, 75, 214;
-  --accent-hover: #4a3cbc;
-  --accent-soft: #efedff;
-  --sidebar: #231f4f;
-  --sidebar-deep: #17143a;
-  --sidebar-active: #4b3fc9;
-  --sidebar-art: #5a50c8;
-  --accent-light: #b3abff;
-  --accent-light-rgb: 179, 171, 255;
-  --accent-end: #7a68e8;
 }
 
 /* ---------- 2. Bootstrap overrides ---------- */

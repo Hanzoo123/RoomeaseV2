@@ -1,5 +1,6 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { ADMIN_PANEL_URL } from './config/navigation'
 import { useAuth } from './context/AuthContext'
 import DashboardLayout from './components/layout/DashboardLayout'
 import PublicLayout, { PublicContainer } from './components/layout/PublicLayout'
@@ -31,13 +32,6 @@ const ListingView = lazy(() => import('./pages/landlord/ListingView'))
 const RoomAvailability = lazy(() => import('./pages/landlord/RoomAvailability'))
 const ReservationRequests = lazy(() => import('./pages/landlord/ReservationRequests'))
 const Analytics = lazy(() => import('./pages/landlord/Analytics'))
-const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
-const ManageListings = lazy(() => import('./pages/admin/ManageListings'))
-const ListingReview = lazy(() => import('./pages/admin/ListingReview'))
-const ManageUsers = lazy(() => import('./pages/admin/ManageUsers'))
-const Reports = lazy(() => import('./pages/admin/Reports'))
-const ActivityLog = lazy(() => import('./pages/admin/ActivityLog'))
-const ContactInbox = lazy(() => import('./pages/admin/ContactInbox'))
 
 // Sends signed-out visitors to /login and keeps each role inside its own dashboard.
 function RequireRole({ role, children }) {
@@ -47,6 +41,13 @@ function RequireRole({ role, children }) {
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname + location.search, role }} />
   if (user.role !== role) return <Navigate to={`/${user.role}`} replace />
   return children
+}
+
+function AdminPanelRedirect() {
+  useEffect(() => {
+    window.location.replace(ADMIN_PANEL_URL)
+  }, [])
+  return <FullPageSpinner />
 }
 
 export default function App() {
@@ -117,26 +118,8 @@ export default function App() {
           <Route path="*" element={<NotFound role="landlord" />} />
         </Route>
 
-        <Route
-          path="/admin"
-          element={
-            <RequireRole role="admin">
-              <DashboardLayout role="admin" />
-            </RequireRole>
-          }
-        >
-          <Route index element={<AdminDashboard />} />
-          <Route path="listings" element={<ManageListings />} />
-          <Route path="listings/:listingId" element={<ListingReview />} />
-          <Route path="users" element={<ManageUsers />} />
-          <Route path="reports" element={<Reports />} />
-          <Route path="activity" element={<ActivityLog />} />
-          <Route path="inbox" element={<ContactInbox />} />
-          <Route path="notifications" element={<Notifications />} />
-          <Route path="profile" element={<Profile />} />
-          <Route path="settings" element={<Settings />} />
-          <Route path="*" element={<NotFound role="admin" />} />
-        </Route>
+        {/* Admins and super admins use the AdminLTE panel (backend/admin, PHP + MySQL). */}
+        <Route path="/admin/*" element={<AdminPanelRedirect />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

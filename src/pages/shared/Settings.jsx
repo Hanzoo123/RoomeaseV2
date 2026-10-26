@@ -63,10 +63,6 @@ const TOGGLE_COPY = {
     reservations: ['New reservation requests', 'Get notified when a boarder requests a room.'],
     tips: ['Listing tips', 'Occasional tips to get more reservations.'],
   },
-  admin: {
-    reservations: ['Listings to review', 'Get notified when a landlord submits or resubmits a listing.'],
-    tips: ['Contact messages', 'Get notified when someone writes through the Contact Us page.'],
-  },
 }
 
 export default function Settings() {

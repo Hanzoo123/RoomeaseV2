@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { CircleAlert, Lock, Mail } from 'lucide-react'
-import { ROLE_META } from '../config/navigation'
+import { ADMIN_PANEL_URL, ROLE_META } from '../config/navigation'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { DEMO_USERS } from '../data/mockData'
@@ -51,7 +51,6 @@ export default function Login() {
       <p className="small text-body-secondary mb-4">Sign in to your RoomEase account.</p>
 
       <RoleTabs
-        roles={['boarder', 'landlord', 'admin']}
         role={role}
         onChange={(nextRole) => {
           setRole(nextRole)
@@ -108,9 +107,14 @@ export default function Login() {
 
       <p className="small text-body-secondary text-center mt-4 mb-0">
         New to RoomEase?{' '}
-        <Link to="/signup" state={{ role: role === 'admin' ? 'boarder' : role, from: location.state?.from }} className="fw-semibold text-decoration-none">
+        <Link to="/signup" state={{ role, from: location.state?.from }} className="fw-semibold text-decoration-none">
           Create an account
         </Link>
+      </p>
+      <p className="small text-center mt-2 mb-0">
+        <a href={ADMIN_PANEL_URL} className="link-secondary">
+          Admin or super admin? Sign in to the admin panel
+        </a>
       </p>
 
       <div className="dashed-box bg-body rounded-3 p-3 mt-4">

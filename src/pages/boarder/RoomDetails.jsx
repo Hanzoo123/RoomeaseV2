@@ -43,7 +43,7 @@ function SignInToReserve({ listing }) {
         <p className="small text-body-secondary mb-0">{isFull ? 'No rooms available right now' : `${listing.availableRooms} of ${listing.totalRooms} rooms available`}</p>
         {user ? (
           <div className="mt-4">
-            <Notice tone="info">Reservations are sent from boarder accounts. You’re signed in as {user.role === 'admin' ? 'an administrator' : 'a landlord'}.</Notice>
+            <Notice tone="info">Reservations are sent from boarder accounts. You’re signed in as a landlord.</Notice>
           </div>
         ) : (
           <div className="d-flex flex-column gap-2 mt-4">

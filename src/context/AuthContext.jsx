@@ -10,7 +10,7 @@ const RESET_CODE_MINUTES = 10
 const RESET_MAX_ATTEMPTS = 5
 const AuthContext = createContext(null)
 
-export const ROLE_LABEL = { boarder: 'Boarder', landlord: 'Landlord', admin: 'Administrator' }
+export const ROLE_LABEL = { boarder: 'Boarder', landlord: 'Landlord' }
 
 export { validateEmail }
 
@@ -49,9 +49,10 @@ function toSessionUser(account) {
 }
 
 // Saved accounts win (they hold changed passwords and profiles); seed accounts added
-// in a newer version of the app are filled in.
+// in a newer version of the app are filled in. Admin accounts saved by an older version
+// are dropped: admins now sign in to the AdminLTE panel.
 function loadAccounts() {
-  const saved = loadJSON(USERS_KEY, [])
+  const saved = loadJSON(USERS_KEY, []).filter((account) => account.role !== 'admin')
   const savedIds = new Set(saved.map((account) => account.id))
   const seedById = Object.fromEntries(DEMO_USERS.map((account) => [account.id, account]))
   return [...saved.map((account) => ({ ...seedById[account.id], ...account })), ...DEMO_USERS.filter((account) => !savedIds.has(account.id))]
@@ -85,7 +86,7 @@ export function AuthProvider({ children }) {
       if (match.role !== role) {
         return {
           ok: false,
-          error: `This account is registered as ${match.role === 'admin' ? 'an' : 'a'} ${ROLE_LABEL[match.role]}. Switch to the ${ROLE_LABEL[match.role]} tab to sign in.`,
+          error: `This account is registered as a ${ROLE_LABEL[match.role]}. Switch to the ${ROLE_LABEL[match.role]} tab to sign in.`,
         }
       }
       writeSession(match.id, remember)
@@ -164,11 +165,6 @@ export function AuthProvider({ children }) {
     return { ok: true }
   }, [])
 
-  // Admin: deactivate or reactivate an account.
-  const setAccountActive = useCallback((id, active) => {
-    setAccounts((current) => current.map((item) => (item.id === id ? { ...item, active } : item)))
-  }, [])
-
   const logout = useCallback(() => {
     clearSession()
     setSession(null)
@@ -188,11 +184,10 @@ export function AuthProvider({ children }) {
       requestPasswordReset,
       verifyResetCode,
       completePasswordReset,
-      setAccountActive,
       logout,
       findAccount,
     }),
-    [user, publicAccounts, login, register, updateProfile, changePassword, requestPasswordReset, verifyResetCode, completePasswordReset, setAccountActive, logout, findAccount],
+    [user, publicAccounts, login, register, updateProfile, changePassword, requestPasswordReset, verifyResetCode, completePasswordReset, logout, findAccount],
   )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

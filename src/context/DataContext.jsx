@@ -273,52 +273,6 @@ export function DataProvider({ children }) {
     [update],
   )
 
-  // Admin: approve, or send back with a reason the landlord sees.
-  const moderateListing = useCallback(
-    (actor, listingId, decision, reason = '') =>
-      update(({ listings, notifications, activity }) => {
-        const listing = listings.find((item) => item.id === listingId)
-        if (!listing) return {}
-        const approved = decision === 'Approved'
-        return {
-          listings: listings.map((item) =>
-            item.id === listingId ? { ...item, approval: decision, rejectionReason: approved ? null : reason, moderatedAt: now() } : item,
-          ),
-          notifications: [
-            approved
-              ? notification(listing.ownerId, 'Listing approved', `${listing.name} is now live. Boarders can find it, save it and request a room.`, `/landlord/listings/${listingId}`)
-              : notification(listing.ownerId, 'Listing needs changes', `${listing.name}: ${reason}`, `/landlord/listings/${listingId}`),
-            ...notifications,
-          ],
-          activity: withLog(activity, logEntry(actor, approved ? 'listing.approved' : 'listing.rejected', 'listing', listingId, listing.name, approved ? null : reason)),
-        }
-      }),
-    [update],
-  )
-
-  // Admin: hide a listing from the site (archived, not deleted), or bring it back.
-  const setListingRemoved = useCallback(
-    (actor, listingId, removed, reason = '') =>
-      update(({ listings, notifications, activity }) => {
-        const listing = listings.find((item) => item.id === listingId)
-        if (!listing) return {}
-        return {
-          listings: listings.map((item) => (item.id === listingId ? { ...item, removed, removedReason: removed ? reason : null } : item)),
-          notifications: [
-            notification(
-              listing.ownerId,
-              removed ? 'Listing removed' : 'Listing restored',
-              removed ? `${listing.name} was removed by an administrator${reason ? `: ${reason}` : '.'}` : `${listing.name} is back on RoomEase.`,
-              `/landlord/listings/${listingId}`,
-            ),
-            ...notifications,
-          ],
-          activity: withLog(activity, logEntry(actor, removed ? 'listing.removed' : 'listing.restored', 'listing', listingId, listing.name, reason || null)),
-        }
-      }),
-    [update],
-  )
-
   // For actions that live outside this store (e.g. deactivating an account in AuthContext).
   const logEvent = useCallback(
     (actor, action, targetType, targetId, targetLabel, detail) =>
@@ -332,16 +286,6 @@ export function DataProvider({ children }) {
         contactMessages: [{ id: newId('cm'), date: now(), read: false, ...fields }, ...contactMessages],
         notifications: [notification(ADMINS, 'New contact message', `${fields.name}: ${fields.topic}`, '/admin/inbox'), ...notifications],
       })),
-    [update],
-  )
-
-  const setContactRead = useCallback(
-    (messageId, read) => update(({ contactMessages }) => ({ contactMessages: contactMessages.map((item) => (item.id === messageId ? { ...item, read } : item)) })),
-    [update],
-  )
-
-  const deleteContactMessage = useCallback(
-    (messageId) => update(({ contactMessages }) => ({ contactMessages: contactMessages.filter((item) => item.id !== messageId) })),
     [update],
   )
 
@@ -526,8 +470,6 @@ export function DataProvider({ children }) {
         notifications: myNotifications.filter((item) => !item.read).length,
         pendingReservations: reservations.filter((item) => myListingIds.has(item.listingId) && item.status === 'Pending').length,
         messages: myConversations.reduce((sum, item) => sum + item.unread, 0),
-        pendingListings: listings.filter((item) => item.approval === 'Pending' && !item.removed).length,
-        unreadContact: contactMessages.filter((item) => !item.read).length,
       },
       toggleFavorite: (listingId) => toggleFavorite(userId, listingId),
       recordView: (listingId) => recordView(compareKey, listingId),
@@ -537,14 +479,9 @@ export function DataProvider({ children }) {
       setReservationStatus: (reservationId, status, note) => setReservationStatus(user, reservationId, status, note),
       saveListing: (fields, listingId) => saveListing(user, fields, listingId),
       deleteListing: (listingId) => deleteListing(user, listingId),
-      moderateListing: (listingId, decision, reason) => moderateListing(user, listingId, decision, reason),
-      setListingRemoved: (listingId, removed, reason) => setListingRemoved(user, listingId, removed, reason),
-      logEvent: (action, targetType, targetId, targetLabel, detail) => logEvent(user, action, targetType, targetId, targetLabel, detail),
       // For the moment right after sign-up, before the new account is the signed-in user.
       logEventAs: logEvent,
       sendContactMessage,
-      setContactRead,
-      deleteContactMessage,
       updateListing,
       saveReview: (listing, fields) => saveReview(user, listing, fields),
       deleteReview,
@@ -575,12 +512,8 @@ export function DataProvider({ children }) {
     saveListing,
     deleteListing,
     updateListing,
-    moderateListing,
-    setListingRemoved,
     logEvent,
     sendContactMessage,
-    setContactRead,
-    deleteContactMessage,
     saveReview,
     deleteReview,
     replyToReview,

@@ -17,7 +17,7 @@ export default function ForgotPassword() {
   const navigate = useNavigate()
   const location = useLocation()
   const toast = useToast()
-  const role = ['boarder', 'landlord', 'admin'].includes(location.state?.role) ? location.state.role : 'boarder'
+  const role = ['boarder', 'landlord'].includes(location.state?.role) ? location.state.role : 'boarder'
   const [step, setStep] = useState(0)
   const [email, setEmail] = useState(location.state?.email ?? '')
   const [demoCode, setDemoCode] = useState(null)
