@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Star,
 } from 'lucide-react'
+import { publicUrl } from '../config/base'
 import { useData } from '../context/DataContext'
 import { AREAS, availabilityOf, distanceKm, formatDistance, formatPeso, LOCATIONS, ROOM_TYPE_INFO, ROOM_TYPES, VSU_COORDS } from '../data/mockData'
 import StreetArt from '../components/illustrations/StreetArt'
@@ -302,7 +303,7 @@ function RoomTypes({ listings }) {
               <div key={type} className="col">
                 <Link to={`/rooms?roomType=${encodeURIComponent(type)}`} className="room-type-tile card h-100 overflow-hidden text-reset-link card-hover">
                   <div className="ratio ratio-4x3">
-                    <img src={ROOM_TYPE_INFO[type].photo} alt="" loading="lazy" />
+                    <img src={publicUrl(ROOM_TYPE_INFO[type].photo)} alt="" loading="lazy" />
                   </div>
                   <div className="card-body p-3">
                     <p className="fw-semibold mb-0">{type}</p>

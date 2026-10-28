@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, CalendarCheck, CircleHelp, DoorOpen, GraduationCap, House, Link2, LoaderCircle, LocateFixed, LogIn, MapPin, MessageCircle, Navigation, Phone, SearchX, Users } from 'lucide-react'
+import { publicUrl } from '../../config/base'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
 import { useRequireBoarder, useSitePaths } from '../../context/SitePaths'
@@ -278,7 +279,7 @@ export default function RoomDetails() {
     { icon: Users, label: 'Open slots', value: listing.availableSlots },
   ]
   // The public address of this listing, whichever page it was opened from.
-  const shareUrl = `${window.location.origin}/rooms/${listing.id}`
+  const shareUrl = new URL(publicUrl(`rooms/${listing.id}`), window.location.origin).href
 
   function messageLandlord(draft) {
     if (!requireBoarder('message the landlord')) return

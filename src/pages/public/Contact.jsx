@@ -4,6 +4,7 @@ import { ArrowRight, CircleUser, House, Link2, Mail, MessageCircle, Send, UserPl
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
 import { useToast } from '../../context/ToastContext'
+import { publicUrl } from '../../config/base'
 import { validateEmail } from '../../data/validation'
 import { Notice } from '../../components/ui'
 import { SelectField, TextArea, TextField } from '../../components/ui/form'
@@ -140,7 +141,7 @@ export default function Contact() {
 
   return (
     <div className="page-enter">
-      <PageHero title="Contact RoomEase" lede="A listing that is no longer accurate, a question about your account, or anything else." image="/images/pages/contact-header.webp" />
+      <PageHero title="Contact RoomEase" lede="A listing that is no longer accurate, a question about your account, or anything else." image={publicUrl('images/pages/contact-header.webp')} />
 
       <section className="py-5">
         <div className="container py-lg-3">

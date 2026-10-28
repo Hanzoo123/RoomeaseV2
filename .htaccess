@@ -1,0 +1,19 @@
+# RoomEase on WAMP: serves the built website (dist/) at this folder's address and leaves
+# the PHP admin panel (backend/) as it is. Needs Apache's rewrite_module (on in WAMP).
+DirectoryIndex index.php
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # The admin panel, the built files and the page server itself are served as they are.
+  RewriteRule ^(backend|dist)(/|$) - [L]
+  RewriteRule ^index\.php$ - [L]
+  RewriteRule ^index\.html$ index.php [L]
+
+  # Scripts, styles, images and other files come from the build.
+  # (This also keeps the source, database and config files out of reach.)
+  RewriteRule ^(.+\.[A-Za-z0-9]+)$ dist/$1 [L]
+
+  # Every page address (/, /rooms, /boarder/…) is the React app.
+  RewriteRule ^ index.php [L]
+</IfModule>

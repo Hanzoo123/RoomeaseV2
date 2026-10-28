@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
+import { BASE_PATH } from './config/base'
 import { AuthProvider } from './context/AuthContext'
 import { DataProvider } from './context/DataContext'
 import { ThemeProvider } from './context/ThemeContext'
@@ -11,7 +12,7 @@ import './index.css'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={BASE_PATH.replace(/\/$/, '') || '/'}>
       <ThemeProvider>
         <ToastProvider>
           <AuthProvider>

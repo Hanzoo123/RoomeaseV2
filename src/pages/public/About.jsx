@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, BadgeCheck, DoorOpen, Phone, Receipt } from 'lucide-react'
+import { publicUrl } from '../../config/base'
 import { useData } from '../../context/DataContext'
 import PageHero from './PageHero'
 
@@ -38,7 +39,7 @@ export default function About() {
 
   return (
     <div className="page-enter">
-      <PageHero title="About RoomEase" lede="A boarding house directory for Baybay City, built so a room can be compared before it is visited." image="/images/pages/about-header.webp" />
+      <PageHero title="About RoomEase" lede="A boarding house directory for Baybay City, built so a room can be compared before it is visited." image={publicUrl('images/pages/about-header.webp')} />
 
       <section className="py-5">
         <div className="container py-lg-4">
@@ -46,8 +47,8 @@ export default function About() {
             <div className="col-lg-6">
               {/* Atmosphere only, so the photos are skipped by screen readers; the figure is read as text. */}
               <div className="photo-stack">
-                <img src="/images/pages/about-story-1.webp" alt="" className="photo-back" loading="lazy" />
-                <img src="/images/pages/about-story-2.webp" alt="" className="photo-front" loading="lazy" />
+                <img src={publicUrl('images/pages/about-story-1.webp')} alt="" className="photo-back" loading="lazy" />
+                <img src={publicUrl('images/pages/about-story-2.webp')} alt="" className="photo-front" loading="lazy" />
                 <Figure value="16 of 19" label="had visited or called a boarding house only to find no room free" />
               </div>
             </div>
@@ -158,7 +159,7 @@ export default function About() {
       <section className="pb-5">
         <div className="container">
           <div className="page-hero rounded-4 p-4 p-md-5">
-            <img src="/images/pages/about-cta.webp" alt="" loading="lazy" />
+            <img src={publicUrl('images/pages/about-cta.webp')} alt="" loading="lazy" />
             <div style={{ maxWidth: '32rem' }}>
               <h2 className="h2 fw-bold mb-2">Find a room in Baybay City</h2>
               <p className="text-white text-opacity-75 mb-4">Search by barangay, room type and budget, and see what is free before you go.</p>

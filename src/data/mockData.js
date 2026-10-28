@@ -31,11 +31,11 @@ export const AREAS = ['Poblacion', 'San Isidro', 'Baybay City Center', 'Near VSU
 export const ROOM_TYPES = ['Single Room', 'Private Room', 'Double Sharing', 'Bed Spacer', 'Dormitory']
 export const SHARED_ROOM_TYPES = ['Double Sharing', 'Bed Spacer', 'Dormitory']
 export const ROOM_TYPE_INFO = {
-  'Single Room': { photo: '/images/room-types/single-room.webp', blurb: 'One bed, one boarder' },
-  'Private Room': { photo: '/images/room-types/private-room.webp', blurb: 'Your own room, often with a CR' },
-  'Double Sharing': { photo: '/images/room-types/double-sharing.webp', blurb: 'Two boarders per room' },
-  'Bed Spacer': { photo: '/images/room-types/bed-spacer.webp', blurb: 'Rent a bed in a shared room' },
-  Dormitory: { photo: '/images/room-types/dormitory.webp', blurb: 'Bunks for four or more' },
+  'Single Room': { photo: 'images/room-types/single-room.webp', blurb: 'One bed, one boarder' },
+  'Private Room': { photo: 'images/room-types/private-room.webp', blurb: 'Your own room, often with a CR' },
+  'Double Sharing': { photo: 'images/room-types/double-sharing.webp', blurb: 'Two boarders per room' },
+  'Bed Spacer': { photo: 'images/room-types/bed-spacer.webp', blurb: 'Rent a bed in a shared room' },
+  Dormitory: { photo: 'images/room-types/dormitory.webp', blurb: 'Bunks for four or more' },
 }
 export const UTILITIES = ['Water', 'Electricity', 'Trash Collection', 'Internet / Wi-Fi', 'Cooking Gas']
 export const PAYMENT_METHODS = ['Cash', 'GCash', 'Maya', 'Bank transfer']

@@ -1,4 +1,5 @@
 import { Bell, CalendarCheck, CalendarDays, ChartColumn, CirclePlus, ClipboardList, Heart, House, MessageCircle, Search, Settings, User } from 'lucide-react'
+import { BASE_PATH } from './base'
 
 // `badge` names a key in DataContext `counts[role]`.
 export const NAVIGATION = {
@@ -42,5 +43,7 @@ export const ROLE_META = {
 }
 
 // Admins and super admins sign in to the AdminLTE panel served by WAMP (backend/admin).
-// Set VITE_ADMIN_URL in .env if the project sits in another folder under C:\wamp64\www.
-export const ADMIN_PANEL_URL = import.meta.env.VITE_ADMIN_URL || 'http://localhost/RoomeaseV2/backend/admin/'
+// The built site finds it next to itself. With `npm run dev`, set VITE_ADMIN_URL in
+// .env.local if the project sits in another folder under C:\wamp64\www.
+export const ADMIN_PANEL_URL =
+  import.meta.env.VITE_ADMIN_URL || (import.meta.env.PROD ? `${BASE_PATH}backend/admin/` : 'http://localhost/RoomeaseV2/backend/admin/')

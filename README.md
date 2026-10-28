@@ -17,7 +17,15 @@ It follows the PHP version of RoomEase ([Hanzoo123/Roomease](https://github.com/
 
 ## Run it
 
-### The website (React)
+### On WAMP64 (no Node.js needed)
+
+1. Put the project folder in `C:\wamp64\www` (e.g. `C:\wamp64\www\RoomeaseV2`, or `RoomeaseV2-main` from the ZIP download) and start WAMP.
+2. Open the website at **http://localhost/RoomeaseV2/** (use your folder's name). The built site is already in `dist/`, and `index.php` with `.htaccess` serve it from whatever folder it's in.
+3. For the admin panel, import the database once (see [the admin panel](#the-admin-panel-adminlte-on-wamp64) below).
+
+If you change anything in `src/`, run `npm run build` to update `dist/`; WAMP then shows the new version.
+
+### While developing (React with live reload)
 
 ```bash
 npm install
@@ -33,7 +41,7 @@ Open http://localhost:5173. Sign in with a demo account (or click **Use** on the
 
 More landlords for testing: `rosa@roomease.ph` and `ramon@roomease.ph` (password `landlord123`). Rosa has a listing that was sent back for changes; Ramon has one waiting for review.
 
-Other scripts: `npm run build` (production build to `dist/`), `npm run preview`, `npm run lint`.
+Other scripts: `npm run build` (updates `dist/`, the version WAMP serves) and `npm run lint`.
 
 ### The admin panel (AdminLTE on WAMP64)
 
@@ -46,7 +54,7 @@ Other scripts: `npm run build` (production build to `dist/`), `npm run preview`,
 | Super Admin | `superadmin` (`superadmin@roomease.ph`) | `Superadmin#2026` |
 | Admin | `admin` (`admin@roomease.ph`) | `Admin#2026` |
 
-The website's sign-in page links to the admin panel ("Admin or super admin?"), and `/admin` redirects there. If the project is in another folder, set `VITE_ADMIN_URL` in `.env.local` (see `.env.example`).
+The website's sign-in page links to the admin panel ("Admin or super admin?"), and `/admin` redirects there. On WAMP it finds the panel by itself. With `npm run dev` it assumes the folder is `RoomeaseV2`; if yours is named differently, set `VITE_ADMIN_URL` in `.env.local` (see `.env.example`).
 
 The admin panel already uses MySQL. The website still keeps its data in the browser until the PHP API is built. **[BACKEND_PLAN.md](BACKEND_PLAN.md)** has the steps for connecting the two, plus the WAMP setup details.
 
@@ -155,7 +163,7 @@ src/
 - **Start over:** Settings → *Reset demo data* restores the original listings, reservations, reviews and messages.
 - **Maps** use free OpenStreetMap tiles, so they need an internet connection. Pin locations are approximate. If tiles can't load, the pins still show.
 - **Photos:** landlords can upload up to 5 photos per listing (resized in the browser). Browser storage holds roughly 5 MB, so many large listings can fill it; the app warns you if a save fails. Without photos, illustrations are shown.
-- **Deploying:** this is a single-page app using browser routing, so the host must serve `index.html` for unknown paths (e.g. a rewrite rule on Vercel or Netlify).
+- **Serving the site:** this is a single-page app with browser routing. On WAMP, `.htaccess` sends every page address to `index.php`, which serves `dist/index.html` with the right folder filled in. It also keeps the source, `database/` and config files from being opened in the browser. Another host must also serve the page for every app address (e.g. a rewrite rule on Vercel or Netlify).
 
 - **AdminLTE** (MIT licence) is included under `backend/admin/dist` and `backend/admin/plugins`. Only the files the pages load were copied; the rest of the template's plugins can be added from the original AdminLTE download if a page needs one.
 

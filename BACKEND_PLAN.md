@@ -41,7 +41,9 @@ Browser
    | Admin | `admin` (`admin@roomease.ph`) | `Admin#2026` |
 
    Landlords (`juan@`, `rosa@` and `ramon@roomease.ph`) use `Landlord#2026`, and boarders (`maria@roomease.ph` and the others) use `Boarder#2026`. These are for when the React app is connected (step 5). **Change or remove the demo accounts before real use.**
-5. Run the React app: `npm install`, then `npm run dev`, then open http://localhost:5173. If your folder isn't `RoomeaseV2`, copy `.env.example` to `.env.local` and fix `VITE_ADMIN_URL`.
+5. Open the website at http://localhost/RoomeaseV2/. WAMP serves the built copy in `dist/`.
+   - While changing the React code, use `npm install` and then `npm run dev` (http://localhost:5173) instead.
+   - Run `npm run build` afterwards so WAMP shows the changes.
 
 **Check in WAMP** (left-click the tray icon, then PHP, then PHP extensions or Settings):
 - `pdo_mysql`, `mbstring`, `fileinfo` and `gd` are on (they are by default).
@@ -214,7 +216,7 @@ Admins need no API endpoints: the AdminLTE panel talks to MySQL itself.
 ## 5. Connecting the React app
 
 1. Add `src/api/client.js`: a small `fetch` wrapper. It sends the CSRF header, reads `{ ok, data, error }`, and turns errors into toasts.
-2. Add the Vite proxy in `vite.config.js`: `server.proxy['/api'] = 'http://localhost/RoomeaseV2/backend'`.
+2. Add the Vite proxy in `vite.config.js`: `server.proxy['/api'] = 'http://localhost/RoomeaseV2/backend'`. In the WAMP build, call the API at `` `${BASE_PATH}backend/api/…` `` (`BASE_PATH` is in `src/config/base.js`), so it also works from any folder.
 3. Replace the inside of `AuthContext` with API calls, keeping the same function names (`login`, `register`, `logout`, `updateProfile`, `changePassword`, `requestPasswordReset`…). The pages then don't change.
 4. Do the same in `DataContext`, one feature at a time. Load lists from the API and refetch after a change. A `VITE_USE_API` switch lets the mock and the API live side by side while you migrate.
 5. Add a **Rooms** section to the landlord's listing form (several rooms, each with its own type and rent), and let boarders pick a room when they reserve.
@@ -235,7 +237,7 @@ Each phase ends with something you can show.
 | **4** | Reservations, favorites, reviews, landlord replies, analytics | The full reservation flow works between two browsers |
 | **5** | Messages, notifications (polling), Contact form | A Contact Us message appears in the AdminLTE inbox |
 | **6** | Real email for reset codes, e.g. PHPMailer with a Gmail app password; "Remember me" tokens | A reset code arrives by email |
-| **7** | Production on WAMP: `npm run build` with `base: '/RoomeaseV2/'`, an `.htaccess` that serves `index.html` for app routes, errors off, demo accounts replaced, a `mysqldump` backup | The whole system runs from `http://localhost/RoomeaseV2/` with Vite stopped |
+| **7** | ✅ The website served by WAMP: a relative build in `dist/`, plus `index.php` and `.htaccess`, so it works from any folder name. Still to do before going live: errors off, demo accounts replaced, a `mysqldump` backup | The whole system runs from `http://localhost/RoomeaseV2/` with Vite stopped |
 
 **Test checklist for every phase:**
 - [ ] Signed out: protected endpoints return 401
