@@ -4,6 +4,7 @@ Find and manage boarding houses in Baybay City. Two parts:
 
 - **The website** (React + Bootstrap 5): a public site where anyone can **Find a Place to Stay** without an account, sign-in and sign-up with password reset, and full dashboards for **boarders** and **landlords**. Boarders can browse, use "near me", the map and compare, reserve, review and chat. Landlords manage listings with house rules and bills, availability, requests and analytics, and can chat too. Light and dark mode.
 - **The admin panel** (AdminLTE 3 + PHP + MySQL, for WAMP64) for **admins** and **super admins**: listing review, boarders and landlords, reports with exports, contact inbox, and for super admins, admin accounts and the activity log.
+- **The API** (PHP + MySQL, `backend/api/`) that the website uses. So far it handles accounts: sign-up, sign-in, "Remember me", profile and photo, password change and reset. Listings and the rest move over in the next phases ([BACKEND_PLAN.md](BACKEND_PLAN.md)).
 
 It follows the PHP version of RoomEase ([Hanzoo123/Roomease](https://github.com/Hanzoo123/Roomease)): same room types, the same public menu (Home · Find Place to Stay · About Us · Contact Us), the same listing review states and the same password rules.
 
@@ -20,8 +21,17 @@ It follows the PHP version of RoomEase ([Hanzoo123/Roomease](https://github.com/
 ### On WAMP64 (no Node.js needed)
 
 1. Put the project folder in `C:\wamp64\www` (e.g. `C:\wamp64\www\RoomeaseV2`, or `RoomeaseV2-main` from the ZIP download) and start WAMP.
-2. Open the website at **http://localhost/RoomeaseV2/** (use your folder's name). The built site is already in `dist/`, and `index.php` with `.htaccess` serve it from whatever folder it's in.
-3. For the admin panel, import the database once (see [the admin panel](#the-admin-panel-adminlte-on-wamp64) below).
+2. Import the database once. In phpMyAdmin (http://localhost/phpmyadmin, user `root`, no password), click **Import**, choose `database/roomease.sql`, and click **Go**. Both the website's sign-in and the admin panel use it.
+3. Open the website at **http://localhost/RoomeaseV2/** (use your folder's name). The built site is already in `dist/`, and `index.php` with `.htaccess` serve it from whatever folder it's in.
+
+Website demo accounts (stored in MySQL; click **Use** on the sign-in page):
+
+| Role | Email | Password |
+| --- | --- | --- |
+| Boarder | `maria@roomease.ph` | `Boarder#2026` |
+| Landlord | `juan@roomease.ph` | `Landlord#2026` |
+
+More landlords for testing: `rosa@roomease.ph` and `ramon@roomease.ph` (password `Landlord#2026`). Rosa has a listing that was sent back for changes; Ramon has one waiting for review.
 
 If you change anything in `src/`, run `npm run build` to update `dist/`; WAMP then shows the new version.
 
@@ -32,14 +42,9 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173. Sign in with a demo account (or click **Use** on the login page):
+Open http://localhost:5173. Keep WAMP running: the dev server sends the API (`/backend/…`) to WAMP. It expects the project at `http://localhost/RoomeaseV2/`; if your folder is named differently, copy `.env.example` to `.env.local` and set `ROOMEASE_WAMP_URL`.
 
-| Role | Email | Password |
-| --- | --- | --- |
-| Boarder | `maria@roomease.ph` | `boarder123` |
-| Landlord | `juan@roomease.ph` | `landlord123` |
-
-More landlords for testing: `rosa@roomease.ph` and `ramon@roomease.ph` (password `landlord123`). Rosa has a listing that was sent back for changes; Ramon has one waiting for review.
+Without WAMP, set `VITE_USE_API=false` in `.env.local`. Accounts then stay in the browser like the first prototype, and the demo passwords are `boarder123` and `landlord123`.
 
 Other scripts: `npm run build` (updates `dist/`, the version WAMP serves) and `npm run lint`.
 
@@ -54,9 +59,9 @@ Other scripts: `npm run build` (updates `dist/`, the version WAMP serves) and `n
 | Super Admin | `superadmin` (`superadmin@roomease.ph`) | `Superadmin#2026` |
 | Admin | `admin` (`admin@roomease.ph`) | `Admin#2026` |
 
-The website's sign-in page links to the admin panel ("Admin or super admin?"), and `/admin` redirects there. On WAMP it finds the panel by itself. With `npm run dev` it assumes the folder is `RoomeaseV2`; if yours is named differently, set `VITE_ADMIN_URL` in `.env.local` (see `.env.example`).
+The website's sign-in page links to the admin panel ("Admin or super admin?"), and `/admin` redirects there. On WAMP it finds the panel by itself; with `npm run dev` it follows `ROOMEASE_WAMP_URL`.
 
-The admin panel already uses MySQL. The website still keeps its data in the browser until the PHP API is built. **[BACKEND_PLAN.md](BACKEND_PLAN.md)** has the steps for connecting the two, plus the WAMP setup details.
+Website accounts and the admin panel share MySQL: someone who signs up on the website appears under **Boarders & Landlords**, and deactivating them there signs them out of the website within a minute. Listings, reservations and messages still live in the browser until the next phases of **[BACKEND_PLAN.md](BACKEND_PLAN.md)**.
 
 ## Features
 
@@ -65,7 +70,7 @@ The admin panel already uses MySQL. The website still keeps its data in the brow
 - **Find Place to Stay**: the full browse page, room pages, map and compare, open to guests. Saving, reserving, reviewing or messaging asks them to sign in, then brings them back to the same room
 - Landing page with search, "lowest rent with a free slot", **room type tiles** (Single Room, Private Room, Double Sharing, Bed Spacer, Dormitory), top-rated rooms, areas, FAQ
 - **Contact form** that goes to the admin's inbox (with a bot trap and a limit of 3 messages an hour per email)
-- **Forgot password** with a 6-digit code (valid 10 minutes, 5 tries); the demo shows the code on screen because there is no email service
+- **Forgot password** with a 6-digit code (valid 10 minutes, 5 tries). Until email is set up, the code is shown on screen, but only to the computer running WAMP (`backend/config/app.php`)
 - Password checklist on sign-up, settings and reset (8+ characters, upper and lower case, a number, a symbol), and Philippine mobile number checks
 - Light / dark mode, remembered per browser; toasts, page fade-ins and loading placeholders
 
@@ -114,10 +119,18 @@ The admin panel already uses MySQL. The website still keeps its data in the brow
 
 ```
 backend/
+  config/database.php        MySQL settings for the admin panel and the API (WAMP: root, no password)
+  config/app.php             site settings (e.g. showing reset codes on screen until email is set up)
+  lib/validation.php         password, phone and email rules shared by the admin panel and the API
+  api/                       JSON API for the website
+    index.php                router: every /backend/api/… address and the function that answers it
+    lib/                     JSON helpers, database, sessions, CSRF, "Remember me", sign-in limits
+    routes/                  auth.php (sign-up, sign-in, reset), me.php (profile, photo, password)
+  uploads/                   photos uploaded through the API (not in git)
   admin/                     AdminLTE admin and super admin panel (PHP)
     index.php                sign-in
     dashboard.php            page router (?page=…), with who may open each page
-    config/conn.php          MySQL connection (WAMP: root, no password)
+    config/conn.php          MySQL connection (settings from backend/config/database.php)
     includes/                head, navbar, sidebar, footer, helpers, moderation actions
     content/                 the pages: home, listings, view_listing, accounts, inbox, reports,
                              profile; super admin: view_users, add_user, update_user, activity
@@ -127,9 +140,11 @@ database/
 src/
   App.jsx                    routes (each page lazy-loaded): public site, auth, and role-protected dashboards
   index.css                  Bootstrap theme overrides, per-role colors, dark mode, app styles
-  config/navigation.js       sidebar items and role labels
+  api/client.js              calls the PHP API (JSON, CSRF token, readable errors)
+  config/                    navigation, the site's base path, API settings (VITE_USE_API)
   context/
-    AuthContext.jsx          mock accounts: sign in, sign up, profile, password, reset codes
+    AuthContext.jsx          accounts: picks the API version or the in-browser demo version
+    ApiAuthProvider.jsx      sign-in, sign-up, profile and password reset through the API
     DataContext.jsx          stand-in backend: listings, reservations, reviews, messages, notifications, contact form
     SitePaths.jsx            room links for the public site vs. the boarder dashboard; guest sign-in prompts
     ThemeContext.jsx         light / dark mode
@@ -158,7 +173,7 @@ src/
 
 ## Notes
 
-- **The website isn't connected to MySQL yet.** Its accounts and data are saved in the browser's localStorage (passwords included, in plain text, demo only). The admin panel already uses MySQL. [BACKEND_PLAN.md](BACKEND_PLAN.md) covers the PHP API that will replace the insides of `AuthContext.jsx` and `DataContext.jsx`. Until then, no email is sent (reset codes appear on screen), and website contact messages stay in the browser.
+- **What's in MySQL so far:** accounts (sign-up, sign-in, profile, photo, passwords; only bcrypt hashes are stored). Listings, reservations, reviews, messages and the contact form still live in the browser's localStorage until the next phases of [BACKEND_PLAN.md](BACKEND_PLAN.md). Until then, the demo accounts keep their demo data, and a new account starts empty. No email is sent yet; reset codes appear on screen.
 - **Not carried over from the PHP version yet** (they need a server): Google sign-in, real email (reset codes, notifications), and several rooms with their own rent inside one boarding house.
 - **Start over:** Settings → *Reset demo data* restores the original listings, reservations, reviews and messages.
 - **Maps** use free OpenStreetMap tiles, so they need an internet connection. Pin locations are approximate. If tiles can't load, the pins still show.

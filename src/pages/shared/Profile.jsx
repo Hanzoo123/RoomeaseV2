@@ -44,14 +44,14 @@ export default function Profile() {
     if (file.size > 8 * 1024 * 1024) return toast('That photo is over 8 MB. Choose a smaller one.', 'error')
     try {
       const avatar = await resizeImage(file, 256, { square: true, quality: 0.85 })
-      const result = updateProfile({ avatar })
+      const result = await updateProfile({ avatar })
       toast(result.ok ? 'Profile photo updated.' : result.error, result.ok ? 'success' : 'error')
     } catch {
       toast('That photo couldn’t be read. Try another one.', 'error')
     }
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
     const nextErrors = {}
     if (form.name.trim().length < 2) nextErrors.name = 'Enter your full name.'
@@ -60,7 +60,7 @@ export default function Profile() {
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length) return
 
-    const result = updateProfile({ name: form.name.trim(), email: form.email.trim(), phone: form.phone.trim() })
+    const result = await updateProfile({ name: form.name.trim(), email: form.email.trim(), phone: form.phone.trim() })
     if (result.ok) toast('Profile updated.')
     setStatus(result.ok ? null : { tone: 'error', text: result.error })
   }
@@ -85,9 +85,9 @@ export default function Profile() {
                     type="button"
                     className="btn btn-sm btn-outline-danger"
                     aria-label="Remove profile photo"
-                    onClick={() => {
-                      updateProfile({ avatar: null })
-                      toast('Profile photo removed.', 'info')
+                    onClick={async () => {
+                      const result = await updateProfile({ avatar: null })
+                      toast(result.ok ? 'Profile photo removed.' : result.error, result.ok ? 'info' : 'error')
                     }}
                   >
                     <Trash2 size={14} aria-hidden="true" />

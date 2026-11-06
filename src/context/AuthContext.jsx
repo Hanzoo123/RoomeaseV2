@@ -1,14 +1,17 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { DEMO_USERS } from '../data/mockData'
 import { loadJSON, newId, saveJSON } from '../data/storage'
 import { validateEmail } from '../data/validation'
+import { USE_API } from '../config/api'
+import ApiAuthProvider from './ApiAuthProvider'
+import { AuthContext } from './authContext'
 
-// Mock auth for the prototype: accounts live in localStorage. Replace with a real API later.
+// Accounts come from the PHP API (ApiAuthProvider) unless VITE_USE_API is "false"; then this
+// in-browser demo version keeps them in localStorage. Both offer the same functions.
 const USERS_KEY = 'roomease.users'
 const SESSION_KEY = 'roomease.session'
 const RESET_CODE_MINUTES = 10
 const RESET_MAX_ATTEMPTS = 5
-const AuthContext = createContext(null)
 
 export const ROLE_LABEL = { boarder: 'Boarder', landlord: 'Landlord' }
 
@@ -60,7 +63,7 @@ function loadAccounts() {
 
 const sameEmail = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase()
 
-export function AuthProvider({ children }) {
+function MockAuthProvider({ children }) {
   const [accounts, setAccounts] = useState(loadAccounts)
   const [session, setSession] = useState(readSession)
   // Password reset codes, kept in memory only (a real backend would email them).
@@ -79,7 +82,7 @@ export function AuthProvider({ children }) {
   const emailTaken = useCallback((email, exceptId) => accounts.some((account) => account.id !== exceptId && sameEmail(account.email, email)), [accounts])
 
   const login = useCallback(
-    ({ email, password, role, remember }) => {
+    async ({ email, password, role, remember }) => {
       const match = accounts.find((account) => sameEmail(account.email, email) && account.password === password)
       if (!match) return { ok: false, error: 'Incorrect email or password.' }
       if (match.active === false) return { ok: false, error: 'This account has been deactivated. Contact the RoomEase team if you think this is a mistake.' }
@@ -97,7 +100,7 @@ export function AuthProvider({ children }) {
   )
 
   const register = useCallback(
-    ({ name, email, phone, password, role }) => {
+    async ({ name, email, phone, password, role }) => {
       if (!['boarder', 'landlord'].includes(role)) return { ok: false, error: 'Choose Boarder or Landlord.' }
       if (emailTaken(email)) return { ok: false, error: 'An account with this email already exists. Sign in instead.' }
       const account = { id: newId(`u-${role}`), role, name: name.trim(), email: email.trim(), phone: phone.trim(), password, createdAt: new Date().toISOString() }
@@ -110,7 +113,7 @@ export function AuthProvider({ children }) {
   )
 
   const updateProfile = useCallback(
-    (changes) => {
+    async (changes) => {
       if (!user) return { ok: false, error: 'You are signed out.' }
       if (changes.email && emailTaken(changes.email, user.id)) return { ok: false, error: 'Another account already uses this email.' }
       setAccounts((current) => current.map((account) => (account.id === user.id ? { ...account, ...changes } : account)))
@@ -120,7 +123,7 @@ export function AuthProvider({ children }) {
   )
 
   const changePassword = useCallback(
-    (currentPassword, nextPassword) => {
+    async (currentPassword, nextPassword) => {
       const account = accounts.find((item) => item.id === user?.id)
       if (!account || account.password !== currentPassword) return { ok: false, error: 'Your current password is incorrect.' }
       setAccounts((current) => current.map((item) => (item.id === account.id ? { ...item, password: nextPassword } : item)))
@@ -131,18 +134,18 @@ export function AuthProvider({ children }) {
 
   // Step 1 of "Forgot password". Returns the code so the demo can show it on screen.
   const requestPasswordReset = useCallback(
-    (email) => {
+    async (email) => {
       const account = accounts.find((item) => sameEmail(item.email, email))
-      if (!account || account.active === false) return { ok: true, code: null }
+      if (!account || account.active === false) return { ok: true, code: null, codeOnScreen: true }
       const code = String(Math.floor(100000 + Math.random() * 900000))
       resets.current[account.email.toLowerCase()] = { code, expires: Date.now() + RESET_CODE_MINUTES * 60000, attempts: 0 }
-      return { ok: true, code }
+      return { ok: true, code, codeOnScreen: true }
     },
     [accounts],
   )
 
   // Step 2: check the 6-digit code. Five wrong tries cancel it.
-  const verifyResetCode = useCallback((email, code) => {
+  const verifyResetCode = useCallback(async (email, code) => {
     const entry = resets.current[email.trim().toLowerCase()]
     if (!entry || Date.now() > entry.expires) return { ok: false, error: 'This code has expired. Request a new one.' }
     if (entry.attempts >= RESET_MAX_ATTEMPTS) return { ok: false, error: 'Too many wrong tries. Request a new code.' }
@@ -156,7 +159,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   // Step 3: set the new password (only after the code was verified).
-  const completePasswordReset = useCallback((email, password) => {
+  const completePasswordReset = useCallback(async (email, password) => {
     const key = email.trim().toLowerCase()
     const entry = resets.current[key]
     if (!entry?.verified || Date.now() > entry.expires) return { ok: false, error: 'Your reset session expired. Start again.' }
@@ -165,7 +168,7 @@ export function AuthProvider({ children }) {
     return { ok: true }
   }, [])
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
     clearSession()
     setSession(null)
   }, [])
@@ -176,6 +179,7 @@ export function AuthProvider({ children }) {
   const value = useMemo(
     () => ({
       user,
+      ready: true,
       accounts: publicAccounts,
       login,
       register,
@@ -190,6 +194,10 @@ export function AuthProvider({ children }) {
     [user, publicAccounts, login, register, updateProfile, changePassword, requestPasswordReset, verifyResetCode, completePasswordReset, logout, findAccount],
   )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+export function AuthProvider({ children }) {
+  return USE_API ? <ApiAuthProvider>{children}</ApiAuthProvider> : <MockAuthProvider>{children}</MockAuthProvider>
 }
 
 export function useAuth() {

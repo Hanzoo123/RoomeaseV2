@@ -33,8 +33,8 @@ function UserMenu({ role }) {
 
   const displayName = role === 'boarder' ? `Hi, ${user.firstName}` : user.name
 
-  function handleLogout() {
-    logout()
+  async function handleLogout() {
+    await logout()
     toast('You’ve been signed out.', 'info')
     navigate('/login', { replace: true, state: { role } })
   }

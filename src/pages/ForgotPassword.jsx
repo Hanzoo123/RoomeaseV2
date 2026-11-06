@@ -11,7 +11,7 @@ import { Notice } from '../components/ui'
 const STEPS = ['Your email', 'Enter the code', 'New password']
 
 // Same flow as the PHP site: email → 6-digit code (valid 10 minutes) → new password.
-// The demo has no email service, so the code is shown on screen instead.
+// Until email is set up, the code is shown on screen instead (on this computer only).
 export default function ForgotPassword() {
   const { user, requestPasswordReset, verifyResetCode, completePasswordReset } = useAuth()
   const navigate = useNavigate()
@@ -21,6 +21,8 @@ export default function ForgotPassword() {
   const [step, setStep] = useState(0)
   const [email, setEmail] = useState(location.state?.email ?? '')
   const [demoCode, setDemoCode] = useState(null)
+  const [codeOnScreen, setCodeOnScreen] = useState(true)
+  const [busy, setBusy] = useState(false)
   const [code, setCode] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -29,30 +31,42 @@ export default function ForgotPassword() {
 
   if (user) return <Navigate to={`/${user.role}`} replace />
 
-  function sendCode(event) {
+  // Runs one server step at a time, with the button disabled meanwhile.
+  async function run(step) {
+    setBusy(true)
+    try {
+      return await step()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function sendCode(event) {
     event?.preventDefault()
     if (!validateEmail(email)) return setError('Enter the email address on your account.')
-    const result = requestPasswordReset(email)
+    const result = await run(() => requestPasswordReset(email))
+    if (!result.ok) return setError(result.error)
     setDemoCode(result.code)
+    setCodeOnScreen(result.codeOnScreen)
     setCode('')
     setError('')
     setStep(1)
   }
 
-  function checkCode(event) {
+  async function checkCode(event) {
     event.preventDefault()
     if (!/^\d{6}$/.test(code.trim())) return setError('Enter the 6-digit code.')
-    const result = verifyResetCode(email, code)
+    const result = await run(() => verifyResetCode(email, code))
     if (!result.ok) return setError(result.error)
     setError('')
     setStep(2)
   }
 
-  function savePassword(event) {
+  async function savePassword(event) {
     event.preventDefault()
     if (!passwordIsStrong(password)) return setError('Your new password needs everything on the list.')
     if (password !== confirm) return setError('The passwords don’t match.')
-    const result = completePasswordReset(email, password)
+    const result = await run(() => completePasswordReset(email, password))
     if (!result.ok) {
       setStep(0)
       return setError(result.error)
@@ -92,7 +106,7 @@ export default function ForgotPassword() {
             onChange={(event) => setEmail(event.target.value)}
           />
           {error && <Notice tone="error">{error}</Notice>}
-          <button type="submit" className="btn btn-primary w-100" style={{ height: '2.75rem' }}>
+          <button type="submit" className="btn btn-primary w-100" style={{ height: '2.75rem' }} disabled={busy}>
             Send code
           </button>
         </form>
@@ -103,18 +117,20 @@ export default function ForgotPassword() {
           <p className="small mb-0">
             If an account uses <strong>{email}</strong>, a 6-digit code is on its way. It works for 10 minutes.
           </p>
-          <div className="dashed-box bg-body rounded-3 p-3 small">
-            <p className="text-xs fw-semibold text-uppercase text-body-secondary mb-1" style={{ letterSpacing: '0.05em' }}>
-              Demo inbox
-            </p>
-            {demoCode ? (
-              <p className="mb-0">
-                This demo can’t send email, so here is the code: <strong className="fs-5 font-monospace ms-1">{demoCode}</strong>
+          {codeOnScreen && (
+            <div className="dashed-box bg-body rounded-3 p-3 small">
+              <p className="text-xs fw-semibold text-uppercase text-body-secondary mb-1" style={{ letterSpacing: '0.05em' }}>
+                Demo inbox
               </p>
-            ) : (
-              <p className="mb-0 text-body-secondary">No code was created: in this demo, that means no active account uses this email. Check the address and try again.</p>
-            )}
-          </div>
+              {demoCode ? (
+                <p className="mb-0">
+                  Email isn’t set up yet, so here is the code: <strong className="fs-5 font-monospace ms-1">{demoCode}</strong>
+                </p>
+              ) : (
+                <p className="mb-0 text-body-secondary">No code was created: no active boarder or landlord account uses this email. Check the address and try again.</p>
+              )}
+            </div>
+          )}
           <IconField
             id="reset-code"
             label="6-digit code"
@@ -127,7 +143,7 @@ export default function ForgotPassword() {
             onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
           />
           {error && <Notice tone="error">{error}</Notice>}
-          <button type="submit" className="btn btn-primary w-100" style={{ height: '2.75rem' }}>
+          <button type="submit" className="btn btn-primary w-100" style={{ height: '2.75rem' }} disabled={busy}>
             Check code
           </button>
           <div className="d-flex justify-content-between small">
@@ -160,7 +176,7 @@ export default function ForgotPassword() {
           <PasswordChecklist password={password} id="reset-password-rules" />
           <IconField id="reset-confirm" label="Confirm new password" icon={Lock} type={passwordType} autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} />
           {error && <Notice tone="error">{error}</Notice>}
-          <button type="submit" className="btn btn-primary w-100" style={{ height: '2.75rem' }}>
+          <button type="submit" className="btn btn-primary w-100" style={{ height: '2.75rem' }} disabled={busy}>
             Save new password
           </button>
         </form>

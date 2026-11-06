@@ -55,14 +55,14 @@ $accounts = $pdo->query("SELECT u.*,
                 <table id="example1" class="table table-bordered table-striped">
                   <thead>
                   <tr>
-                    <th>Name</th>
+                    <th data-priority="1">Name</th>
                     <th>Email</th>
                     <th>Phone</th>
                     <th>Role</th>
                     <th>Joined</th>
                     <th>Activity</th>
                     <th>Status</th>
-                    <th class="no-export">Action</th>
+                    <th class="no-export" data-priority="2">Action</th>
                   </tr>
                   </thead>
                   <tbody>

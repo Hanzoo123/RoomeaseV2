@@ -35,9 +35,11 @@ const Analytics = lazy(() => import('./pages/landlord/Analytics'))
 
 // Sends signed-out visitors to /login and keeps each role inside its own dashboard.
 function RequireRole({ role, children }) {
-  const { user } = useAuth()
+  const { user, ready } = useAuth()
   const location = useLocation()
 
+  // Wait for the server to say who is signed in before sending anyone to /login.
+  if (!ready) return <FullPageSpinner />
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname + location.search, role }} />
   if (user.role !== role) return <Navigate to={`/${user.role}`} replace />
   return children

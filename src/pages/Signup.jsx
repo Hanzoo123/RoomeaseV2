@@ -33,6 +33,7 @@ export default function Signup() {
   const [errors, setErrors] = useState({})
   const [error, setError] = useState('')
   const [agreed, setAgreed] = useState(false)
+  const [busy, setBusy] = useState(false)
   const [passwordType, passwordToggle] = usePasswordToggle()
   const toast = useToast()
 
@@ -44,15 +45,20 @@ export default function Signup() {
     setErrors(({ [key]: _cleared, ...rest }) => rest)
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
     const nextErrors = validate(form)
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length) return setError('')
     if (!agreed) return setError('Please agree to the Terms & Conditions to continue.')
 
-    const result = register({ name: form.name, email: form.email, phone: form.phone, password: form.password, role })
-    if (!result.ok) return setError(result.error)
+    setBusy(true)
+    const result = await register({ name: form.name, email: form.email, phone: form.phone, password: form.password, role })
+    setBusy(false)
+    if (!result.ok) {
+      if (result.fields) setErrors(result.fields)
+      return setError(result.error)
+    }
     logEventAs(result.user, 'user.created', 'user', result.user.id, result.user.name, `Signed up as a ${role}`)
     toast('Account created. Welcome to RoomEase!')
     navigate(pathAfterSignIn(location.state?.from, role), { replace: true })
@@ -109,7 +115,7 @@ export default function Signup() {
 
         {error && <Notice tone="error">{error}</Notice>}
 
-        <button type="submit" className="btn btn-primary w-100" style={{ height: '2.75rem' }}>
+        <button type="submit" className="btn btn-primary w-100" style={{ height: '2.75rem' }} disabled={busy}>
           Create {ROLE_META[role].label} account
         </button>
       </form>

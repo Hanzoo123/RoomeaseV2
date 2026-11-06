@@ -7,7 +7,7 @@
 | React app (`src/`) | Guests, boarders, landlords | Works, but keeps its data in the browser (localStorage) |
 | AdminLTE admin panel (`backend/admin/`) | Admins and super admins | **Done**: PHP + MySQL, runs on WAMP now |
 | Database (`database/roomease.sql`) | Both | **Done**: schema plus demo data |
-| JSON API (`backend/api/`) | React app | **To build**: this plan |
+| JSON API (`backend/api/`) | React app | **Phase 1 done** (accounts). Listings and the rest: phases 2–5 below |
 
 The admin panel already reads and writes MySQL directly. What's missing is a PHP API so that the React app uses the same database instead of localStorage. Once that exists:
 - a landlord's new listing appears in the admin review queue;
@@ -32,7 +32,7 @@ Browser
    git clone https://github.com/Hanzoo123/RoomeaseV2.git
    ```
 3. Create the database: open http://localhost/phpmyadmin (user `root`, no password), then **Import**, choose `database/roomease.sql`, and click **Go**. It creates the `roomease` database with all tables and demo data.
-   - If you imported into WAMP's **MariaDB** instead of MySQL, MariaDB uses port 3307. Change `$host` in `backend/admin/config/conn.php` to `'localhost;port=3307'`.
+   - If you imported into WAMP's **MariaDB** instead of MySQL, MariaDB uses port 3307. Change `$host` in `backend/config/database.php` to `'localhost;port=3307'` (the admin panel and the API both read it).
 4. Open the admin panel at **http://localhost/RoomeaseV2/backend/admin/** and sign in.
 
    | Role | Username (or email) | Password |
@@ -108,33 +108,50 @@ The compare list and recently viewed rooms stay in the browser; they don't need 
 
 ## 3. The API
 
-**Folder:**
+**Folder** (✅ = built in phase 1):
 ```
 backend/
-  admin/                 AdminLTE panel (done)
+  config/
+    database.php         ✅ MySQL settings, shared with the admin panel
+    app.php              ✅ site settings (reset codes on screen until email is set up)
+  lib/validation.php     ✅ password, phone and email rules, shared with the admin panel
+  admin/                 ✅ AdminLTE panel
   api/
-    index.php            router: matches METHOD + path, calls a handler
-    .htaccess            sends every /api/* request to index.php
+    index.php            ✅ router: the $routes list maps "METHOD /path" to a function
+    .htaccess            ✅ sends every api/… address to index.php; lib/ and routes/ can't be opened
     lib/
-      db.php             requires ../admin/config/conn.php (one place for the credentials)
-      http.php           json_ok(), json_error(), read_json_body()
-      auth.php           session start, current_user(), require_role(), CSRF check
-      validate.php       same rules as src/data/validation.js
-      upload.php         photo checks and resizing
-    routes/              auth.php, listings.php, landlord.php, reservations.php, reviews.php,
-                         favorites.php, messages.php, notifications.php, contact.php, me.php
-  uploads/               listing photos and avatars (.htaccess: no PHP runs here)
+      http.php           ✅ ok(), fail(), body(), input()
+      db.php             ✅ connection (JSON error if MySQL is down), audit()
+      auth.php           ✅ session, CSRF, current_user(), require_user(), "Remember me"
+      throttle.php       ✅ limits on sign-in, sign-up and reset tries (login_attempts)
+      upload.php         listing photos (phase 3)
+    routes/
+      auth.php           ✅ me, register, login, logout, forgot, verify-code, reset
+      me.php             ✅ profile, avatar, password
+                         to come: listings.php, landlord.php, reservations.php, reviews.php,
+                         favorites.php, messages.php, notifications.php, contact.php
+  uploads/               ✅ avatars/ (later also listing photos). .htaccess: no scripts run here
 ```
+
+**Adding an endpoint:** write a `route_…()` function in a file under `routes/`, require that file in `index.php`, and add `'METHOD /path/{id}' => 'route_…'` to `$routes`. Inside it:
+- `require_user()` (or `require_user('landlord')`) for who may call it;
+- `input('field')` and `body()` to read the request;
+- `db()` for queries (always prepared statements);
+- `ok($data)` or `fail(422, 'Message', $fields)` to answer;
+- `audit(…)` for the Activity Log.
+
+The CSRF check runs on every non-GET request before your function.
 
 **Conventions:**
 - Requests and responses are JSON. A success is `{ "ok": true, "data": … }`. An error is `{ "ok": false, "error": "Message to show" }`, with the right HTTP status (400, 401, 403, 404, 422 or 429).
 - Database columns are snake_case; the API returns camelCase, so React components keep their field names.
 - Dates are ISO 8601. Money is whole pesos.
 - **Sessions:** PHP session cookie `ROOMEASE_API` (HttpOnly, SameSite=Lax), separate from the admin panel's `ROOMEASE_ADMIN`.
-- **CSRF:** `GET /api/auth/me` returns a token, and the React client sends it as an `X-CSRF-Token` header on every POST, PUT, PATCH and DELETE.
+- **CSRF:** `GET /api/auth/me` returns a token, and the React client sends it as an `X-CSRF-Token` header on every POST, PUT, PATCH and DELETE. An expired token answers 403 with `"code": "csrf"`; `src/api/client.js` then fetches a new one and retries once.
 - **Same origin, so no CORS:**
-  - In development, Vite proxies `/api` to `http://localhost/RoomeaseV2/backend/api`.
-  - In production, the built React app is served by the same Apache.
+  - In development, Vite forwards `/backend/…` to WAMP (`ROOMEASE_WAMP_URL`, default `http://localhost/RoomeaseV2/`).
+  - On WAMP, the built React app and the API are served by the same Apache.
+- **Signed-out detection:** every request re-reads the account, so a deactivated account, or one whose password was changed or reset elsewhere, is signed out at once. The website asks `GET /auth/me` when the tab regains focus and every minute, and says why it signed someone out.
 
 ### Endpoints
 
@@ -146,10 +163,10 @@ backend/
 | `POST /auth/login` | Guest | Email, password, role and "remember me". Throttled with `login_attempts` |
 | `POST /auth/logout` | Signed in | Ends the session and deletes the remember-me token |
 | `GET /auth/me` | Anyone | Current user (or null) and the CSRF token |
-| `POST /auth/forgot` | Guest | Creates a `password_resets` row and emails a 6-digit code. Always answers "sent" |
+| `POST /auth/forgot` | Guest | Creates a `password_resets` row with a 6-digit code (only its hash is stored). Answers the same whether or not the email has an account. Until email is set up (phase 6), the code comes back in the answer, but only for requests from the WAMP computer itself (`backend/config/app.php`) |
 | `POST /auth/verify-code` | Guest | Code check: 10 minutes, 5 tries |
 | `POST /auth/reset` | Guest | New password, after the code was verified |
-| `PATCH /me`, `POST /me/avatar`, `POST /me/password` | Signed in | Profile, photo, password |
+| `PATCH /me`, `POST /me/avatar`, `DELETE /me/avatar`, `POST /me/password` | Signed in | Profile, photo (re-drawn as a 256 × 256 JPEG with GD), password (other devices are signed out) |
 
 **Public: Find Place to Stay**
 
@@ -215,9 +232,10 @@ Admins need no API endpoints: the AdminLTE panel talks to MySQL itself.
 
 ## 5. Connecting the React app
 
-1. Add `src/api/client.js`: a small `fetch` wrapper. It sends the CSRF header, reads `{ ok, data, error }`, and turns errors into toasts.
-2. Add the Vite proxy in `vite.config.js`: `server.proxy['/api'] = 'http://localhost/RoomeaseV2/backend'`. In the WAMP build, call the API at `` `${BASE_PATH}backend/api/…` `` (`BASE_PATH` is in `src/config/base.js`), so it also works from any folder.
-3. Replace the inside of `AuthContext` with API calls, keeping the same function names (`login`, `register`, `logout`, `updateProfile`, `changePassword`, `requestPasswordReset`…). The pages then don't change.
+1. ✅ `src/api/client.js`: a small `fetch` wrapper. It sends the CSRF header, reads `{ ok, data, error }`, and turns failures (WAMP off, a PHP error page) into messages the pages can show.
+2. ✅ `vite.config.js` forwards `/backend/…` to WAMP during `npm run dev`. The API lives at `` `${BASE_PATH}backend/api` `` (`src/config/api.js`), so the WAMP build works from any folder.
+3. ✅ `AuthContext` now picks `ApiAuthProvider` (the API) or the in-browser demo provider (`VITE_USE_API=false`). Both have the same functions, now async: `login`, `register`, `logout`, `updateProfile`, `changePassword`, `requestPasswordReset`… The pages `await` them.
+   - **Temporary bridge:** listings, reservations and messages are still the browser demo data, keyed by demo ids such as `u-boarder-1`. So the demo accounts keep those ids after signing in through the API, and new accounts get `db-<user_id>`. Phases 2–5 replace this with real ids.
 4. Do the same in `DataContext`, one feature at a time. Load lists from the API and refetch after a change. A `VITE_USE_API` switch lets the mock and the API live side by side while you migrate.
 5. Add a **Rooms** section to the landlord's listing form (several rooms, each with its own type and rent), and let boarders pick a room when they reserve.
 6. Remove the mock seed data (`src/data/mockData.js`) once everything comes from MySQL.
@@ -231,7 +249,7 @@ Each phase ends with something you can show.
 | Phase | Build | Done when |
 | --- | --- | --- |
 | **0** ✅ | Database and the AdminLTE admin / super admin panel | You can sign in as `superadmin` and approve or reject the demo listings |
-| **1** | API skeleton (router, JSON helpers, session, CSRF) and the Accounts endpoints; React `AuthContext` on the API | A boarder who signs up in React appears under Boarders & Landlords. Deactivating them in AdminLTE signs them out of React |
+| **1** ✅ | API skeleton (router, JSON helpers, session, CSRF) and the Accounts endpoints; React `AuthContext` on the API | A boarder who signs up in React appears under Boarders & Landlords. Deactivating them in AdminLTE signs them out of React |
 | **2** | Public listing endpoints; React browse and room pages from MySQL | Approving a listing in AdminLTE makes it appear on Find Place to Stay |
 | **3** | Landlord listings, rooms, photos and availability; resubmitting | A landlord's new listing appears in the AdminLTE review queue. Sending it back shows the reason in React |
 | **4** | Reservations, favorites, reviews, landlord replies, analytics | The full reservation flow works between two browsers |

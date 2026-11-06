@@ -1,11 +1,7 @@
 <?php
-// WAMP64 defaults: MySQL on localhost (port 3306), user root, no password.
-// Import database/roomease.sql first (phpMyAdmin > Import).
-// Using WAMP's MariaDB instead? It listens on port 3307: set $host = 'localhost;port=3307'.
-$host = 'localhost';
-$dbname = 'roomease';
-$username = 'root';
-$password = '';
+// The settings ($host, $dbname, $username, $password) are in backend/config/database.php,
+// shared with the API.
+require __DIR__ . '/../../config/database.php';
 
 try{
   $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4",$username,$password, [

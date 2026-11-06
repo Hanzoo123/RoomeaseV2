@@ -84,12 +84,12 @@ $messages = $pdo->query('SELECT * FROM contact_messages ORDER BY created_at DESC
                 <table id="example1" class="table table-bordered table-striped">
                   <thead>
                   <tr>
-                    <th>From</th>
+                    <th data-priority="1">From</th>
                     <th>Topic</th>
                     <th>Message</th>
                     <th>Received</th>
                     <th>Status</th>
-                    <th class="no-export">Action</th>
+                    <th class="no-export" data-priority="2">Action</th>
                   </tr>
                   </thead>
                   <tbody>

@@ -4,9 +4,13 @@ import { CircleAlert, Lock, Mail } from 'lucide-react'
 import { ADMIN_PANEL_URL, ROLE_META } from '../config/navigation'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
+import { API_DEMO_PASSWORDS, USE_API } from '../config/api'
 import { DEMO_USERS } from '../data/mockData'
 import { pathAfterSignIn } from '../context/SitePaths'
 import AuthShell, { IconField, RoleTabs, usePasswordToggle } from '../components/auth/AuthShell'
+
+// The demo accounts' passwords in MySQL (API) or in this browser (demo mode).
+const demoPassword = (account) => (USE_API ? API_DEMO_PASSWORDS[account.role] : account.password)
 
 export default function Login() {
   const { user, login } = useAuth()
@@ -18,6 +22,7 @@ export default function Login() {
   const [passwordType, passwordToggle] = usePasswordToggle()
   const [remember, setRemember] = useState(true)
   const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
   const toast = useToast()
 
   // Also covers the render right after signing in, so it must agree with handleSubmit.
@@ -26,17 +31,19 @@ export default function Login() {
   function fillDemo(account) {
     setRole(account.role)
     setEmail(account.email)
-    setPassword(account.password)
+    setPassword(demoPassword(account))
     setError('')
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
     if (!email.trim() || !password) {
       setError('Enter your email and password.')
       return
     }
-    const result = login({ email, password, role, remember })
+    setBusy(true)
+    const result = await login({ email, password, role, remember })
+    setBusy(false)
     if (!result.ok) {
       setError(result.error)
       return
@@ -100,7 +107,7 @@ export default function Login() {
           </div>
         )}
 
-        <button type="submit" className="btn btn-primary w-100" style={{ height: '2.75rem' }}>
+        <button type="submit" className="btn btn-primary w-100" style={{ height: '2.75rem' }} disabled={busy}>
           Sign in as {ROLE_META[role].label}
         </button>
       </form>
@@ -129,7 +136,7 @@ export default function Login() {
                   {account.name} <span className="text-body-secondary">· {ROLE_META[account.role].label}</span>
                 </p>
                 <p className="text-xs text-body-secondary text-truncate mb-0">
-                  {account.email} / {account.password}
+                  {account.email} / {demoPassword(account)}
                 </p>
               </div>
               <button type="button" onClick={() => fillDemo(account)} className="btn btn-sm btn-outline-secondary flex-shrink-0">

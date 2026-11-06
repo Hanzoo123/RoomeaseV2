@@ -16,12 +16,12 @@ function PasswordForm() {
   const toast = useToast()
   const set = (key) => (event) => setForm((value) => ({ ...value, [key]: event.target.value }))
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
     if (!passwordIsStrong(form.next)) return setStatus({ tone: 'error', text: 'Your new password needs everything on the checklist.' })
     if (form.next === form.current) return setStatus({ tone: 'error', text: 'Choose a password you haven’t been using.' })
     if (form.next !== form.confirm) return setStatus({ tone: 'error', text: 'The new passwords don’t match.' })
-    const result = changePassword(form.current, form.next)
+    const result = await changePassword(form.current, form.next)
     if (!result.ok) return setStatus({ tone: 'error', text: result.error })
     setForm({ current: '', next: '', confirm: '' })
     setStatus(null)
@@ -140,8 +140,8 @@ export default function Settings() {
           </div>
           <button
             type="button"
-            onClick={() => {
-              logout()
+            onClick={async () => {
+              await logout()
               toast('You’ve been signed out.', 'info')
               navigate('/login', { replace: true, state: { role: user.role } })
             }}

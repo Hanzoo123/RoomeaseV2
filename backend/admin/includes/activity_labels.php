@@ -3,6 +3,7 @@
 const ACTIVITY_LABELS = [
   'auth.login' => ['signed in', 'fas fa-sign-in-alt', 'secondary', 'signins'],
   'auth.logout' => ['signed out', 'fas fa-sign-out-alt', 'secondary', 'signins'],
+  'auth.password_reset' => ['reset their password with an emailed code', 'fas fa-key', 'warning', 'signins'],
   'listing.submitted' => ['submitted a new listing', 'fas fa-file-alt', 'primary', 'listings'],
   'listing.resubmitted' => ['resubmitted a listing after changes', 'fas fa-redo', 'primary', 'listings'],
   'listing.updated' => ['updated a listing', 'fas fa-edit', 'secondary', 'listings'],

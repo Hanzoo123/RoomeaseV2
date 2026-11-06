@@ -1,0 +1,5 @@
+# Uploaded photos only: no folder listings, and nothing here ever runs as a script.
+Options -Indexes
+<FilesMatch "\.(php\d?|phtml|phar|pl|py|cgi|sh|htaccess)$">
+  Require all denied
+</FilesMatch>

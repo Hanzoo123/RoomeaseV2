@@ -1,0 +1,41 @@
+<?php
+// The same MySQL database as the admin panel (settings in backend/config/database.php).
+require __DIR__ . '/../../config/database.php';
+
+try {
+  $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password, [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+  ]);
+  $pdo->exec("SET time_zone = '+08:00'");
+} catch (PDOException $e) {
+  error_log('RoomEase API: ' . $e->getMessage());
+  fail(503, 'The database is not reachable. Is WAMP running, and was database/roomease.sql imported?');
+}
+
+function db()
+{
+  global $pdo;
+  return $pdo;
+}
+
+// Records who did what, for the super admin's Activity Log. IP and browser are kept for
+// sign-ins only (as in the admin panel).
+function audit($action, $targetType, $targetId, $targetLabel, $detail = null, $actor = null)
+{
+  $actor = $actor ?? current_user();
+  $isSignIn = strpos($action, 'auth.') === 0;
+  db()->prepare('INSERT INTO audit_logs (actor_id, actor_role, action, target_type, target_id, target_label, detail, ip_address, user_agent)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    ->execute([
+      $actor['user_id'] ?? null,
+      $actor['role'] ?? null,
+      $action,
+      $targetType,
+      $targetId,
+      mb_substr((string) $targetLabel, 0, 200),
+      $detail !== null ? mb_substr((string) $detail, 0, 500) : null,
+      $isSignIn ? client_ip() : null,
+      $isSignIn ? mb_substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 120) : null,
+    ]);
+}

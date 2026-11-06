@@ -24,3 +24,7 @@ node_modules
 
 # Downloadable copy of the project
 roomease.zip
+
+# Photos uploaded through the API
+/backend/uploads/*
+!/backend/uploads/.htaccess

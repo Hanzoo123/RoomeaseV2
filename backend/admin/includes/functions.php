@@ -1,5 +1,6 @@
 <?php
 // Small helpers shared by the admin pages.
+require_once __DIR__ . '/../../lib/validation.php';
 
 const ADMIN_ROLES = ['super_admin', 'administrator'];
 const ROLE_LABELS = ['super_admin' => 'Super Admin', 'administrator' => 'Admin', 'landlord' => 'Landlord', 'boarder' => 'Boarder'];
@@ -137,18 +138,6 @@ function nice_date($datetime, $withTime = false)
 {
   if (!$datetime) return '—';
   return date($withTime ? 'M j, Y g:i A' : 'M j, Y', strtotime($datetime));
-}
-
-// Same rules as the React app and the PHP version.
-function password_problems($password)
-{
-  $problems = [];
-  if (mb_strlen($password) < 8) $problems[] = '8 or more characters';
-  if (!preg_match('/\p{Lu}/u', $password)) $problems[] = 'an uppercase letter';
-  if (!preg_match('/\p{Ll}/u', $password)) $problems[] = 'a lowercase letter';
-  if (!preg_match('/\d/', $password)) $problems[] = 'a number';
-  if (!preg_match('/[^\p{L}\p{N}]/u', $password)) $problems[] = 'a symbol';
-  return $problems;
 }
 
 // Sidebar badges: listings waiting for review and unread contact messages.

@@ -69,14 +69,14 @@ $listings = $pdo->query("SELECT b.*, u.first_name, u.last_name,
                 <table id="example1" class="table table-bordered table-striped">
                   <thead>
                   <tr>
-                    <th>Boarding house</th>
+                    <th data-priority="1">Boarding house</th>
                     <th>Landlord</th>
                     <th>Area</th>
                     <th>Monthly rent</th>
                     <th>Rooms open</th>
                     <th>Submitted</th>
                     <th>Status</th>
-                    <th class="no-export">Action</th>
+                    <th class="no-export" data-priority="2">Action</th>
                   </tr>
                   </thead>
                   <tbody>
