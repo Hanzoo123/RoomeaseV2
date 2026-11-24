@@ -18,8 +18,9 @@ import {
 } from 'lucide-react'
 import { publicUrl } from '../config/base'
 import { useData } from '../context/DataContext'
-import { AREAS, availabilityOf, distanceKm, formatDistance, formatPeso, LOCATIONS, ROOM_TYPE_INFO, ROOM_TYPES, VSU_COORDS } from '../data/mockData'
+import { AREAS, availabilityOf, distanceKm, formatDistance, formatPeso, LOCATIONS, rentLabel, ROOM_TYPE_INFO, ROOM_TYPES, VSU_COORDS } from '../data/mockData'
 import StreetArt from '../components/illustrations/StreetArt'
+import { ListingsLoading } from '../components/listings/ListingsStatus'
 import { RatingBadge, Stars } from '../components/reviews/Stars'
 import { ListingImage, Tag } from '../components/ui'
 
@@ -196,7 +197,7 @@ function PublicRoomCard({ listing, rating }) {
         </p>
         <RatingBadge rating={rating} className="mb-2" />
         <p className="small text-body-secondary mb-3">
-          <span className="fs-5 fw-bold text-body">{formatPeso(listing.price)}</span> / month
+          <span className="fs-5 fw-bold text-body">{rentLabel(listing)}</span> / month
         </p>
         <Link to={`/rooms/${listing.id}`} className="btn btn-outline-primary w-100 mt-auto">
           View details
@@ -291,14 +292,14 @@ function Faq() {
 }
 
 // Photo tiles for the five room types, each opening Find Place to Stay filtered to that type.
-function RoomTypes({ listings }) {
+function RoomTypes({ listings, ready }) {
   return (
     <section id="room-types" className="pb-5">
       <div className="container pb-lg-4">
         <SectionTitle eyebrow="By room type" title="Pick the kind of room you want" body="From a room of your own to a bed in a shared dorm, sorted the way boarders ask for them." />
         <div className="row row-cols-2 row-cols-md-3 row-cols-lg-5 g-3">
           {ROOM_TYPES.map((type) => {
-            const count = listings.filter((listing) => listing.roomType === type).length
+            const count = listings.filter((listing) => (listing.roomTypes ?? [listing.roomType]).includes(type)).length
             return (
               <div key={type} className="col">
                 <Link to={`/rooms?roomType=${encodeURIComponent(type)}`} className="room-type-tile card h-100 overflow-hidden text-reset-link card-hover">
@@ -309,7 +310,7 @@ function RoomTypes({ listings }) {
                     <p className="fw-semibold mb-0">{type}</p>
                     <p className="text-xs text-body-secondary mb-1">{ROOM_TYPE_INFO[type].blurb}</p>
                     <p className="text-xs fw-medium text-primary mb-0">
-                      {count ? `${count} ${count === 1 ? 'house' : 'houses'}` : 'None listed yet'}
+                      {!ready ? '…' : count ? `${count} ${count === 1 ? 'house' : 'houses'}` : 'None listed yet'}
                     </p>
                   </div>
                 </Link>
@@ -345,7 +346,9 @@ function ReviewSteps() {
 }
 
 export default function Landing() {
-  const { publicListings, reviews, ratingOf, listingById } = useData()
+  const { publicListings, listingsReady, reviews, ratingOf, listingById } = useData()
+  // While the listings load from the API, counts show a dash instead of a misleading 0.
+  const shown = (value) => (listingsReady ? value : '—')
 
   const ratedListings = [...publicListings].sort((a, b) => ratingOf(b.id).average - ratingOf(a.id).average)
   const featured = ratedListings.slice(0, 3)
@@ -370,8 +373,8 @@ export default function Landing() {
           <div className="card stats-strip shadow">
             <div className="row g-0 text-center">
               {[
-                [stats.houses, 'Approved boarding houses'],
-                [stats.rooms, 'Rooms available now'],
+                [shown(stats.houses), 'Approved boarding houses'],
+                [shown(stats.rooms), 'Rooms available now'],
                 [Number.isFinite(stats.lowestOpen) ? formatPeso(stats.lowestOpen) : '—', 'Lowest monthly rent with a free slot'],
                 [stats.reviews, 'Verified reviews'],
               ].map(([value, label]) => (
@@ -419,17 +422,21 @@ export default function Landing() {
                 <ArrowRight size={16} aria-hidden="true" />
               </Link>
             </div>
-            <div className="row g-4">
-              {featured.map((listing) => (
-                <div key={listing.id} className="col-md-6 col-lg-4">
-                  <PublicRoomCard listing={listing} rating={ratingOf(listing.id)} />
-                </div>
-              ))}
-            </div>
+            {listingsReady ? (
+              <div className="row g-4">
+                {featured.map((listing) => (
+                  <div key={listing.id} className="col-md-6 col-lg-4">
+                    <PublicRoomCard listing={listing} rating={ratingOf(listing.id)} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <ListingsLoading className="col-md-6 col-lg-4" />
+            )}
           </div>
         </section>
 
-        <RoomTypes listings={publicListings} />
+        <RoomTypes listings={publicListings} ready={listingsReady} />
 
         <HowItWorks />
 
@@ -448,7 +455,7 @@ export default function Landing() {
                       <div className="px-2 pt-3 pb-2">
                         <p className="fw-semibold mb-0">{location.name}</p>
                         <p className="small text-body-secondary mb-0">
-                          {count} {count === 1 ? 'boarding house' : 'boarding houses'}
+                          {shown(count)} {count === 1 ? 'boarding house' : 'boarding houses'}
                         </p>
                       </div>
                     </Link>

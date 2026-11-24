@@ -1,7 +1,8 @@
 import { CalendarRange, Clock, CookingPot, ListChecks, PawPrint, Receipt, UserCheck, Users, Wallet } from 'lucide-react'
 import { GENDER_POLICIES } from '../../data/mockData'
 
-const yesNo = (value, yes, no) => (value ? yes : no)
+// null means the landlord didn't say (MySQL keeps "not stated" apart from "no").
+const yesNo = (value, yes, no) => (value == null ? 'Ask the landlord' : value ? yes : no)
 
 // Stay terms set by the landlord in the listing form.
 export default function LivingHere({ listing, title = 'Living here' }) {

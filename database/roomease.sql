@@ -16,6 +16,9 @@
 -- WARNING: drops and recreates every table. Existing data is lost.
 -- =========================================================
 
+-- Read this file as UTF-8 whatever the MySQL console's default is (₱, ñ, ’ …).
+SET NAMES utf8mb4;
+
 CREATE DATABASE IF NOT EXISTS roomease
     CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE roomease;

@@ -15,16 +15,22 @@ import {
   SHARED_ROOM_TYPES,
 } from '../data/mockData'
 import { loadJSON, newId, saveJSON } from '../data/storage'
+import { countListingView, fetchPublicListings } from '../api/listings'
+import { USE_API } from '../config/api'
 import { useAuth } from './AuthContext'
 
-// Stand-in for a backend: all app data lives here and is saved to localStorage,
-// so both roles see the same listings, reservations, reviews and messages in this browser.
-// Other tabs pick up changes through the `storage` event, so two signed-in tabs stay in sync.
+// Stand-in for a backend: app data lives here and is saved to localStorage, so both roles
+// see the same listings, reservations, reviews and messages in this browser. Other tabs pick
+// up changes through the `storage` event, so two signed-in tabs stay in sync.
+// With the API on (USE_API), the public listings come from MySQL instead (phase 2);
+// the landlord's own listings and everything else still live here until phases 3–5.
 const DATA_KEY = 'roomease.data.v3'
 const DataContext = createContext(null)
 
 const DEFAULT_PREFERENCES = { emailUpdates: true, reservationAlerts: true, listingTips: false }
 export const MAX_COMPARE = 3
+// How often to reload the public listings, so approvals in the admin panel show up.
+const LISTINGS_RECHECK_MS = 60 * 1000
 
 function seedState() {
   return {
@@ -402,6 +408,33 @@ export function DataProvider({ children }) {
     [update],
   )
 
+  // Public listings from MySQL: loaded at start, when the tab regains focus and every minute.
+  const [apiListings, setApiListings] = useState({ ready: !USE_API, error: null, listings: [] })
+  const loadApiListings = useCallback(async () => {
+    const result = await fetchPublicListings()
+    setApiListings((current) => {
+      // Keep what was there if a reload fails; skip identical answers to avoid re-rendering.
+      if (!result.ok) return { ...current, ready: true, error: current.listings.length ? null : result.error }
+      if (current.ready && !current.error && JSON.stringify(current.listings) === JSON.stringify(result.listings)) return current
+      return { ready: true, error: null, listings: result.listings }
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!USE_API) return undefined
+    const onVisible = () => document.visibilityState === 'visible' && loadApiListings()
+    const firstLoad = setTimeout(loadApiListings, 0)
+    const timer = setInterval(loadApiListings, LISTINGS_RECHECK_MS)
+    window.addEventListener('focus', loadApiListings)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearTimeout(firstLoad)
+      clearInterval(timer)
+      window.removeEventListener('focus', loadApiListings)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [loadApiListings])
+
   const resetDemoData = useCallback(() => setState(seedState()), [])
 
   const value = useMemo(() => {
@@ -412,8 +445,13 @@ export function DataProvider({ children }) {
     const myNotifications = notifications.filter((item) => myNotificationIds.includes(item.userId))
     const myListingIds = new Set(listings.filter((item) => item.ownerId === userId).map((item) => item.id))
 
-    const listingById = (id) => listings.find((item) => item.id === id)
+    // Boarders only see listings an admin has approved.
+    const publicListings = USE_API ? apiListings.listings : listings.filter((item) => item.approval === 'Approved' && !item.removed)
+    // With the API, a listing that isn't public any more reads as removed, except to its landlord.
+    const listingById = (id) =>
+      USE_API ? (apiListings.listings.find((item) => item.id === id) ?? listings.find((item) => item.id === id && item.ownerId === userId)) : listings.find((item) => item.id === id)
     const ownerOf = (listing) => {
+      if (listing.landlord) return { name: listing.landlord.name, phone: listing.landlord.phone ?? '' }
       const account = findAccount(listing.ownerId)
       return account ? { name: account.name, phone: account.phone, email: account.email } : (OTHER_LANDLORDS[listing.ownerId] ?? { name: 'Landlord' })
     }
@@ -441,14 +479,17 @@ export function DataProvider({ children }) {
 
     // Guests can compare rooms too; their picks are kept under "guest".
     const compareKey = userId ?? 'guest'
-    const myCompare = (compare[compareKey] ?? []).filter((id) => listings.some((item) => item.id === id && item.approval === 'Approved' && !item.removed))
+    const myCompare = (compare[compareKey] ?? []).filter((id) => publicListings.some((item) => item.id === id))
 
     return {
       listings,
       reservations,
       reviews,
-      // Boarders only see listings an admin has approved.
-      publicListings: listings.filter((item) => item.approval === 'Approved' && !item.removed),
+      publicListings,
+      // False while the public listings are loading from the API; error if they couldn't.
+      listingsReady: apiListings.ready,
+      listingsError: apiListings.error,
+      reloadListings: loadApiListings,
       activity,
       contactMessages,
       myListings: listings.filter((item) => item.ownerId === userId),
@@ -472,7 +513,11 @@ export function DataProvider({ children }) {
         messages: myConversations.reduce((sum, item) => sum + item.unread, 0),
       },
       toggleFavorite: (listingId) => toggleFavorite(userId, listingId),
-      recordView: (listingId) => recordView(compareKey, listingId),
+      recordView: (listingId) => {
+        recordView(compareKey, listingId)
+        const listing = USE_API && apiListings.listings.find((item) => item.id === listingId)
+        if (listing) countListingView(listing.dbId)
+      },
       toggleCompare: (listingId) => toggleCompare(compareKey, listingId),
       clearCompare: () => clearCompare(compareKey),
       createReservation,
@@ -501,6 +546,8 @@ export function DataProvider({ children }) {
     }
   }, [
     state,
+    apiListings,
+    loadApiListings,
     user,
     findAccount,
     toggleFavorite,

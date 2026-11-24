@@ -4,7 +4,11 @@ Find and manage boarding houses in Baybay City. Two parts:
 
 - **The website** (React + Bootstrap 5): a public site where anyone can **Find a Place to Stay** without an account, sign-in and sign-up with password reset, and full dashboards for **boarders** and **landlords**. Boarders can browse, use "near me", the map and compare, reserve, review and chat. Landlords manage listings with house rules and bills, availability, requests and analytics, and can chat too. Light and dark mode.
 - **The admin panel** (AdminLTE 3 + PHP + MySQL, for WAMP64) for **admins** and **super admins**: listing review, boarders and landlords, reports with exports, contact inbox, and for super admins, admin accounts and the activity log.
-- **The API** (PHP + MySQL, `backend/api/`) that the website uses. So far it handles accounts: sign-up, sign-in, "Remember me", profile and photo, password change and reset. Listings and the rest move over in the next phases ([BACKEND_PLAN.md](BACKEND_PLAN.md)).
+- **The API** (PHP + MySQL, `backend/api/`) that the website uses. So far it handles:
+  - accounts: sign-up, sign-in, "Remember me", profile and photo, password change and reset;
+  - the public listings on Find Place to Stay and the room pages, including each room's own rent and free slots.
+
+  Landlords' own listings and the rest move over in the next phases ([BACKEND_PLAN.md](BACKEND_PLAN.md)).
 
 It follows the PHP version of RoomEase ([Hanzoo123/Roomease](https://github.com/Hanzoo123/Roomease)): same room types, the same public menu (Home · Find Place to Stay · About Us · Contact Us), the same listing review states and the same password rules.
 
@@ -173,7 +177,11 @@ src/
 
 ## Notes
 
-- **What's in MySQL so far:** accounts (sign-up, sign-in, profile, photo, passwords; only bcrypt hashes are stored). Listings, reservations, reviews, messages and the contact form still live in the browser's localStorage until the next phases of [BACKEND_PLAN.md](BACKEND_PLAN.md). Until then, the demo accounts keep their demo data, and a new account starts empty. No email is sent yet; reset codes appear on screen.
+- **What's in MySQL so far:**
+  - accounts (sign-up, sign-in, profile, photo, passwords; only bcrypt hashes are stored);
+  - the public listings: approving, removing or restoring a listing in the admin panel shows on Find Place to Stay the next time the page is focused, or within a minute.
+
+  The landlord's own listing pages, reservations, favorites, reviews, messages and the contact form still live in the browser's localStorage until the next phases of [BACKEND_PLAN.md](BACKEND_PLAN.md). Until then, the demo accounts keep their demo data, and a new account starts empty. No email is sent yet; reset codes appear on screen.
 - **Not carried over from the PHP version yet** (they need a server): Google sign-in, real email (reset codes, notifications), and several rooms with their own rent inside one boarding house.
 - **Start over:** Settings → *Reset demo data* restores the original listings, reservations, reviews and messages.
 - **Maps** use free OpenStreetMap tiles, so they need an internet connection. Pin locations are approximate. If tiles can't load, the pins still show.

@@ -18,6 +18,7 @@ require __DIR__ . '/lib/throttle.php';
 require __DIR__ . '/../lib/validation.php';
 require __DIR__ . '/routes/auth.php';
 require __DIR__ . '/routes/me.php';
+require __DIR__ . '/routes/listings.php';
 
 // METHOD path => handler. {name} matches one path segment.
 $routes = [
@@ -32,6 +33,12 @@ $routes = [
   'POST /me/avatar' => 'route_upload_avatar',
   'DELETE /me/avatar' => 'route_delete_avatar',
   'POST /me/password' => 'route_change_password',
+  // Public listings (Find Place to Stay)
+  'GET /lookups' => 'route_lookups',
+  'GET /listings' => 'route_listings',
+  'GET /listings/{id}' => 'route_listing',
+  'POST /listings/{id}/view' => 'route_listing_view',
+  'GET /listings/{id}/reviews' => 'route_listing_reviews',
 ];
 
 // The path after .../backend/api, e.g. "/auth/me".

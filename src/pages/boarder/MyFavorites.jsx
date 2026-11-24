@@ -1,12 +1,13 @@
 import { Link } from 'react-router-dom'
 import { Heart } from 'lucide-react'
 import { useData } from '../../context/DataContext'
-import { formatPeso } from '../../data/mockData'
+import { rentLabel } from '../../data/mockData'
+import { ListingsLoading } from '../../components/listings/ListingsStatus'
 import RoomCard from '../../components/listings/RoomCard'
 import { EmptyState, ListingImage, PageHeader, SectionHeader } from '../../components/ui'
 
 export default function MyFavorites() {
-  const { publicListings, favorites, recentlyViewed, toggleFavorite } = useData()
+  const { publicListings, listingsReady, favorites, recentlyViewed, toggleFavorite } = useData()
   const saved = publicListings.filter((listing) => favorites.includes(listing.id))
   const recent = recentlyViewed.map((id) => publicListings.find((listing) => listing.id === id)).filter(Boolean)
 
@@ -14,7 +15,9 @@ export default function MyFavorites() {
     <div className="d-flex flex-column gap-5">
       <div>
         <PageHeader title="My Favorites" subtitle="Rooms you’ve saved to compare later." />
-        {saved.length > 0 ? (
+        {!listingsReady ? (
+          <ListingsLoading count={Math.min(Math.max(favorites.length, 1), 3)} />
+        ) : saved.length > 0 ? (
           <div className="row g-4">
             {saved.map((listing) => (
               <div key={listing.id} className="col-sm-6 col-xl-4">
@@ -49,7 +52,7 @@ export default function MyFavorites() {
                   <div style={{ minWidth: 0 }}>
                     <p className="small fw-semibold text-truncate mb-0">{listing.name}</p>
                     <p className="text-xs text-body-secondary text-truncate mb-0">{listing.area}</p>
-                    <p className="text-xs fw-medium text-body mb-0">{formatPeso(listing.price)}/mo</p>
+                    <p className="text-xs fw-medium text-body mb-0">{rentLabel(listing)}/mo</p>
                   </div>
                 </Link>
               </div>

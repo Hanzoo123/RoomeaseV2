@@ -7,6 +7,7 @@ import { AREAS, LOCATIONS, ROOM_TYPES } from '../../data/mockData'
 import { CtaHouseArt } from '../../components/illustrations/BrandArt'
 import RoomArt from '../../components/illustrations/RoomArt'
 import StreetArt from '../../components/illustrations/StreetArt'
+import { ListingsLoading } from '../../components/listings/ListingsStatus'
 import RoomCard from '../../components/listings/RoomCard'
 import { RentBox, SelectBox } from '../../components/listings/FilterFields'
 import { SectionHeader, StatCard, WelcomeBanner } from '../../components/ui'
@@ -89,7 +90,7 @@ function SearchPanel() {
 
 export default function BoarderDashboard() {
   const { user } = useAuth()
-  const { publicListings, favorites, toggleFavorite, myReservations, recentlyViewed, counts } = useData()
+  const { publicListings, listingsReady, favorites, toggleFavorite, myReservations, recentlyViewed, counts } = useData()
   const recommended = publicListings.slice(0, 3)
 
   return (
@@ -115,13 +116,17 @@ export default function BoarderDashboard() {
 
       <section>
         <SectionHeader title="Recommended for You" actionTo="/boarder/browse" />
-        <div className="row g-4">
-          {recommended.map((listing) => (
-            <div key={listing.id} className="col-sm-6 col-xl-4">
-              <RoomCard listing={listing} isFavorite={favorites.includes(listing.id)} onToggleFavorite={toggleFavorite} />
-            </div>
-          ))}
-        </div>
+        {listingsReady ? (
+          <div className="row g-4">
+            {recommended.map((listing) => (
+              <div key={listing.id} className="col-sm-6 col-xl-4">
+                <RoomCard listing={listing} isFavorite={favorites.includes(listing.id)} onToggleFavorite={toggleFavorite} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <ListingsLoading />
+        )}
       </section>
 
       <section>

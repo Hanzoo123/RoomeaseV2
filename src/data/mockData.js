@@ -607,6 +607,11 @@ export function formatPeso(amount) {
   return peso.format(amount)
 }
 
+// A listing's monthly rent: one amount, or a range when its rooms differ (from MySQL).
+export function rentLabel(listing) {
+  return listing.priceMax > listing.price ? `${peso.format(listing.price)}–${peso.format(listing.priceMax)}` : peso.format(listing.price)
+}
+
 const shortDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 const dateTime = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 

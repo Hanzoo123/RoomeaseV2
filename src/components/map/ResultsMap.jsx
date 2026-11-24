@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import { useSitePaths } from '../../context/SitePaths'
-import { distanceKm, formatDistance, formatPeso, VSU_COORDS } from '../../data/mockData'
+import { distanceKm, formatDistance, formatPeso, rentLabel, VSU_COORDS } from '../../data/mockData'
 import { RatingBadge } from '../reviews/Stars'
 import { ListingImage } from '../ui'
 import MapView from './MapView'
@@ -57,7 +57,7 @@ export default function ResultsMap({ listings, distanceOf, originLabel = 'VSU', 
                   </p>
                   <RatingBadge rating={ratingOf(listing.id)} />
                 </div>
-                <p className="small fw-bold text-body text-nowrap mb-0 pe-2">{formatPeso(listing.price)}</p>
+                <p className="small fw-bold text-body text-nowrap mb-0 pe-2">{rentLabel(listing)}</p>
               </Link>
             </li>
           ))}

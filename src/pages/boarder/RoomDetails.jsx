@@ -1,22 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, CalendarCheck, CircleHelp, DoorOpen, GraduationCap, House, Link2, LoaderCircle, LocateFixed, LogIn, MapPin, MessageCircle, Navigation, Phone, SearchX, Users } from 'lucide-react'
+import { fetchListingRooms } from '../../api/listings'
 import { publicUrl } from '../../config/base'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
 import { useRequireBoarder, useSitePaths } from '../../context/SitePaths'
 import { useToast } from '../../context/ToastContext'
-import {
-  availabilityOf,
-  BAYBAY_CENTER,
-  distanceKm,
-  formatDate,
-  formatDistance,
-  formatPeso,
-  SHARED_ROOM_TYPES,
-  UTILITIES,
-  VSU_COORDS,
-} from '../../data/mockData'
+import { availabilityOf, BAYBAY_CENTER, distanceKm, formatDate, formatDistance, formatPeso, rentLabel, SHARED_ROOM_TYPES, UTILITIES, VSU_COORDS } from '../../data/mockData'
 import MapView from '../../components/map/MapView'
 import useMyLocation from '../../components/map/useMyLocation'
 import PhotoGallery from '../../components/listings/PhotoGallery'
@@ -26,7 +17,9 @@ import ReviewsSection from '../../components/reviews/ReviewsSection'
 import { RatingBadge } from '../../components/reviews/Stars'
 import CopyButton from '../../components/ui/CopyButton'
 import { TextArea, TextField } from '../../components/ui/form'
+import { ListingsError } from '../../components/listings/ListingsStatus'
 import { EmptyState, Notice, StatusPill, Tag } from '../../components/ui'
+import { PageSkeleton } from '../../components/ui/feedback'
 
 // Shown instead of the reservation form to guests and to landlord or admin accounts.
 function SignInToReserve({ listing }) {
@@ -39,7 +32,7 @@ function SignInToReserve({ listing }) {
     <div className="card">
       <div className="card-body p-4">
         <p className="small text-body-secondary mb-1">
-          <span className="fs-3 fw-bold text-body">{formatPeso(listing.price)}</span> / month
+          <span className="fs-3 fw-bold text-body">{rentLabel(listing)}</span> / month
         </p>
         <p className="small text-body-secondary mb-0">{isFull ? 'No rooms available right now' : `${listing.availableRooms} of ${listing.totalRooms} rooms available`}</p>
         {user ? (
@@ -88,7 +81,7 @@ function ReservePanel({ listing }) {
     <div className="card">
       <div className="card-body p-4">
         <p className="small text-body-secondary mb-1">
-          <span className="fs-3 fw-bold text-body">{formatPeso(listing.price)}</span> / month
+          <span className="fs-3 fw-bold text-body">{rentLabel(listing)}</span> / month
         </p>
         <p className="small text-body-secondary mb-0">{isFull ? 'No rooms available right now' : `${listing.availableRooms} of ${listing.totalRooms} rooms available`}</p>
 
@@ -210,6 +203,78 @@ function LocationCard({ listing }) {
   )
 }
 
+// Each room with its own type, rent and free slots (from MySQL).
+function RoomsList({ listing }) {
+  const [state, setState] = useState({ loading: true, rooms: [], error: '' })
+
+  useEffect(() => {
+    let current = true
+    fetchListingRooms(listing.dbId).then((result) => {
+      if (current) setState({ loading: false, rooms: result.ok ? result.rooms : [], error: result.ok ? '' : result.error })
+    })
+    return () => {
+      current = false
+    }
+  }, [listing.dbId])
+
+  return (
+    <section className="card">
+      <div className="card-body p-4">
+        <div className="d-flex align-items-baseline justify-content-between gap-2 mb-3">
+          <h2 className="h5 fw-semibold mb-0">Rooms</h2>
+          {!state.loading && !state.error && (
+            <span className="small text-body-secondary">
+              {listing.availableRooms} of {state.rooms.length} with a free slot
+            </span>
+          )}
+        </div>
+        {state.loading ? (
+          <div className="placeholder-glow" aria-busy="true">
+            <span className="placeholder col-12 rounded" style={{ height: '6rem' }} />
+          </div>
+        ) : state.error ? (
+          <p className="small text-body-secondary mb-0">{state.error}</p>
+        ) : (
+          <div className="table-responsive">
+            <table className="table table-sm align-middle small mb-0">
+              <thead>
+                <tr>
+                  <th scope="col">Room</th>
+                  <th scope="col">Type</th>
+                  <th scope="col" className="text-end">
+                    Monthly rent
+                  </th>
+                  <th scope="col" className="text-end">
+                    Free slots
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {state.rooms.map((room) => (
+                  <tr key={room.id}>
+                    <td className="fw-medium">{room.name}</td>
+                    <td>{room.type}</td>
+                    <td className="text-end text-nowrap">{formatPeso(room.rent)}</td>
+                    <td className="text-end">
+                      {room.freeSlots > 0 ? (
+                        <span className="badge bg-success-subtle text-success-emphasis">
+                          {room.freeSlots} of {room.capacity}
+                        </span>
+                      ) : (
+                        <span className="badge bg-secondary-subtle text-secondary-emphasis">{room.isOpen ? 'Full' : 'Closed'}</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
 // Questions for things the listing leaves open, so boarders know what to ask before visiting.
 function questionsFor(listing) {
   const missingBills = UTILITIES.filter((name) => !listing.utilities.some((utility) => utility.name === name))
@@ -250,13 +315,19 @@ export default function RoomDetails() {
   const { user } = useAuth()
   const paths = useSitePaths()
   const requireBoarder = useRequireBoarder()
-  const { publicListings, favorites, toggleFavorite, recordView, ownerOf, ratingOf, startConversation } = useData()
+  const { publicListings, listingsReady, listingsError, reloadListings, favorites, toggleFavorite, recordView, ownerOf, ratingOf, startConversation } = useData()
   const listing = publicListings.find((item) => item.id === listingId)
 
+  // Once per listing opened (the data reloads every minute, which mustn't count again).
+  const viewed = useRef(null)
   useEffect(() => {
-    if (listing) recordView(listing.id)
+    if (!listing || viewed.current === listing.id) return
+    viewed.current = listing.id
+    recordView(listing.id)
   }, [listing, recordView])
 
+  if (!listingsReady) return <PageSkeleton />
+  if (listingsError) return <ListingsError error={listingsError} onRetry={reloadListings} />
   if (!listing) {
     return (
       <EmptyState
@@ -274,7 +345,7 @@ export default function RoomDetails() {
 
   const owner = ownerOf(listing)
   const facts = [
-    { icon: House, label: 'Room type', value: listing.roomType },
+    { icon: House, label: listing.roomTypes?.length > 1 ? 'Room types' : 'Room type', value: listing.roomTypes?.length ? listing.roomTypes.join(', ') : listing.roomType },
     { icon: DoorOpen, label: 'Rooms available', value: `${listing.availableRooms} of ${listing.totalRooms}` },
     { icon: Users, label: 'Open slots', value: listing.availableSlots },
   ]
@@ -344,6 +415,8 @@ export default function RoomDetails() {
               <FeatureList features={listing.amenities} className="small" iconSize={16} />
             </div>
           </section>
+
+          {listing.dbId && <RoomsList key={listing.dbId} listing={listing} />}
 
           <LivingHere listing={listing} />
 

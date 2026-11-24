@@ -7,7 +7,7 @@
 | React app (`src/`) | Guests, boarders, landlords | Works, but keeps its data in the browser (localStorage) |
 | AdminLTE admin panel (`backend/admin/`) | Admins and super admins | **Done**: PHP + MySQL, runs on WAMP now |
 | Database (`database/roomease.sql`) | Both | **Done**: schema plus demo data |
-| JSON API (`backend/api/`) | React app | **Phase 1 done** (accounts). Listings and the rest: phases 2–5 below |
+| JSON API (`backend/api/`) | React app | **Phases 1–2 done** (accounts, public listings). Landlord listings and the rest: phases 3–5 below |
 
 The admin panel already reads and writes MySQL directly. What's missing is a PHP API so that the React app uses the same database instead of localStorage. Once that exists:
 - a landlord's new listing appears in the admin review queue;
@@ -128,7 +128,8 @@ backend/
     routes/
       auth.php           ✅ me, register, login, logout, forgot, verify-code, reset
       me.php             ✅ profile, avatar, password
-                         to come: listings.php, landlord.php, reservations.php, reviews.php,
+      listings.php       ✅ lookups, browse (filters, sort, pages), one listing with rooms, views, reviews
+                         to come: landlord.php, reservations.php, reviews.php (writing),
                          favorites.php, messages.php, notifications.php, contact.php
   uploads/               ✅ avatars/ (later also listing photos). .htaccess: no scripts run here
 ```
@@ -172,11 +173,11 @@ The CSRF check runs on every non-GET request before your function.
 
 | Method and path | Does |
 | --- | --- |
-| `GET /lookups` | Room types, amenities, utilities and areas (for the filters and forms) |
-| `GET /listings?q&area&min&max&roomType&amenities&available&stay&sort&page` | Approved and not removed only. Distance filters stay in the browser |
-| `GET /listings/{id}` | Details with rooms, photos, amenities, bills, stay terms, rating and landlord contact |
-| `POST /listings/{id}/view` | Counts a view (once per session) |
-| `GET /listings/{id}/reviews` | Reviews with landlord replies |
+| ✅ `GET /lookups` | Room types, amenities, utilities, areas, payment methods (for the filters and forms) |
+| ✅ `GET /listings?q&area&min&max&roomType&amenities&available&stay&sort&page&perPage` | Approved and not removed only. Each listing has its rent range (`rent.min`/`rent.max`), room types (most common first), room counts and free slots, amenities, bills, house rules, stay terms, map pin, photos, rating and landlord name and number. `min`/`max` compare the cheapest room; a room-type filter matches any of a house's rooms. `sort`: `recommended`, `newest`, `price-asc`, `price-desc`, `rating`. Distance filters stay in the browser |
+| ✅ `GET /listings/{id}` | The same, plus each room: name, type, rent, capacity, slots taken, free slots, photos. A pending, rejected or removed listing answers 404 |
+| ✅ `POST /listings/{id}/view` | Counts a room-page visit, once per listing per session |
+| ✅ `GET /listings/{id}/reviews` | Reviews with landlord replies (the website switches to it in phase 4, when writing reviews moves too) |
 
 **Boarders**
 
@@ -235,8 +236,10 @@ Admins need no API endpoints: the AdminLTE panel talks to MySQL itself.
 1. ✅ `src/api/client.js`: a small `fetch` wrapper. It sends the CSRF header, reads `{ ok, data, error }`, and turns failures (WAMP off, a PHP error page) into messages the pages can show.
 2. ✅ `vite.config.js` forwards `/backend/…` to WAMP during `npm run dev`. The API lives at `` `${BASE_PATH}backend/api` `` (`src/config/api.js`), so the WAMP build works from any folder.
 3. ✅ `AuthContext` now picks `ApiAuthProvider` (the API) or the in-browser demo provider (`VITE_USE_API=false`). Both have the same functions, now async: `login`, `register`, `logout`, `updateProfile`, `changePassword`, `requestPasswordReset`… The pages `await` them.
-   - **Temporary bridge:** listings, reservations and messages are still the browser demo data, keyed by demo ids such as `u-boarder-1`. So the demo accounts keep those ids after signing in through the API, and new accounts get `db-<user_id>`. Phases 2–5 replace this with real ids.
-4. Do the same in `DataContext`, one feature at a time. Load lists from the API and refetch after a change. A `VITE_USE_API` switch lets the mock and the API live side by side while you migrate.
+   - **Temporary bridge:** reservations and messages are still the browser demo data, keyed by demo ids such as `u-boarder-1`. So the demo accounts keep those ids after signing in through the API, and new accounts get `db-<user_id>`. Phases 3–5 replace this with real ids.
+4. ✅ (phase 2) `DataContext` takes the public listings from `GET /listings` (`src/api/listings.js` turns them into the shape the pages already use). It reloads them when the tab regains focus and every minute, so an approval in the admin panel shows up. The room page loads each room from `GET /listings/{id}`. Pages show placeholders while loading, and a "couldn't be loaded / Try again" card if WAMP is off.
+   - **Temporary bridge:** favorites, compare, reservations, reviews and messages still point at the demo listing ids (`sunrise`). So a listing that is one of the demo listings keeps its demo id and illustration, and other listings get `db-<id>` (e.g. `/rooms/db-11`). The landlord's own listings are still the browser copy until phase 3.
+   - Next: do the same for each remaining feature. Load lists from the API and refetch after a change; the `VITE_USE_API` switch keeps the demo working meanwhile.
 5. Add a **Rooms** section to the landlord's listing form (several rooms, each with its own type and rent), and let boarders pick a room when they reserve.
 6. Remove the mock seed data (`src/data/mockData.js`) once everything comes from MySQL.
 
@@ -250,7 +253,7 @@ Each phase ends with something you can show.
 | --- | --- | --- |
 | **0** ✅ | Database and the AdminLTE admin / super admin panel | You can sign in as `superadmin` and approve or reject the demo listings |
 | **1** ✅ | API skeleton (router, JSON helpers, session, CSRF) and the Accounts endpoints; React `AuthContext` on the API | A boarder who signs up in React appears under Boarders & Landlords. Deactivating them in AdminLTE signs them out of React |
-| **2** | Public listing endpoints; React browse and room pages from MySQL | Approving a listing in AdminLTE makes it appear on Find Place to Stay |
+| **2** ✅ | Public listing endpoints; React browse and room pages from MySQL | Approving a listing in AdminLTE makes it appear on Find Place to Stay |
 | **3** | Landlord listings, rooms, photos and availability; resubmitting | A landlord's new listing appears in the AdminLTE review queue. Sending it back shows the reason in React |
 | **4** | Reservations, favorites, reviews, landlord replies, analytics | The full reservation flow works between two browsers |
 | **5** | Messages, notifications (polling), Contact form | A Contact Us message appears in the AdminLTE inbox |

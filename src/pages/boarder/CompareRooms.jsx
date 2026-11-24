@@ -5,6 +5,7 @@ import { useSitePaths } from '../../context/SitePaths'
 import { AMENITIES, availabilityOf, BAYBAY_CENTER, distanceKm, formatDistance, formatPeso, VSU_COORDS } from '../../data/mockData'
 import { Stars } from '../../components/reviews/Stars'
 import { EmptyState, ListingImage, PageHeader, Tag } from '../../components/ui'
+import { PageSkeleton } from '../../components/ui/feedback'
 
 function BestBadge({ children }) {
   return (
@@ -16,9 +17,11 @@ function BestBadge({ children }) {
 }
 
 export default function CompareRooms() {
-  const { compare, listingById, toggleCompare, clearCompare, ratingOf, ownerOf } = useData()
+  const { compare, listingById, toggleCompare, clearCompare, ratingOf, ownerOf, listingsReady } = useData()
   const paths = useSitePaths()
   const rooms = compare.map(listingById).filter(Boolean)
+
+  if (!listingsReady) return <PageSkeleton />
 
   if (rooms.length < 2) {
     return (

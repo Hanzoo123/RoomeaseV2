@@ -73,7 +73,7 @@ Features from [Hanzoo123/Roomease](https://github.com/Hanzoo123/Roomease) that t
 The database and the admin panel are done. What remains is a PHP JSON API in `backend/api/` that connects the React website to the same MySQL database. It is built in phases:
 
 1. ✅ Accounts (sign-up, sign-in, "Remember me", profile and photo, password change and reset, sessions, CSRF), with the React `AuthContext` switched to the API
-2. Public listings (Find Place to Stay and room pages from MySQL)
+2. ✅ Public listings (Find Place to Stay and room pages from MySQL, with each room's rent and free slots)
 3. Landlord listings, several rooms per house with their own rent, photos and availability
 4. Reservations, favorites, reviews and analytics
 5. Messages, notifications (polling) and the contact form into the AdminLTE inbox

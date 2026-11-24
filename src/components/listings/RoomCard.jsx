@@ -3,7 +3,7 @@ import { AirVent, Bath, Bed, BedDouble, BedSingle, BookOpen, Cctv, CookingPot, D
 import { useData } from '../../context/DataContext'
 import { useRequireBoarder, useSitePaths } from '../../context/SitePaths'
 import { useToast } from '../../context/ToastContext'
-import { availabilityOf, formatPeso } from '../../data/mockData'
+import { availabilityOf, rentLabel } from '../../data/mockData'
 import { RatingBadge } from '../reviews/Stars'
 import { CompareButton } from './CompareControls'
 import { ListingImage, Tag } from '../ui'
@@ -87,7 +87,7 @@ export default function RoomCard({ listing, isFavorite, onToggleFavorite, distan
         )}
         <RatingBadge rating={ratingOf(listing.id)} className="mb-2" />
         <p className="small text-body-secondary mb-3">
-          <span className="fs-5 fw-bold text-body">{formatPeso(listing.price)}</span> / month
+          <span className="fs-5 fw-bold text-body">{rentLabel(listing)}</span> / month
         </p>
         <div className="d-flex flex-wrap align-items-center column-gap-3 row-gap-1 mb-3">
           <FeatureList features={features} />

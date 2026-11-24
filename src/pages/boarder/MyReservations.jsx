@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { CalendarX, Phone } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import { useToast } from '../../context/ToastContext'
-import { formatDate, formatPeso } from '../../data/mockData'
+import { formatDate, rentLabel } from '../../data/mockData'
 import { EmptyState, ListingImage, Modal, PageHeader, StatusPill, Tabs } from '../../components/ui'
 
 const STATUSES = ['Pending', 'Approved', 'Declined', 'Cancelled']
@@ -63,7 +63,7 @@ export default function MyReservations() {
                   </div>
                   <p className="small text-body-secondary mt-1 mb-1">
                     {reservation.roomType}
-                    {listing && ` · ${formatPeso(listing.price)}/month`}
+                    {listing && ` · ${rentLabel(listing)}/month`}
                   </p>
                   <p className="text-xs text-body-secondary mb-0">
                     Requested {formatDate(reservation.date)}

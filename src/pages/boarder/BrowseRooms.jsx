@@ -3,6 +3,7 @@ import { ArrowUpDown, LayoutGrid, LoaderCircle, LocateFixed, Map as MapIcon, Map
 import { useData } from '../../context/DataContext'
 import { useSitePaths } from '../../context/SitePaths'
 import { AMENITIES, AREAS, BAYBAY_CENTER, distanceKm, formatDistance, ROOM_TYPES, VSU_COORDS } from '../../data/mockData'
+import { ListingsError, ListingsLoading } from '../../components/listings/ListingsStatus'
 import RoomCard, { FEATURE_ICONS } from '../../components/listings/RoomCard'
 import ResultsMap from '../../components/map/ResultsMap'
 import useMyLocation from '../../components/map/useMyLocation'
@@ -38,7 +39,8 @@ function matches(listing, filters, distanceOf) {
   if (filters.location && listing.area !== filters.location) return false
   if (filters.min && listing.price < Number(filters.min)) return false
   if (filters.max && listing.price > Number(filters.max)) return false
-  if (filters.roomType && listing.roomType !== filters.roomType) return false
+  // Houses from MySQL can have several room types; any of them counts.
+  if (filters.roomType && !(listing.roomTypes ?? [listing.roomType]).includes(filters.roomType)) return false
   if (filters.amenities.some((amenity) => !listing.amenities.includes(amenity))) return false
   if (filters.availableOnly && listing.availableRooms === 0) return false
   if (filters.stay && !STAY_OPTIONS[filters.stay].allows.includes(listing.genderPolicy)) return false
@@ -47,7 +49,7 @@ function matches(listing, filters, distanceOf) {
 }
 
 export default function BrowseRooms() {
-  const { publicListings, favorites, toggleFavorite, ratingOf, compare } = useData()
+  const { publicListings, listingsReady, listingsError, reloadListings, favorites, toggleFavorite, ratingOf, compare } = useData()
   const paths = useSitePaths()
   const [params, setParams] = useSearchParams()
   const { position, locating, locate } = useMyLocation()
@@ -113,7 +115,7 @@ export default function BrowseRooms() {
     <div>
       <PageHeader
         title={paths.isPublic ? 'Find a Place to Stay' : 'Browse Rooms'}
-        subtitle={`${publicListings.length} approved boarding houses in Baybay City`}
+        subtitle={listingsReady ? `${publicListings.length} approved boarding houses in Baybay City` : 'Loading boarding houses…'}
         actions={
           <>
             <button type="button" className={`btn ${filters.from === 'me' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={findNearMe} disabled={locating}>
@@ -303,7 +305,11 @@ export default function BrowseRooms() {
         </div>
       </div>
 
-      {results.length > 0 && view === 'map' ? (
+      {!listingsReady ? (
+        <ListingsLoading count={6} />
+      ) : listingsError ? (
+        <ListingsError error={listingsError} onRetry={reloadListings} />
+      ) : results.length > 0 && view === 'map' ? (
         <ResultsMap listings={results} distanceOf={distanceOf} originLabel={origin.label} myLocation={filters.from === 'me' ? position : null} />
       ) : results.length > 0 ? (
         <div className="row g-4 stagger">
