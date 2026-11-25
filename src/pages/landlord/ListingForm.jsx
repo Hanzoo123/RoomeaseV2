@@ -1,24 +1,23 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, CircleAlert, ImagePlus, SearchX, Star, X } from 'lucide-react'
+import { ArrowLeft, Ban, CircleAlert, ImagePlus, LoaderCircle, SearchX, Star, X } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import { useToast } from '../../context/ToastContext'
-import { AMENITIES, AREA_CENTERS, AREAS, GENDER_POLICIES, PAYMENT_METHODS, ROOM_TYPES, UTILITIES } from '../../data/mockData'
+import { AMENITIES, AREA_CENTERS, AREAS, GENDER_POLICIES, PAYMENT_METHODS, UTILITIES } from '../../data/mockData'
 import { resizeImage } from '../../data/images'
 import MapView from '../../components/map/MapView'
 import { FEATURE_ICONS } from '../../components/listings/RoomCard'
+import { ListingsError } from '../../components/listings/ListingsStatus'
 import { SelectField, TextArea, TextField } from '../../components/ui/form'
 import { EmptyState, Notice, PageHeader } from '../../components/ui'
+import { PageSkeleton } from '../../components/ui/feedback'
+import { formRoom, roomErrors, roomValues } from '../../data/rooms'
+import RoomsEditor from './RoomsEditor'
 
 const EMPTY = {
   name: '',
   area: AREAS[0],
   address: '',
-  price: '',
-  roomType: ROOM_TYPES[0],
-  totalRooms: '',
-  availableRooms: '',
-  availableSlots: '',
   amenities: ['Wi-Fi'],
   description: '',
   photos: [],
@@ -48,17 +47,14 @@ const rulesFrom = (text) =>
     .map((line) => line.replace(/^[-•*\s]+/, '').trim())
     .filter(Boolean)
 
+// Field names the API uses that the form calls something else.
+const SERVER_FIELDS = { houseRules: 'houseRulesText' }
+const isRoomError = (key) => key === 'rooms' || key.startsWith('rooms.')
+
 function validate(form) {
-  const errors = {}
-  const total = Number(form.totalRooms)
+  const errors = roomErrors(form.rooms)
   if (!form.name.trim()) errors.name = 'Enter the name of your boarding house.'
   if (!form.address.trim()) errors.address = 'Enter the street address so boarders can find it.'
-  if (!(Number(form.price) > 0)) errors.price = 'Enter the monthly rent.'
-  if (!(total >= 1)) errors.totalRooms = 'Enter at least 1 room.'
-  if (form.availableRooms === '' || Number(form.availableRooms) < 0) errors.availableRooms = 'Enter 0 or more.'
-  else if (Number(form.availableRooms) > total) errors.availableRooms = 'Can’t be more than the total rooms.'
-  if (form.availableSlots === '' || Number(form.availableSlots) < 0) errors.availableSlots = 'Enter 0 or more.'
-  else if (Number(form.availableSlots) < Number(form.availableRooms)) errors.availableSlots = 'Should be at least the number of available rooms.'
   if (form.amenities.length === 0) errors.amenities = 'Pick at least one amenity.'
   const rules = rulesFrom(form.houseRulesText)
   if (rules.length > MAX_RULES) errors.houseRulesText = `Keep it to ${MAX_RULES} rules or fewer.`
@@ -67,11 +63,10 @@ function validate(form) {
   return errors
 }
 
-function ListingForm({ listingId }) {
+function ListingForm({ existing }) {
   const navigate = useNavigate()
-  const { myListings, saveListing } = useData()
+  const { saveListing } = useData()
   const toast = useToast()
-  const existing = listingId ? myListings.find((listing) => listing.id === listingId) : null
 
   const [form, setForm] = useState(() =>
     existing
@@ -79,38 +74,23 @@ function ListingForm({ listingId }) {
           ...EMPTY,
           ...existing,
           photos: existing.photos ?? [],
-          price: String(existing.price),
-          totalRooms: String(existing.totalRooms),
-          availableRooms: String(existing.availableRooms),
-          availableSlots: String(existing.availableSlots),
+          rooms: (existing.rooms ?? []).map(formRoom),
           curfew: existing.curfew ?? '',
           minimumStayMonths: existing.minimumStayMonths ? String(existing.minimumStayMonths) : '',
           houseRulesText: (existing.houseRules ?? []).join('\n'),
           utilities: Object.fromEntries((existing.utilities ?? []).map((utility) => [utility.name, utility.billing ?? ''])),
         }
-      : EMPTY,
+      : { ...EMPTY, rooms: [formRoom({ name: 'Room 1' })] },
   )
   const [errors, setErrors] = useState({})
+  const [checked, setChecked] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const [photoError, setPhotoError] = useState('')
   const [pinMoved, setPinMoved] = useState(Boolean(existing))
   const pinMarkers = useMemo(() => [{ id: 'pin', coords: form.coords, label: form.name.trim() || 'Your boarding house', active: true }], [form.coords, form.name])
 
   const resubmitting = existing?.approval === 'Rejected'
-
-  if (listingId && !existing) {
-    return (
-      <EmptyState
-        icon={SearchX}
-        title="Listing not found"
-        body="It may have been deleted, or it belongs to another landlord."
-        action={
-          <Link to="/landlord/listings" className="btn btn-primary">
-            Back to my listings
-          </Link>
-        }
-      />
-    )
-  }
 
   // Editing a field clears its error; the rest are re-checked on submit.
   const setField = (key, value) => {
@@ -123,7 +103,14 @@ function ListingForm({ listingId }) {
     const area = event.target.value
     setForm((current) => ({ ...current, area, coords: pinMoved ? current.coords : AREA_CENTERS[area] }))
   }
-  const setNumber = (key) => (event) => setField(key, event.target.value.replace(/\D/g, '').slice(0, 6))
+  // Once the landlord has tried to save, the room checks run as they type.
+  const setRooms = (rooms) => {
+    setForm((current) => ({ ...current, rooms }))
+    setErrors((current) => {
+      const rest = Object.fromEntries(Object.entries(current).filter(([key]) => !isRoomError(key)))
+      return checked ? { ...rest, ...roomErrors(rooms) } : rest
+    })
+  }
 
   function toggleAmenity(amenity) {
     setErrors(({ amenities: _cleared, ...rest }) => rest)
@@ -163,21 +150,29 @@ function ListingForm({ listingId }) {
   const makeCover = (position) =>
     setForm((current) => ({ ...current, photos: [current.photos[position], ...current.photos.filter((_, index) => index !== position)] }))
 
-  function handleSubmit(event) {
-    event.preventDefault()
-    const nextErrors = validate(form)
+  // Shows the first problem, wherever it is on the long form.
+  const showErrors = (nextErrors) => {
     setErrors(nextErrors)
-    if (Object.keys(nextErrors).length) return
+    requestAnimationFrame(() => document.querySelector('.is-invalid, .invalid-feedback.d-block, .alert-danger')?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    if (saving) return
+    setChecked(true)
+    setSaveError('')
+    const nextErrors = validate(form)
+    if (Object.keys(nextErrors).length) {
+      showErrors(nextErrors)
+      return
+    }
+    setErrors({})
 
     const fields = {
       name: form.name.trim(),
       area: form.area,
       address: form.address.trim(),
-      price: Number(form.price),
-      roomType: form.roomType,
-      totalRooms: Number(form.totalRooms),
-      availableRooms: Number(form.availableRooms),
-      availableSlots: Number(form.availableSlots),
+      rooms: form.rooms.map(roomValues),
       amenities: AMENITIES.filter((amenity) => form.amenities.includes(amenity)),
       description: form.description.trim(),
       photos: form.photos,
@@ -192,9 +187,23 @@ function ListingForm({ listingId }) {
       houseRules: rulesFrom(form.houseRulesText),
       utilities: UTILITIES.filter((name) => name in form.utilities).map((name) => ({ name, billing: form.utilities[name].trim() || 'Included in rent' })),
     }
-    const id = saveListing(fields, existing?.id)
-    toast(resubmitting ? 'Changes saved and sent back for review.' : existing ? 'Listing updated.' : 'Listing submitted for review.')
-    navigate(`/landlord/listings/${id}`, { state: { saved: existing ? 'updated' : 'created' } })
+    setSaving(true)
+    const result = await saveListing(fields, existing)
+    setSaving(false)
+    if (!result.ok) {
+      setSaveError(result.fields ? '' : result.error)
+      if (result.fields) {
+        const fromServer = Object.fromEntries(Object.entries(result.fields).map(([key, message]) => [SERVER_FIELDS[key] ?? key, message]))
+        if (fromServer.photos) setPhotoError(fromServer.photos)
+        if (fromServer.coords) toast(fromServer.coords, 'error')
+        showErrors(fromServer)
+      } else {
+        requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }))
+      }
+      return
+    }
+    toast(result.resubmitted ? 'Changes saved and sent back for review.' : existing ? 'Listing updated.' : 'Listing submitted for review.')
+    navigate(`/landlord/listings/${result.id}`, { state: { saved: existing ? (result.resubmitted ? 'resubmitted' : 'updated') : 'created' } })
   }
 
   const togglePayment = (method) =>
@@ -214,7 +223,7 @@ function ListingForm({ listingId }) {
     setForm((current) => ({ ...current, utilities: { ...current.utilities, [name]: billing } }))
   }
 
-  const errorCount = Object.keys(errors).length
+  const errorCount = Object.keys(errors).filter((key) => key !== 'photos').length + (photoError ? 1 : 0)
   const backTo = existing ? `/landlord/listings/${existing.id}` : '/landlord/listings'
 
   return (
@@ -230,9 +239,11 @@ function ListingForm({ listingId }) {
         subtitle={
           resubmitting
             ? 'Fix what the admin asked for, then save to send it back for review.'
-            : existing
+            : existing?.approval === 'Approved'
               ? 'Changes are visible to boarders right away.'
-              : 'New listings are reviewed by an admin before boarders can see them.'
+              : existing
+                ? 'It’s still waiting for an admin’s review. Your changes are included.'
+                : 'New listings are reviewed by an admin before boarders can see them.'
         }
       />
 
@@ -245,6 +256,7 @@ function ListingForm({ listingId }) {
             </span>
           </div>
         )}
+        {saveError && <Notice tone="error">{saveError}</Notice>}
         {errorCount > 0 && <Notice tone="error">Please fix the {errorCount === 1 ? 'highlighted field' : `${errorCount} highlighted fields`} below.</Notice>}
 
         <section className="card">
@@ -308,35 +320,7 @@ function ListingForm({ listingId }) {
         <section className="card">
           <div className="card-body p-4 d-flex flex-column gap-3">
             <h2 className="fs-6 fw-semibold mb-0">Rooms and pricing</h2>
-            <div className="row g-3">
-              <div className="col-sm-6">
-                <TextField id="price" label="Monthly rent (₱)" inputMode="numeric" placeholder="3000" value={form.price} onChange={setNumber('price')} error={errors.price} />
-              </div>
-              <div className="col-sm-6">
-                <SelectField id="roomType" label="Room type" value={form.roomType} onChange={set('roomType')}>
-                  {ROOM_TYPES.map((type) => (
-                    <option key={type}>{type}</option>
-                  ))}
-                </SelectField>
-              </div>
-              <div className="col-sm-4">
-                <TextField id="totalRooms" label="Total rooms" inputMode="numeric" value={form.totalRooms} onChange={setNumber('totalRooms')} error={errors.totalRooms} />
-              </div>
-              <div className="col-sm-4">
-                <TextField id="availableRooms" label="Rooms available" inputMode="numeric" value={form.availableRooms} onChange={setNumber('availableRooms')} error={errors.availableRooms} />
-              </div>
-              <div className="col-sm-4">
-                <TextField
-                  id="availableSlots"
-                  label="Open slots (beds)"
-                  inputMode="numeric"
-                  hint="Shared rooms can have several slots."
-                  value={form.availableSlots}
-                  onChange={setNumber('availableSlots')}
-                  error={errors.availableSlots}
-                />
-              </div>
-            </div>
+            <RoomsEditor rooms={form.rooms} errors={errors} onChange={setRooms} />
           </div>
         </section>
 
@@ -524,8 +508,9 @@ function ListingForm({ listingId }) {
           <Link to={backTo} className="btn btn-outline-secondary">
             Cancel
           </Link>
-          <button type="submit" className="btn btn-primary">
-            {resubmitting ? 'Save and resubmit' : existing ? 'Save changes' : 'Submit for review'}
+          <button type="submit" className="btn btn-primary" disabled={saving}>
+            {saving && <LoaderCircle size={16} className="spin" aria-hidden="true" />}
+            {saving ? 'Saving…' : resubmitting ? 'Save and resubmit' : existing ? 'Save changes' : 'Submit for review'}
           </button>
         </div>
       </form>
@@ -536,5 +521,39 @@ function ListingForm({ listingId }) {
 // Keyed by listing so switching between "add" and "edit" starts from a fresh form.
 export default function ListingFormPage() {
   const { listingId } = useParams()
-  return <ListingForm key={listingId ?? 'new'} listingId={listingId} />
+  const { myListings, myListingsReady, myListingsError, reloadMyListings } = useData()
+  const existing = listingId ? myListings.find((listing) => listing.id === listingId) : null
+
+  if (listingId && !existing) {
+    if (!myListingsReady) return <PageSkeleton />
+    if (myListingsError) return <ListingsError error={myListingsError} onRetry={reloadMyListings} />
+    return (
+      <EmptyState
+        icon={SearchX}
+        title="Listing not found"
+        body="It may have been deleted, or it belongs to another landlord."
+        action={
+          <Link to="/landlord/listings" className="btn btn-primary">
+            Back to my listings
+          </Link>
+        }
+      />
+    )
+  }
+  // The API refuses changes to a listing an admin removed; the demo follows the same rule.
+  if (existing?.removed) {
+    return (
+      <EmptyState
+        icon={Ban}
+        title="This listing was removed"
+        body={`An administrator removed ${existing.name}${existing.removedReason ? `: ${existing.removedReason}` : '.'} It can’t be edited. If you think this is a mistake, contact the RoomEase team.`}
+        action={
+          <Link to={`/landlord/listings/${existing.id}`} className="btn btn-primary">
+            Back to the listing
+          </Link>
+        }
+      />
+    )
+  }
+  return <ListingForm key={listingId ?? 'new'} existing={existing} />
 }

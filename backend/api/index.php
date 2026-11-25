@@ -15,10 +15,12 @@ set_exception_handler(function ($error) {
 require __DIR__ . '/lib/db.php';
 require __DIR__ . '/lib/auth.php';
 require __DIR__ . '/lib/throttle.php';
+require __DIR__ . '/lib/images.php';
 require __DIR__ . '/../lib/validation.php';
 require __DIR__ . '/routes/auth.php';
 require __DIR__ . '/routes/me.php';
 require __DIR__ . '/routes/listings.php';
+require __DIR__ . '/routes/landlord.php';
 
 // METHOD path => handler. {name} matches one path segment.
 $routes = [
@@ -39,6 +41,12 @@ $routes = [
   'GET /listings/{id}' => 'route_listing',
   'POST /listings/{id}/view' => 'route_listing_view',
   'GET /listings/{id}/reviews' => 'route_listing_reviews',
+  // A landlord's own listings
+  'GET /landlord/listings' => 'route_landlord_listings',
+  'POST /landlord/listings' => 'route_create_listing',
+  'PUT /landlord/listings/{id}' => 'route_update_listing',
+  'DELETE /landlord/listings/{id}' => 'route_delete_listing',
+  'PATCH /landlord/rooms/{id}' => 'route_update_room',
 ];
 
 // The path after .../backend/api, e.g. "/auth/me".

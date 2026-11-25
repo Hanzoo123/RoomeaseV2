@@ -1,7 +1,6 @@
 <?php
 // The signed-in person's own profile, photo and password.
 
-const AVATAR_DIR = __DIR__ . '/../../uploads/avatars';
 const AVATAR_SIZE = 256;
 
 // PATCH /me { name, email, phone }
@@ -20,42 +19,20 @@ function route_update_profile()
 }
 
 // POST /me/avatar { image: "data:image/jpeg;base64,…" }. The app already shrinks the photo;
-// here it is checked, re-drawn (which drops anything hidden in the file) and saved as a JPEG.
+// here it is checked, re-drawn and saved as a 256 × 256 JPEG.
 function route_upload_avatar()
 {
   $user = require_user();
-  $image = body()['image'] ?? '';
-  if (!is_string($image) || !preg_match('#^data:image/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$#', $image, $parts)) {
-    fail(422, 'Choose a photo (JPG, PNG or WebP).');
-  }
-  $bytes = base64_decode($parts[2], true);
-  if ($bytes === false || strlen($bytes) > 1536 * 1024) fail(422, 'That photo is too large. Choose a smaller one.');
-
-  $type = (new finfo(FILEINFO_MIME_TYPE))->buffer($bytes);
-  $size = @getimagesizefromstring($bytes);
-  if (!in_array($type, ['image/jpeg', 'image/png', 'image/webp'], true) || !$size || $size[0] > 6000 || $size[1] > 6000) {
-    fail(422, 'That file isn’t a photo we can use. Try a JPG or PNG.');
-  }
-  if (!function_exists('imagecreatefromstring')) {
-    fail(500, 'Photo uploads need PHP’s GD extension. In WAMP, turn on PHP > PHP extensions > gd.');
-  }
-  $source = @imagecreatefromstring($bytes);
-  if (!$source) fail(422, 'That photo couldn’t be read. Try another one.');
-
+  $source = decode_photo(body()['image'] ?? '');
   // Center-crop to a square and scale down to 256 × 256.
   $side = min(imagesx($source), imagesy($source));
-  $avatar = imagecreatetruecolor(AVATAR_SIZE, AVATAR_SIZE);
-  imagefill($avatar, 0, 0, imagecolorallocate($avatar, 255, 255, 255));
-  imagecopyresampled($avatar, $source, 0, 0, intdiv(imagesx($source) - $side, 2), intdiv(imagesy($source) - $side, 2), AVATAR_SIZE, AVATAR_SIZE, $side, $side);
-
-  if (!is_dir(AVATAR_DIR) && !mkdir(AVATAR_DIR, 0775, true)) fail(500, 'The uploads folder can’t be written to.');
-  $file = bin2hex(random_bytes(16)) . '.jpg';
-  if (!imagejpeg($avatar, AVATAR_DIR . '/' . $file, 85)) fail(500, 'The photo couldn’t be saved.');
+  $avatar = redraw_photo($source, AVATAR_SIZE, AVATAR_SIZE, intdiv(imagesx($source) - $side, 2), intdiv(imagesy($source) - $side, 2), $side, $side);
+  $path = save_photo($avatar, 'avatars');
   imagedestroy($source);
   imagedestroy($avatar);
 
-  remove_avatar_file($user['avatar_path']);
-  db()->prepare('UPDATE users SET avatar_path = ?, updated_by = user_id WHERE user_id = ?')->execute(['uploads/avatars/' . $file, $user['user_id']]);
+  remove_photo($user['avatar_path'], 'avatars');
+  db()->prepare('UPDATE users SET avatar_path = ?, updated_by = user_id WHERE user_id = ?')->execute([$path, $user['user_id']]);
   ok(['user' => public_user(load_account($user['user_id']))]);
 }
 
@@ -63,17 +40,9 @@ function route_upload_avatar()
 function route_delete_avatar()
 {
   $user = require_user();
-  remove_avatar_file($user['avatar_path']);
+  remove_photo($user['avatar_path'], 'avatars');
   db()->prepare('UPDATE users SET avatar_path = NULL, updated_by = user_id WHERE user_id = ?')->execute([$user['user_id']]);
   ok(['user' => public_user(load_account($user['user_id']))]);
-}
-
-function remove_avatar_file($path)
-{
-  // Only files this API saved: uploads/avatars/<hex>.jpg
-  if ($path && preg_match('#^uploads/avatars/[a-f0-9]{32}\.jpg$#', $path) && is_file(AVATAR_DIR . '/' . basename($path))) {
-    unlink(AVATAR_DIR . '/' . basename($path));
-  }
 }
 
 // POST /me/password { current, next }: signs out other devices, keeps this one.

@@ -1,8 +1,9 @@
-import { useState } from 'react'
-import { Link, useLocation, useParams } from 'react-router-dom'
-import { ArrowLeft, CircleAlert, Clock, DoorOpen, ExternalLink, House, MapPin, SearchX, SquarePen, Users } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { ArrowLeft, CalendarDays, CircleAlert, Clock, DoorOpen, ExternalLink, House, MapPin, SearchX, SquarePen, Users } from 'lucide-react'
+import { USE_API } from '../../config/api'
 import { useData } from '../../context/DataContext'
-import { formatPeso } from '../../data/mockData'
+import { rentLabel } from '../../data/mockData'
 import LivingHere from '../../components/listings/LivingHere'
 import ListingStatus from '../../components/listings/ListingStatus'
 import PhotoGallery from '../../components/listings/PhotoGallery'
@@ -10,16 +11,34 @@ import { FeatureList } from '../../components/listings/RoomCard'
 import ReservationDialog from '../../components/reservations/ReservationDialog'
 import ReviewsSection from '../../components/reviews/ReviewsSection'
 import ReservationsTable from '../../components/reservations/ReservationsTable'
+import { ListingsError } from '../../components/listings/ListingsStatus'
+import RoomsTable from '../../components/listings/RoomsTable'
 import { EmptyState, Notice, SectionHeader } from '../../components/ui'
+import { PageSkeleton } from '../../components/ui/feedback'
+
+// After saving, shown once (not again on reload) and only while it still fits the status.
+const SAVED_NOTICES = {
+  created: { text: 'Listing submitted! It’s now waiting for admin review.', approval: 'Pending' },
+  resubmitted: { text: 'Changes saved and sent back for review.', approval: 'Pending' },
+  updated: { text: 'Changes saved.' },
+}
 
 export default function ListingView() {
   const { listingId } = useParams()
-  const { state } = useLocation()
-  const { myListings, incomingReservations, setReservationStatus } = useData()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const [saved] = useState(() => SAVED_NOTICES[location.state?.saved] ?? null)
+  useEffect(() => {
+    if (location.state?.saved) navigate(location.pathname, { replace: true, state: null })
+  }, [location, navigate])
+  const { myListings, myListingsReady, myListingsError, reloadMyListings, incomingReservations, setReservationStatus } = useData()
   const [selectedId, setSelectedId] = useState(null)
-  const listing = myListings.find((item) => item.id === listingId)
+  // Links from the admin panel's notifications use the MySQL id ("/landlord/listings/12").
+  const listing = myListings.find((item) => item.id === listingId || String(item.dbId) === listingId)
 
   if (!listing) {
+    if (!myListingsReady) return <PageSkeleton />
+    if (myListingsError) return <ListingsError error={myListingsError} onRetry={reloadMyListings} />
     return (
       <EmptyState
         icon={SearchX}
@@ -37,7 +56,7 @@ export default function ListingView() {
   const reservations = incomingReservations.filter((item) => item.listingId === listing.id)
   const selected = reservations.find((item) => item.id === selectedId)
   const facts = [
-    { icon: House, label: 'Room type', value: listing.roomType },
+    { icon: House, label: listing.roomTypes?.length > 1 ? 'Room types' : 'Room type', value: (listing.roomTypes ?? [listing.roomType]).join(', ') },
     { icon: DoorOpen, label: 'Rooms available', value: `${listing.availableRooms} of ${listing.totalRooms}` },
     { icon: Users, label: 'Open slots', value: listing.availableSlots },
   ]
@@ -67,14 +86,16 @@ export default function ListingView() {
               See it as boarders do
             </Link>
           )}
-          <Link to={`/landlord/listings/${listing.id}/edit`} className="btn btn-primary">
-            <SquarePen size={16} aria-hidden="true" />
-            {listing.approval === 'Rejected' && !listing.removed ? 'Edit and resubmit' : 'Edit listing'}
-          </Link>
+          {!listing.removed && (
+            <Link to={`/landlord/listings/${listing.id}/edit`} className="btn btn-primary">
+              <SquarePen size={16} aria-hidden="true" />
+              {listing.approval === 'Rejected' ? 'Edit and resubmit' : 'Edit listing'}
+            </Link>
+          )}
         </div>
       </div>
 
-      {state?.saved && <Notice>{state.saved === 'created' ? 'Listing submitted! It’s now waiting for admin review.' : 'Changes saved.'}</Notice>}
+      {saved && (!saved.approval || saved.approval === listing.approval) && !listing.removed && <Notice>{saved.text}</Notice>}
 
       {listing.removed ? (
         <div className="alert alert-dark d-flex gap-2 small mb-0">
@@ -101,7 +122,9 @@ export default function ListingView() {
           <Clock size={16} className="flex-shrink-0 mt-1" aria-hidden="true" />
           <p className="mb-0">
             <strong>In review.</strong> An admin checks every new listing, usually within a few days. Boarders can’t see it until it’s approved.
-            <span className="d-block text-body-secondary mt-1">Admins review listings in the RoomEase admin panel. This demo version keeps its data in the browser, so it isn’t connected to the admin panel yet.</span>
+            {!USE_API && (
+              <span className="d-block text-body-secondary mt-1">Admins review listings in the RoomEase admin panel. This demo version keeps its data in the browser, so it isn’t connected to the admin panel.</span>
+            )}
           </p>
         </div>
       ) : null}
@@ -114,7 +137,7 @@ export default function ListingView() {
           <section className="card h-100">
             <div className="card-body p-4">
               <p className="small text-body-secondary mb-0">
-                <span className="fs-3 fw-bold text-body">{formatPeso(listing.price)}</span> / month
+                <span className="fs-3 fw-bold text-body">{rentLabel(listing)}</span> / month
               </p>
               <dl className="row g-3 mt-1 mb-0">
                 {facts.map(({ icon: Icon, label, value }) => (
@@ -137,6 +160,23 @@ export default function ListingView() {
           </section>
         </div>
       </div>
+
+      {listing.rooms?.length > 0 && (
+        <section className="card">
+          <div className="card-body p-4">
+            <div className="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-3">
+              <h2 className="h5 fw-semibold mb-0">Rooms ({listing.rooms.length})</h2>
+              {!listing.removed && (
+                <Link to="/landlord/availability" className="small fw-medium d-inline-flex align-items-center gap-1">
+                  <CalendarDays size={14} aria-hidden="true" />
+                  Update free beds
+                </Link>
+              )}
+            </div>
+            <RoomsTable rooms={listing.rooms} showOccupancy />
+          </div>
+        </section>
+      )}
 
       <LivingHere listing={listing} title="Stay terms" />
 

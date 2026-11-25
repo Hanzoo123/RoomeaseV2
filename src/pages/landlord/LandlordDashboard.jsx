@@ -21,7 +21,7 @@ function InsightsPlaceholder() {
 
 export default function LandlordDashboard() {
   const { user } = useAuth()
-  const { myListings, incomingReservations, setReservationStatus, listingById, counts } = useData()
+  const { myListings, myListingsReady, incomingReservations, setReservationStatus, listingById, counts } = useData()
   const [selectedId, setSelectedId] = useState(null)
 
   const listingName = (id) => listingById(id)?.name ?? 'Removed listing'
@@ -48,10 +48,10 @@ export default function LandlordDashboard() {
 
       <div className="row g-3">
         <div className="col-6 col-lg-3">
-          <StatCard icon={Building2} value={myListings.length} label="My Listings" iconClassName="text-primary-emphasis" />
+          <StatCard icon={Building2} value={myListingsReady ? myListings.length : '–'} label="My Listings" iconClassName="text-primary-emphasis" />
         </div>
         <div className="col-6 col-lg-3">
-          <StatCard icon={DoorOpen} value={availableSlots} label="Available Slots" iconClassName="text-success" />
+          <StatCard icon={DoorOpen} value={myListingsReady ? availableSlots : '–'} label="Available Slots" iconClassName="text-success" />
         </div>
         <div className="col-6 col-lg-3">
           <StatCard icon={Clock} value={counts.pendingReservations} label="Pending Approval" iconClassName="text-warning" />
@@ -67,7 +67,11 @@ export default function LandlordDashboard() {
 
       <section>
         <SectionHeader title="My Boarding Houses" actionTo="/landlord/listings" />
-        {myListings.length > 0 ? (
+        {!myListingsReady ? (
+          <div className="placeholder-glow" aria-busy="true" aria-label="Loading your listings">
+            <span className="placeholder rounded-4 w-100" style={{ height: '8rem' }} />
+          </div>
+        ) : myListings.length > 0 ? (
           <div className="d-flex flex-column gap-3">
             {myListings.slice(0, 3).map((listing) => (
               <ListingRow key={listing.id} listing={listing} />

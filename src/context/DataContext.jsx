@@ -16,20 +16,22 @@ import {
 } from '../data/mockData'
 import { loadJSON, newId, saveJSON } from '../data/storage'
 import { countListingView, fetchPublicListings } from '../api/listings'
+import { deleteMyListing, fetchMyListings, saveMyListing, updateMyRoom } from '../api/landlord'
+import { roomsFromTotals, summarizeRooms } from '../data/rooms'
 import { USE_API } from '../config/api'
 import { useAuth } from './AuthContext'
 
 // Stand-in for a backend: app data lives here and is saved to localStorage, so both roles
 // see the same listings, reservations, reviews and messages in this browser. Other tabs pick
 // up changes through the `storage` event, so two signed-in tabs stay in sync.
-// With the API on (USE_API), the public listings come from MySQL instead (phase 2);
-// the landlord's own listings and everything else still live here until phases 3–5.
+// With the API on (USE_API), the public listings (phase 2) and a landlord's own listings
+// (phase 3) come from MySQL instead; everything else still lives here until phases 4–5.
 const DATA_KEY = 'roomease.data.v3'
 const DataContext = createContext(null)
 
 const DEFAULT_PREFERENCES = { emailUpdates: true, reservationAlerts: true, listingTips: false }
 export const MAX_COMPARE = 3
-// How often to reload the public listings, so approvals in the admin panel show up.
+// How often to reload the listings, so approvals in the admin panel show up.
 const LISTINGS_RECHECK_MS = 60 * 1000
 
 function seedState() {
@@ -67,12 +69,19 @@ function normalizeListing(listing) {
     visitorsAllowed: listing.visitorsAllowed ?? null,
     petsAllowed: listing.petsAllowed ?? null,
     cookingAllowed: listing.cookingAllowed ?? null,
+    roomTypes: listing.roomTypes ?? [listing.roomType],
+    rooms: listing.rooms ?? roomsFromTotals(listing),
   }
 }
 
 function hydrate(saved) {
   const state = { ...seedState(), ...saved }
   return { ...state, listings: state.listings.map(normalizeListing) }
+}
+
+function withRoomChange(listing, roomId, changes) {
+  const rooms = listing.rooms.map((room) => (room.id === roomId ? { ...room, ...changes } : room))
+  return { ...listing, rooms, ...summarizeRooms(rooms) }
 }
 
 const now = () => new Date().toISOString()
@@ -237,8 +246,10 @@ export function DataProvider({ children }) {
 
   // New listings go to the admin queue. Editing a listing that was sent back resubmits it.
   const saveListing = useCallback(
-    (actor, fields, listingId) => {
+    (actor, form, listingId) => {
       const id = listingId ?? newId('l')
+      const rooms = form.rooms.map((room) => (room.id ? room : { ...room, id: newId('r') }))
+      const fields = { ...form, rooms, ...summarizeRooms(rooms) }
       update(({ listings, notifications, activity }) => {
         if (listingId) {
           const existing = listings.find((item) => item.id === listingId)
@@ -307,8 +318,10 @@ export function DataProvider({ children }) {
     [update],
   )
 
-  const updateListing = useCallback(
-    (listingId, changes) => update(({ listings }) => ({ listings: listings.map((item) => (item.id === listingId ? { ...item, ...changes } : item)) })),
+  // One room's occupied beds or open/closed, and the listing's totals with it.
+  const updateRoom = useCallback(
+    (listingId, roomId, changes) =>
+      update(({ listings }) => ({ listings: listings.map((item) => (item.id === listingId ? withRoomChange(item, roomId, changes) : item)) })),
     [update],
   )
 
@@ -435,6 +448,108 @@ export function DataProvider({ children }) {
     }
   }, [loadApiListings])
 
+  // A landlord's own listings from MySQL, with the same reload rhythm. Answers for an
+  // account that has since signed out are dropped.
+  const isLandlord = USE_API && user?.role === 'landlord'
+  const landlordId = isLandlord ? user.id : null
+  const landlordRef = useRef(landlordId)
+  useEffect(() => {
+    landlordRef.current = landlordId
+  }, [landlordId])
+  const [apiMine, setApiMine] = useState({ ready: !USE_API, error: null, listings: [], ownerId: null })
+  const loadMyListings = useCallback(async () => {
+    const ownerId = landlordRef.current
+    if (!ownerId) return
+    const result = await fetchMyListings()
+    if (landlordRef.current !== ownerId) return
+    setApiMine((current) => {
+      const mine = current.ownerId === ownerId ? current : { ready: false, error: null, listings: [], ownerId }
+      if (!result.ok) return { ...mine, ready: true, error: mine.listings.length ? null : result.error }
+      const listings = result.listings.map((listing) => ({ ...listing, ownerId }))
+      if (mine.ready && !mine.error && JSON.stringify(mine.listings) === JSON.stringify(listings)) return mine
+      return { ready: true, error: null, listings, ownerId }
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!landlordId) return undefined
+    const onVisible = () => document.visibilityState === 'visible' && loadMyListings()
+    const firstLoad = setTimeout(loadMyListings, 0)
+    const timer = setInterval(loadMyListings, LISTINGS_RECHECK_MS)
+    window.addEventListener('focus', loadMyListings)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearTimeout(firstLoad)
+      clearInterval(timer)
+      window.removeEventListener('focus', loadMyListings)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [landlordId, loadMyListings])
+
+  // Puts a listing the API just sent back in place (or first, if it's new).
+  const putMine = useCallback((listing) => {
+    setApiMine((current) => {
+      const mine = { ...listing, ownerId: current.ownerId }
+      const exists = current.listings.some((item) => item.dbId === listing.dbId)
+      return { ...current, listings: exists ? current.listings.map((item) => (item.dbId === listing.dbId ? mine : item)) : [mine, ...current.listings] }
+    })
+  }, [])
+
+  // Saving, deleting and room changes resolve to { ok, … } or { ok: false, error, fields }.
+  const saveOwnListing = useCallback(
+    async (actor, fields, existing) => {
+      if (!USE_API) return { ok: true, id: saveListing(actor, fields, existing?.id), resubmitted: existing?.approval === 'Rejected' }
+      const result = await saveMyListing(fields, existing)
+      if (!result.ok) return result
+      putMine(result.listing)
+      loadApiListings()
+      return { ok: true, id: result.listing.id, resubmitted: result.resubmitted }
+    },
+    [saveListing, putMine, loadApiListings],
+  )
+
+  const deleteOwnListing = useCallback(
+    async (actor, listing) => {
+      if (!USE_API) {
+        deleteListing(actor, listing.id)
+        return { ok: true }
+      }
+      const result = await deleteMyListing(listing)
+      if (result.ok || result.status === 404) {
+        setApiMine((current) => ({ ...current, listings: current.listings.filter((item) => item.dbId !== listing.dbId) }))
+        loadApiListings()
+        return { ok: true }
+      }
+      return result
+    },
+    [deleteListing, loadApiListings],
+  )
+
+  // The change shows at once; the server's answer then replaces it (only the latest answer
+  // per room counts, so quick clicks can't end up out of order).
+  const roomRequests = useRef({})
+  const updateOwnRoom = useCallback(
+    async (listing, roomId, changes) => {
+      if (!USE_API) {
+        updateRoom(listing.id, roomId, changes)
+        return { ok: true }
+      }
+      setApiMine((current) => ({ ...current, listings: current.listings.map((item) => (item.dbId === listing.dbId ? withRoomChange(item, roomId, changes) : item)) }))
+      const request = (roomRequests.current[roomId] ?? 0) + 1
+      roomRequests.current[roomId] = request
+      const result = await updateMyRoom(roomId, changes)
+      if (roomRequests.current[roomId] !== request) return result
+      if (result.ok) {
+        putMine(result.listing)
+        loadApiListings()
+      } else {
+        loadMyListings()
+      }
+      return result
+    },
+    [updateRoom, putMine, loadApiListings, loadMyListings],
+  )
+
   const resetDemoData = useCallback(() => setState(seedState()), [])
 
   const value = useMemo(() => {
@@ -443,13 +558,14 @@ export function DataProvider({ children }) {
     // Personal notifications plus ones sent to the whole role (e.g. every admin).
     const myNotificationIds = user ? [user.id, `role:${user.role}`] : []
     const myNotifications = notifications.filter((item) => myNotificationIds.includes(item.userId))
-    const myListingIds = new Set(listings.filter((item) => item.ownerId === userId).map((item) => item.id))
+    const myListings = USE_API ? (isLandlord && apiMine.ownerId === userId ? apiMine.listings : []) : listings.filter((item) => item.ownerId === userId)
+    const myListingIds = new Set(myListings.map((item) => item.id))
 
     // Boarders only see listings an admin has approved.
     const publicListings = USE_API ? apiListings.listings : listings.filter((item) => item.approval === 'Approved' && !item.removed)
     // With the API, a listing that isn't public any more reads as removed, except to its landlord.
     const listingById = (id) =>
-      USE_API ? (apiListings.listings.find((item) => item.id === id) ?? listings.find((item) => item.id === id && item.ownerId === userId)) : listings.find((item) => item.id === id)
+      USE_API ? (apiListings.listings.find((item) => item.id === id) ?? myListings.find((item) => item.id === id)) : listings.find((item) => item.id === id)
     const ownerOf = (listing) => {
       if (listing.landlord) return { name: listing.landlord.name, phone: listing.landlord.phone ?? '' }
       const account = findAccount(listing.ownerId)
@@ -492,7 +608,11 @@ export function DataProvider({ children }) {
       reloadListings: loadApiListings,
       activity,
       contactMessages,
-      myListings: listings.filter((item) => item.ownerId === userId),
+      myListings,
+      // False while a landlord's own listings are loading from the API.
+      myListingsReady: !isLandlord || (apiMine.ready && apiMine.ownerId === userId),
+      myListingsError: isLandlord ? apiMine.error : null,
+      reloadMyListings: loadMyListings,
       myReservations: reservations.filter((item) => item.boarderId === userId),
       incomingReservations: reservations.filter((item) => myListingIds.has(item.listingId)),
       notifications: myNotifications,
@@ -522,12 +642,13 @@ export function DataProvider({ children }) {
       clearCompare: () => clearCompare(compareKey),
       createReservation,
       setReservationStatus: (reservationId, status, note) => setReservationStatus(user, reservationId, status, note),
-      saveListing: (fields, listingId) => saveListing(user, fields, listingId),
-      deleteListing: (listingId) => deleteListing(user, listingId),
+      // existing: the listing being edited, or null for a new one.
+      saveListing: (fields, existing) => saveOwnListing(user, fields, existing),
+      deleteListing: (listing) => deleteOwnListing(user, listing),
+      updateRoom: updateOwnRoom,
       // For the moment right after sign-up, before the new account is the signed-in user.
       logEventAs: logEvent,
       sendContactMessage,
-      updateListing,
       saveReview: (listing, fields) => saveReview(user, listing, fields),
       deleteReview,
       replyToReview,
@@ -556,9 +677,12 @@ export function DataProvider({ children }) {
     clearCompare,
     createReservation,
     setReservationStatus,
-    saveListing,
-    deleteListing,
-    updateListing,
+    apiMine,
+    isLandlord,
+    loadMyListings,
+    saveOwnListing,
+    deleteOwnListing,
+    updateOwnRoom,
     logEvent,
     sendContactMessage,
     saveReview,

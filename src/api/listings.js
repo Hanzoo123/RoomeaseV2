@@ -11,13 +11,15 @@ const DEMO_LANDLORDS = new Map(DEMO_USERS.filter((user) => user.role === 'landlo
 
 // An API listing in the shape the pages already use (see LISTINGS in data/mockData.js).
 export function toAppListing(listing) {
-  const demo = DEMO_LISTINGS.get(listing.name)
+  const ownerId = DEMO_LANDLORDS.get(listing.landlord.name) ?? `db-${listing.landlord.id}`
+  // Only the demo landlord's own listing of that name, not a new one that reuses the name.
+  const demo = DEMO_LISTINGS.get(listing.name)?.ownerId === ownerId ? DEMO_LISTINGS.get(listing.name) : null
   const roomType = listing.roomTypes[0] ?? demo?.roomType ?? 'Single Room'
   return {
     ...listing.stayTerms,
     id: demo?.id ?? `db-${listing.id}`,
     dbId: listing.id,
-    ownerId: DEMO_LANDLORDS.get(listing.landlord.name) ?? `db-${listing.landlord.id}`,
+    ownerId,
     landlord: listing.landlord,
     name: listing.name,
     area: listing.area,

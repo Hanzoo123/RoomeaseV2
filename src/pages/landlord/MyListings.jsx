@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Building2, Plus, Trash2 } from 'lucide-react'
+import { Building2, LoaderCircle, Plus, Trash2 } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import { useToast } from '../../context/ToastContext'
 import ListingRow from '../../components/listings/ListingRow'
+import { ListingsError } from '../../components/listings/ListingsStatus'
 import { listingStatus } from '../../components/listings/ListingStatus'
 import { EmptyState, Modal, Notice, PageHeader, Tabs } from '../../components/ui'
 
@@ -12,10 +13,23 @@ const TAB_KEYS = { All: null, Live: 'live', 'In review': 'review', 'Needs change
 const inTab = (listing, value) => !TAB_KEYS[value] || listingStatus(listing).key === TAB_KEYS[value]
 
 export default function MyListings() {
-  const { myListings, deleteListing } = useData()
+  const { myListings, myListingsReady, myListingsError, reloadMyListings, deleteListing } = useData()
   const [tab, setTab] = useState('All')
   const [deleting, setDeleting] = useState(null)
+  const [busy, setBusy] = useState(false)
   const toast = useToast()
+
+  async function confirmDelete() {
+    setBusy(true)
+    const result = await deleteListing(deleting)
+    setBusy(false)
+    if (!result.ok) {
+      toast(result.error, 'error')
+      return
+    }
+    toast(`${deleting.name} was deleted.`, 'info')
+    setDeleting(null)
+  }
 
   const tabs = Object.keys(TAB_KEYS)
     .map((value) => ({ value, label: value, count: myListings.filter((listing) => inTab(listing, value)).length }))
@@ -55,7 +69,15 @@ export default function MyListings() {
       <Tabs tabs={tabs} value={tab} onChange={setTab} label="Filter listings by approval status" />
 
       <div className="d-flex flex-column gap-3 mt-4">
-        {visible.length === 0 ? (
+        {!myListingsReady ? (
+          <div className="d-flex flex-column gap-3 placeholder-glow" aria-busy="true" aria-label="Loading your listings">
+            {[0, 1].map((key) => (
+              <span key={key} className="placeholder rounded-4 w-100" style={{ height: '8rem' }} />
+            ))}
+          </div>
+        ) : myListingsError ? (
+          <ListingsError error={myListingsError} onRetry={reloadMyListings} />
+        ) : visible.length === 0 ? (
           <EmptyState
             icon={Building2}
             title={tab === 'All' ? 'No listings yet' : `Nothing under “${tab}”`}
@@ -81,22 +103,15 @@ export default function MyListings() {
       {deleting && (
         <Modal
           title="Delete this listing?"
-          onClose={() => setDeleting(null)}
+          onClose={() => !busy && setDeleting(null)}
           footer={
             <>
-              <button type="button" onClick={() => setDeleting(null)} className="btn btn-outline-secondary">
+              <button type="button" onClick={() => setDeleting(null)} className="btn btn-outline-secondary" disabled={busy}>
                 Keep listing
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  deleteListing(deleting.id)
-                  toast(`${deleting.name} was deleted.`, 'info')
-                  setDeleting(null)
-                }}
-                className="btn btn-danger"
-              >
-                Delete
+              <button type="button" onClick={confirmDelete} className="btn btn-danger" disabled={busy}>
+                {busy && <LoaderCircle size={16} className="spin" aria-hidden="true" />}
+                {busy ? 'Deleting…' : 'Delete'}
               </button>
             </>
           }

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Eye, SquarePen } from 'lucide-react'
-import { formatPeso } from '../../data/mockData'
+import { rentLabel } from '../../data/mockData'
 import ListingStatus from './ListingStatus'
 import { ListingImage } from '../ui'
 
@@ -28,7 +28,7 @@ export default function ListingRow({ listing, children }) {
             {listing.area}, {listing.city}
           </p>
           <p className="small text-body-secondary mb-2">
-            <span className="fs-6 fw-bold text-body">{formatPeso(listing.price)}</span> / month
+            <span className="fs-6 fw-bold text-body">{rentLabel(listing)}</span> / month
           </p>
           <span className="badge border bg-page text-body-secondary fw-normal">
             Available: {listing.availableRooms} of {listing.totalRooms} rooms
@@ -36,10 +36,12 @@ export default function ListingRow({ listing, children }) {
         </div>
         <div className="d-flex gap-3 align-self-end small fw-medium">
           {children}
-          <Link to={`/landlord/listings/${listing.id}/edit`} className="d-inline-flex align-items-center gap-1 text-reset-link">
-            <SquarePen size={16} aria-hidden="true" />
-            Edit
-          </Link>
+          {!listing.removed && (
+            <Link to={`/landlord/listings/${listing.id}/edit`} className="d-inline-flex align-items-center gap-1 text-reset-link">
+              <SquarePen size={16} aria-hidden="true" />
+              Edit
+            </Link>
+          )}
           <Link to={`/landlord/listings/${listing.id}`} className="d-inline-flex align-items-center gap-1 text-reset-link">
             <Eye size={16} aria-hidden="true" />
             View

@@ -124,14 +124,15 @@ backend/
       db.php             ✅ connection (JSON error if MySQL is down), audit()
       auth.php           ✅ session, CSRF, current_user(), require_user(), "Remember me"
       throttle.php       ✅ limits on sign-in, sign-up and reset tries (login_attempts)
-      upload.php         listing photos (phase 3)
+      images.php         ✅ photo checks and GD re-drawing, shared by avatars and listing photos
     routes/
       auth.php           ✅ me, register, login, logout, forgot, verify-code, reset
       me.php             ✅ profile, avatar, password
       listings.php       ✅ lookups, browse (filters, sort, pages), one listing with rooms, views, reviews
-                         to come: landlord.php, reservations.php, reviews.php (writing),
+      landlord.php       ✅ a landlord's own listings: add, edit, resubmit, delete, room availability
+                         to come: reservations.php, reviews.php (writing),
                          favorites.php, messages.php, notifications.php, contact.php
-  uploads/               ✅ avatars/ (later also listing photos). .htaccess: no scripts run here
+  uploads/               ✅ avatars/ and listings/. .htaccess: no scripts run here
 ```
 
 **Adding an endpoint:** write a `route_…()` function in a file under `routes/`, require that file in `index.php`, and add `'METHOD /path/{id}' => 'route_…'` to `$routes`. Inside it:
@@ -191,10 +192,19 @@ The CSRF check runs on every non-GET request before your function.
 
 | Method and path | Does |
 | --- | --- |
-| `GET /landlord/listings`, `POST /landlord/listings`, `PUT /landlord/listings/{id}`, `DELETE /landlord/listings/{id}` | A new listing is `pending`. Saving a `rejected` one resubmits it (status back to `pending`, `submitted_at = NOW()`) |
-| `POST /landlord/listings/{id}/rooms`, `PUT /landlord/rooms/{id}`, `DELETE /landlord/rooms/{id}`, `PATCH /landlord/rooms/{id}/slots` | Several rooms with their own rent (the PHP feature still missing from React) |
-| `POST /landlord/listings/{id}/photos`, `DELETE /landlord/photos/{id}`, `POST /landlord/photos/{id}/cover` | Up to 5 photos |
+| ✅ `GET /landlord/listings` | The landlord's listings, newest first, in the public shape plus `status` (`pending`, `approved`, `rejected`), `rejectionReason`, `removed` and `removalReason` (when an admin removed it), every room (with `activeRequests`), and `photoIds`. Listings the landlord deleted are left out |
+| ✅ `POST /landlord/listings` | A new listing, `pending` with `submitted_at = NOW()`, so it shows under AdminLTE > Listings > In review. The body holds the whole form: details, stay terms, amenities, bills, house rules, map pin, `rooms` and `photos` |
+| ✅ `PUT /landlord/listings/{id}` | Saves the whole form. A `rejected` listing goes back to `pending` (reason cleared, `submitted_at = NOW()`) and answers `resubmitted: true`; a live one stays live. A listing an admin removed answers 409 |
+| ✅ `DELETE /landlord/listings/{id}` | Hides it (`deleted_at`, `deleted_by` = the landlord, kept for the admins under Removed) and declines its requests that were still waiting |
+| ✅ `PATCH /landlord/rooms/{id}` | `{ slotsTaken?, isOpen? }` from Room Availability |
 | `GET /landlord/reservations`, `POST /landlord/reservations/{id}/decide` | Accept, or decline with a reason. Accepting takes a slot |
+
+How a listing save works (`routes/landlord.php`):
+- **Rooms** are sent as the full list: `{ id?, name, type, rent, capacity, slotsTaken, isOpen }`. Rooms with an id are updated, new ones added, missing ones deleted. A room with pending or accepted requests can't be deleted (its requests would go with it), so the landlord closes it instead. Names must differ within a listing.
+- **Photos** are sent in order, up to 5: `{ id }` keeps a saved photo, `{ data: "data:image/jpeg;base64,…" }` adds one. The first is the cover. New photos are checked, re-drawn with GD to at most 1600 px and saved as `uploads/listings/<random>.jpg`; dropped ones are deleted. A save can be up to 7 MB (the app shrinks photos to about 1024 px first).
+- Everything is one transaction: if anything fails, nothing changes and new photo files are removed.
+- Errors answer 422 with a message per field, e.g. `{ "name": "…", "rooms.1.rent": "…" }`, which the form shows next to each field.
+- Audit log: `listing.submitted`, `listing.resubmitted`, `listing.updated`, `listing.deleted`.
 | `POST /landlord/reviews/{id}/reply` | Reply to a review |
 | `GET /landlord/analytics` | The numbers behind the Analytics charts |
 
@@ -227,7 +237,8 @@ Admins need no API endpoints: the AdminLTE panel talks to MySQL itself.
   - save to `backend/uploads/`, with an `.htaccess` there that blocks PHP
 - [ ] Reset codes and remember-me tokens stored only as hashes (the tables are ready)
 - [ ] `display_errors = Off` when you present or deploy; log errors to a file instead
-- [ ] Write `audit_logs` entries for landlord actions too (submitted, resubmitted, decided), so the super admin's Activity Log stays complete
+- [x] Write `audit_logs` entries for landlord listing actions (submitted, resubmitted, updated, deleted), so the super admin's Activity Log stays complete
+- [ ] The same for reservation decisions (phase 4)
 
 ---
 
@@ -238,10 +249,12 @@ Admins need no API endpoints: the AdminLTE panel talks to MySQL itself.
 3. ✅ `AuthContext` now picks `ApiAuthProvider` (the API) or the in-browser demo provider (`VITE_USE_API=false`). Both have the same functions, now async: `login`, `register`, `logout`, `updateProfile`, `changePassword`, `requestPasswordReset`… The pages `await` them.
    - **Temporary bridge:** reservations and messages are still the browser demo data, keyed by demo ids such as `u-boarder-1`. So the demo accounts keep those ids after signing in through the API, and new accounts get `db-<user_id>`. Phases 3–5 replace this with real ids.
 4. ✅ (phase 2) `DataContext` takes the public listings from `GET /listings` (`src/api/listings.js` turns them into the shape the pages already use). It reloads them when the tab regains focus and every minute, so an approval in the admin panel shows up. The room page loads each room from `GET /listings/{id}`. Pages show placeholders while loading, and a "couldn't be loaded / Try again" card if WAMP is off.
-   - **Temporary bridge:** favorites, compare, reservations, reviews and messages still point at the demo listing ids (`sunrise`). So a listing that is one of the demo listings keeps its demo id and illustration, and other listings get `db-<id>` (e.g. `/rooms/db-11`). The landlord's own listings are still the browser copy until phase 3.
+   - **Temporary bridge:** favorites, compare, reservations, reviews and messages still point at the demo listing ids (`sunrise`). So a demo landlord's own demo listing keeps its demo id and illustration, and other listings get `db-<id>` (e.g. `/rooms/db-11`).
+5. ✅ (phase 3) A landlord's own listings come from `GET /landlord/listings` (`src/api/landlord.js`), with the same reload rhythm. Add, edit, resubmit and delete call the API and wait for it; the form shows the API's field errors. The listing form has a **Rooms** section (`RoomsEditor`): each room with its own name, type, rent, beds and beds taken. Room Availability changes each room's beds taken and open/closed (`PATCH /landlord/rooms/{id}`), showing the change at once. The landlord's listing page shows the rooms, and opens from a MySQL id too (`/landlord/listings/12`, as in the admin panel's notifications).
+   - In demo mode the demo listings get rooms made up from their totals (`src/data/rooms.js`), and saving works the totals out from the rooms, so both modes use the same form.
    - Next: do the same for each remaining feature. Load lists from the API and refetch after a change; the `VITE_USE_API` switch keeps the demo working meanwhile.
-5. Add a **Rooms** section to the landlord's listing form (several rooms, each with its own type and rent), and let boarders pick a room when they reserve.
-6. Remove the mock seed data (`src/data/mockData.js`) once everything comes from MySQL.
+6. Let boarders pick a room when they reserve (phase 4).
+7. Remove the mock seed data (`src/data/mockData.js`) once everything comes from MySQL.
 
 ---
 
@@ -254,7 +267,7 @@ Each phase ends with something you can show.
 | **0** ✅ | Database and the AdminLTE admin / super admin panel | You can sign in as `superadmin` and approve or reject the demo listings |
 | **1** ✅ | API skeleton (router, JSON helpers, session, CSRF) and the Accounts endpoints; React `AuthContext` on the API | A boarder who signs up in React appears under Boarders & Landlords. Deactivating them in AdminLTE signs them out of React |
 | **2** ✅ | Public listing endpoints; React browse and room pages from MySQL | Approving a listing in AdminLTE makes it appear on Find Place to Stay |
-| **3** | Landlord listings, rooms, photos and availability; resubmitting | A landlord's new listing appears in the AdminLTE review queue. Sending it back shows the reason in React |
+| **3** ✅ | Landlord listings, rooms, photos and availability; resubmitting | A landlord's new listing appears in the AdminLTE review queue. Sending it back shows the reason in React |
 | **4** | Reservations, favorites, reviews, landlord replies, analytics | The full reservation flow works between two browsers |
 | **5** | Messages, notifications (polling), Contact form | A Contact Us message appears in the AdminLTE inbox |
 | **6** | Real email for reset codes, e.g. PHPMailer with a Gmail app password; "Remember me" tokens | A reset code arrives by email |
@@ -272,5 +285,5 @@ Each phase ends with something you can show.
 ## 7. Decisions to make
 
 - **Email:** Gmail SMTP with an app password is the simplest for a school project. Without it, the reset flow can show the code on screen in development only, as the React demo does now.
-- **Room-level reservations:** the React app reserves "a listing"; the database reserves a room. Phase 3 adds a room picker. Until then, the API can pick the first room with a free slot.
+- **Room-level reservations:** the React app reserves "a listing"; the database reserves a room. Phase 4 adds a room picker to the reservation form (the rooms now exist in React). Until then, the API can pick the first room with a free slot.
 - **Hosting:** WAMP is fine for the defense and demos. A real public site would need a host with PHP 8 and MySQL, plus HTTPS.

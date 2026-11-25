@@ -5,6 +5,7 @@ import { landlordAnalytics } from '../../components/charts/analytics'
 import { ListingBarChart, RequestsByMonthChart, StatusBreakdownChart } from '../../components/charts/Charts'
 import { Stars } from '../../components/reviews/Stars'
 import { EmptyState, PageHeader } from '../../components/ui'
+import { PageSkeleton } from '../../components/ui/feedback'
 
 function Kpi({ icon: Icon, label, value, detail, children }) {
   return (
@@ -23,8 +24,9 @@ function Kpi({ icon: Icon, label, value, detail, children }) {
 }
 
 export default function Analytics() {
-  const { myListings, incomingReservations, reviews } = useData()
+  const { myListings, myListingsReady, incomingReservations, reviews } = useData()
 
+  if (!myListingsReady) return <PageSkeleton />
   if (myListings.length === 0) {
     return (
       <div>

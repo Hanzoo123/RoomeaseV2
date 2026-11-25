@@ -7,13 +7,14 @@ import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
 import { useRequireBoarder, useSitePaths } from '../../context/SitePaths'
 import { useToast } from '../../context/ToastContext'
-import { availabilityOf, BAYBAY_CENTER, distanceKm, formatDate, formatDistance, formatPeso, rentLabel, SHARED_ROOM_TYPES, UTILITIES, VSU_COORDS } from '../../data/mockData'
+import { availabilityOf, BAYBAY_CENTER, distanceKm, formatDate, formatDistance, rentLabel, SHARED_ROOM_TYPES, UTILITIES, VSU_COORDS } from '../../data/mockData'
 import MapView from '../../components/map/MapView'
 import useMyLocation from '../../components/map/useMyLocation'
 import PhotoGallery from '../../components/listings/PhotoGallery'
 import LivingHere from '../../components/listings/LivingHere'
 import { FavoriteButton, FeatureList } from '../../components/listings/RoomCard'
 import ReviewsSection from '../../components/reviews/ReviewsSection'
+import RoomsTable from '../../components/listings/RoomsTable'
 import { RatingBadge } from '../../components/reviews/Stars'
 import CopyButton from '../../components/ui/CopyButton'
 import { TextArea, TextField } from '../../components/ui/form'
@@ -204,10 +205,12 @@ function LocationCard({ listing }) {
 }
 
 // Each room with its own type, rent and free slots (from MySQL).
+// With the API the rooms are loaded for this page; the demo listings carry their own.
 function RoomsList({ listing }) {
-  const [state, setState] = useState({ loading: true, rooms: [], error: '' })
+  const [state, setState] = useState(() => (listing.dbId ? { loading: true, rooms: [], error: '' } : { loading: false, rooms: listing.rooms ?? [], error: '' }))
 
   useEffect(() => {
+    if (!listing.dbId) return undefined
     let current = true
     fetchListingRooms(listing.dbId).then((result) => {
       if (current) setState({ loading: false, rooms: result.ok ? result.rooms : [], error: result.ok ? '' : result.error })
@@ -217,6 +220,7 @@ function RoomsList({ listing }) {
     }
   }, [listing.dbId])
 
+  if (!state.loading && !state.error && state.rooms.length === 0) return null
   return (
     <section className="card">
       <div className="card-body p-4">
@@ -235,40 +239,7 @@ function RoomsList({ listing }) {
         ) : state.error ? (
           <p className="small text-body-secondary mb-0">{state.error}</p>
         ) : (
-          <div className="table-responsive">
-            <table className="table table-sm align-middle small mb-0">
-              <thead>
-                <tr>
-                  <th scope="col">Room</th>
-                  <th scope="col">Type</th>
-                  <th scope="col" className="text-end">
-                    Monthly rent
-                  </th>
-                  <th scope="col" className="text-end">
-                    Free slots
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {state.rooms.map((room) => (
-                  <tr key={room.id}>
-                    <td className="fw-medium">{room.name}</td>
-                    <td>{room.type}</td>
-                    <td className="text-end text-nowrap">{formatPeso(room.rent)}</td>
-                    <td className="text-end">
-                      {room.freeSlots > 0 ? (
-                        <span className="badge bg-success-subtle text-success-emphasis">
-                          {room.freeSlots} of {room.capacity}
-                        </span>
-                      ) : (
-                        <span className="badge bg-secondary-subtle text-secondary-emphasis">{room.isOpen ? 'Full' : 'Closed'}</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <RoomsTable rooms={state.rooms} />
         )}
       </div>
     </section>
@@ -416,7 +387,7 @@ export default function RoomDetails() {
             </div>
           </section>
 
-          {listing.dbId && <RoomsList key={listing.dbId} listing={listing} />}
+          <RoomsList key={listing.id} listing={listing} />
 
           <LivingHere listing={listing} />
 

@@ -74,7 +74,7 @@ The database and the admin panel are done. What remains is a PHP JSON API in `ba
 
 1. ✅ Accounts (sign-up, sign-in, "Remember me", profile and photo, password change and reset, sessions, CSRF), with the React `AuthContext` switched to the API
 2. ✅ Public listings (Find Place to Stay and room pages from MySQL, with each room's rent and free slots)
-3. Landlord listings, several rooms per house with their own rent, photos and availability
+3. ✅ Landlord listings, several rooms per house with their own rent, photos and availability; the admin's reason when a listing is sent back, and resubmitting
 4. Reservations, favorites, reviews and analytics
 5. Messages, notifications (polling) and the contact form into the AdminLTE inbox
 6. Real email for password reset codes; "Remember me"

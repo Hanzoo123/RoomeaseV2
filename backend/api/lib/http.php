@@ -26,13 +26,14 @@ function fail($status, $message, $fields = null, $code = null)
   send_json($status, $payload);
 }
 
-// The request body as an array. Bodies over 2 MB are refused (avatars are ~50 KB).
-function body()
+// The request body as an array. Bodies over $limit are refused: 2 MB by default (a profile
+// photo is ~50 KB); a listing save with its photos asks for more. The first call sets it.
+function body($limit = 2 * 1024 * 1024)
 {
   static $body = null;
   if ($body !== null) return $body;
-  $raw = file_get_contents('php://input', false, null, 0, 2 * 1024 * 1024 + 1);
-  if (strlen($raw) > 2 * 1024 * 1024) fail(413, 'That request is too large.');
+  $raw = file_get_contents('php://input', false, null, 0, $limit + 1);
+  if (strlen($raw) > $limit) fail(413, 'That request is too large. Try fewer or smaller photos.');
   if ($raw === '') return $body = [];
   $decoded = json_decode($raw, true);
   if (!is_array($decoded)) fail(400, 'The request body must be JSON.');

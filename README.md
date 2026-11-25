@@ -6,9 +6,10 @@ Find and manage boarding houses in Baybay City. Two parts:
 - **The admin panel** (AdminLTE 3 + PHP + MySQL, for WAMP64) for **admins** and **super admins**: listing review, boarders and landlords, reports with exports, contact inbox, and for super admins, admin accounts and the activity log.
 - **The API** (PHP + MySQL, `backend/api/`) that the website uses. So far it handles:
   - accounts: sign-up, sign-in, "Remember me", profile and photo, password change and reset;
-  - the public listings on Find Place to Stay and the room pages, including each room's own rent and free slots.
+  - the public listings on Find Place to Stay and the room pages, including each room's own rent and free slots;
+  - landlords' own listings: adding one (with its rooms and photos) sends it to the admin panel's review queue, the admin's reason shows when it is sent back, and saving it resubmits it.
 
-  Landlords' own listings and the rest move over in the next phases ([BACKEND_PLAN.md](BACKEND_PLAN.md)).
+  Reservations, favorites, reviews and messages move over in the next phases ([BACKEND_PLAN.md](BACKEND_PLAN.md)).
 
 It follows the PHP version of RoomEase ([Hanzoo123/Roomease](https://github.com/Hanzoo123/Roomease)): same room types, the same public menu (Home · Find Place to Stay · About Us · Contact Us), the same listing review states and the same password rules.
 
@@ -65,7 +66,7 @@ Other scripts: `npm run build` (updates `dist/`, the version WAMP serves) and `n
 
 The website's sign-in page links to the admin panel ("Admin or super admin?"), and `/admin` redirects there. On WAMP it finds the panel by itself; with `npm run dev` it follows `ROOMEASE_WAMP_URL`.
 
-Website accounts and the admin panel share MySQL: someone who signs up on the website appears under **Boarders & Landlords**, and deactivating them there signs them out of the website within a minute. Listings, reservations and messages still live in the browser until the next phases of **[BACKEND_PLAN.md](BACKEND_PLAN.md)**.
+Website accounts and the admin panel share MySQL: someone who signs up on the website appears under **Boarders & Landlords**, and deactivating them there signs them out of the website within a minute. Listings are shared too: a landlord's new listing appears under **Listings > In review**, and approving it, sending it back with a reason or removing it shows on the website. Reservations and messages still live in the browser until the next phases of **[BACKEND_PLAN.md](BACKEND_PLAN.md)**.
 
 ## Features
 
@@ -89,7 +90,8 @@ Website accounts and the admin panel share MySQL: someone who signs up on the we
 
 **Landlords**
 - Dashboard with stats and **charts** (requests per month, request status); full **Analytics** page with occupancy, approval rate, average rating, views per property and a performance table (each chart has a table view)
-- Add/edit listings with **up to 5 photos**, a **map pin**, **stay terms**, **house rules** and **bills included**; room availability steppers
+- Add/edit listings with **several rooms** (each with its own type, rent and beds), **up to 5 photos**, a **map pin**, **stay terms**, **house rules** and **bills included**
+- **Room availability** per room: beds taken, and open or closed
 - Listing states as the admin sets them: **In review → Live**, or **Needs changes** with the admin's reason. Editing a sent-back listing resubmits it
 - Approve/decline reservation requests (with an optional reason the boarder sees), **reply to reviews**, and **message boarders**
 
@@ -179,13 +181,14 @@ src/
 
 - **What's in MySQL so far:**
   - accounts (sign-up, sign-in, profile, photo, passwords; only bcrypt hashes are stored);
-  - the public listings: approving, removing or restoring a listing in the admin panel shows on Find Place to Stay the next time the page is focused, or within a minute.
+  - the public listings: approving, removing or restoring a listing in the admin panel shows on Find Place to Stay the next time the page is focused, or within a minute;
+  - landlords' own listings, rooms and photos (saved in `backend/uploads/listings/`).
 
-  The landlord's own listing pages, reservations, favorites, reviews, messages and the contact form still live in the browser's localStorage until the next phases of [BACKEND_PLAN.md](BACKEND_PLAN.md). Until then, the demo accounts keep their demo data, and a new account starts empty. No email is sent yet; reset codes appear on screen.
-- **Not carried over from the PHP version yet** (they need a server): Google sign-in, real email (reset codes, notifications), and several rooms with their own rent inside one boarding house.
+  Reservations, favorites, reviews, messages and the contact form still live in the browser's localStorage until the next phases of [BACKEND_PLAN.md](BACKEND_PLAN.md). Until then, the demo accounts keep their demo data, and a new account starts empty. No email is sent yet; reset codes appear on screen.
+- **Not carried over from the PHP version yet** (they need a server): Google sign-in and real email (reset codes, notifications). Boarders reserve a boarding house rather than a particular room until phase 4.
 - **Start over:** Settings → *Reset demo data* restores the original listings, reservations, reviews and messages.
 - **Maps** use free OpenStreetMap tiles, so they need an internet connection. Pin locations are approximate. If tiles can't load, the pins still show.
-- **Photos:** landlords can upload up to 5 photos per listing (resized in the browser). Browser storage holds roughly 5 MB, so many large listings can fill it; the app warns you if a save fails. Without photos, illustrations are shown.
+- **Photos:** landlords can upload up to 5 photos per listing. The browser shrinks them first; the API checks each one, re-draws it with PHP's GD extension and saves it in `backend/uploads/listings/`. In demo mode (`VITE_USE_API=false`) they are kept in the browser, which holds roughly 5 MB. Without photos, illustrations are shown.
 - **Serving the site:** this is a single-page app with browser routing. On WAMP, `.htaccess` sends every page address to `index.php`, which serves `dist/index.html` with the right folder filled in. It also keeps the source, `database/` and config files from being opened in the browser. Another host must also serve the page for every app address (e.g. a rewrite rule on Vercel or Netlify).
 
 - **AdminLTE** (MIT licence) is included under `backend/admin/dist` and `backend/admin/plugins`. Only the files the pages load were copied; the rest of the template's plugins can be added from the original AdminLTE download if a page needs one.
