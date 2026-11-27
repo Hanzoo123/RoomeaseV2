@@ -1,8 +1,10 @@
 <?php
 // Site settings shared by the admin panel and the API.
+require_once __DIR__ . '/../lib/env.php';
 return [
-  // Until real email is set up (BACKEND_PLAN.md, phase 6), "Forgot password" shows the
-  // 6-digit code on screen, like the demo. Only for requests from this computer.
-  // Set to false before anyone else can reach the site.
-  'show_reset_codes_on_screen' => true,
+  // When the reset code can't be emailed (Gmail isn't set up in .env, or sending failed),
+  // "Forgot password" shows it on screen instead, only to someone browsing from this
+  // computer. Set ROOMEASE_SHOW_RESET_CODES=false in .env before anyone else can reach the
+  // site, including through ngrok or another tunnel (those look like this computer).
+  'show_reset_codes_on_screen' => filter_var(env_value('ROOMEASE_SHOW_RESET_CODES', 'true'), FILTER_VALIDATE_BOOLEAN),
 ];

@@ -12,7 +12,7 @@ Find and manage boarding houses in Baybay City. Two parts:
   - saved listings, reviews (after an approved stay) and landlord replies;
   - messages between boarders and landlords (an open chat shows a reply within a few seconds), notifications, and the Contact Us form, which lands in the admin panel's inbox.
 
-  What's left is in [BACKEND_PLAN.md](BACKEND_PLAN.md): real email for reset codes, and getting ready to go live.
+  Password reset codes go out by email through Gmail (see [Email](#email-for-password-reset-codes-gmail) below). What's left is in [BACKEND_PLAN.md](BACKEND_PLAN.md): getting ready to go live.
 
 It follows the PHP version of RoomEase ([Hanzoo123/Roomease](https://github.com/Hanzoo123/Roomease)): same room types, the same public menu (Home · Find Place to Stay · About Us · Contact Us), the same listing review states and the same password rules.
 
@@ -42,6 +42,31 @@ Website demo accounts (stored in MySQL; click **Use** on the sign-in page):
 More landlords for testing: `rosa@roomease.ph` and `ramon@roomease.ph` (password `Landlord#2026`). Rosa has a listing that was sent back for changes; Ramon has one waiting for review.
 
 If you change anything in `src/`, run `npm run build` to update `dist/`; WAMP then shows the new version.
+
+### Email for password reset codes (Gmail)
+
+"Forgot password" emails a 6-digit code. Until email is set up, the code is shown on the screen instead, but only to someone browsing on the WAMP computer itself.
+
+1. In your Google Account, turn on 2-Step Verification, then create an **App Password** (Security → 2-Step Verification → App passwords). It's 16 letters; your normal Gmail password won't work.
+2. In the project folder, copy `.env.example` to `.env` and set:
+
+   ```
+   ROOMEASE_MAIL_USERNAME=you@gmail.com
+   ROOMEASE_MAIL_PASSWORD="abcd efgh ijkl mnop"
+   ROOMEASE_MAIL_PORT=587
+   ```
+
+   These are the same names as in the first RoomEase project's `.env`, so those lines can be copied as they are. Port 465 (the default) also works. `.env` is ignored by git and the web server refuses to serve it, so the App Password stays on your computer.
+3. Check it from a Command Prompt in the project folder, with WAMP's PHP (your version number may differ):
+
+   ```
+   C:\wamp64\bin\php\php8.2.13\php.exe backend\tools\send-test-email.php you@example.com
+   ```
+
+   It says **Sent**, or what to fix (a wrong App Password, a blocked port, or PHP not trusting Gmail's certificate, which `ROOMEASE_MAIL_CA_BUNDLE` solves). Then try "Forgot password" on the sign-in page.
+4. Before anyone else can reach the site (including through ngrok), add `ROOMEASE_SHOW_RESET_CODES=false` to `.env`.
+
+Each email is logged in `backend/logs/mail.log` (who, when, and whether it worked; never the code or the password). The database settings can go in `.env` too (`ROOMEASE_DB_HOST`, `_NAME`, `_USER`, `_PASS`; see `.env.example`).
 
 ### While developing (React with live reload)
 
@@ -189,8 +214,8 @@ src/
   - reservations, saved listings, reviews and replies. Another browser sees a change when its tab regains focus, or within a minute;
   - messages, notifications and Contact Us messages.
 
-  The browser only keeps the compare list, recently viewed rooms and notification settings. No email is sent yet; reset codes appear on screen. (If you imported `database/roomease.sql` before this phase, import it again to get the sample notifications; this resets the data to the demo data.)
-- **Not carried over from the PHP version yet** (they need a server): Google sign-in and real email (reset codes, notifications).
+  The browser only keeps the compare list, recently viewed rooms and notification settings. Reset codes are emailed once Gmail is set up in `.env`. (If you imported `database/roomease.sql` before this phase, import it again to get the sample notifications; this resets the data to the demo data.)
+- **Not carried over from the PHP version yet:** Google sign-in, and emails about listing and reservation decisions (those show as notifications on the website).
 - **Start over:** import `database/roomease.sql` again in phpMyAdmin. In demo mode (`VITE_USE_API=false`), Settings → *Reset demo data* restores the original listings, reservations, reviews and messages in the browser.
 - **Maps** use free OpenStreetMap tiles, so they need an internet connection. Pin locations are approximate. If tiles can't load, the pins still show.
 - **Photos:** landlords can upload up to 5 photos per listing. The browser shrinks them first; the API checks each one, re-draws it with PHP's GD extension and saves it in `backend/uploads/listings/`. In demo mode (`VITE_USE_API=false`) they are kept in the browser, which holds roughly 5 MB. Without photos, illustrations are shown.

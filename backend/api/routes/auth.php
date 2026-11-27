@@ -129,7 +129,8 @@ function route_logout()
 
 // ---------- Forgot password: email → 6-digit code → new password ----------
 
-// Until email is set up, the code is shown on screen, but only to this computer.
+// When the code can't be emailed, it can be shown on screen, but only to this computer
+// (config/app.php, ROOMEASE_SHOW_RESET_CODES).
 function reset_codes_on_screen()
 {
   $config = require __DIR__ . '/../../config/app.php';
@@ -149,16 +150,52 @@ function route_forgot()
   $stmt->execute([$email]);
   $account = $stmt->fetch();
   $code = null;
+  $emailed = null;
   if ($account) {
     // An earlier code stops working once a new one is asked for.
     db()->prepare('UPDATE password_resets SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL')->execute([$account['user_id']]);
     $code = (string) random_int(100000, 999999);
     db()->prepare('INSERT INTO password_resets (user_id, token_hash, code_hash, expires_at) VALUES (?, ?, ?, NOW() + INTERVAL ' . RESET_CODE_MINUTES . ' MINUTE)')
       ->execute([$account['user_id'], hash('sha256', random_bytes(32)), password_hash($code, PASSWORD_DEFAULT)]);
-    // Phase 6 (BACKEND_PLAN.md): email $code to $account['email'] here.
+    $emailed = email_reset_code($account, $code);
   }
-  $onScreen = reset_codes_on_screen();
-  ok(['codeOnScreen' => $onScreen, 'code' => $onScreen ? $code : null]);
+  // The answer is the same whether or not the email has an account. Only this computer
+  // sees the code (or that there is no account), and only when it wasn't emailed.
+  $onScreen = reset_codes_on_screen() && $emailed !== true;
+  ok([
+    'codeOnScreen' => $onScreen,
+    'code' => $onScreen ? $code : null,
+    // Why it wasn't emailed, e.g. "AUTH password: 535 …" (never contains the password).
+    'emailProblem' => $onScreen && is_string($emailed) ? $emailed : null,
+  ]);
+}
+
+// Emails a reset code. True if the mail server took it, or why not.
+function email_reset_code($account, $code)
+{
+  $name = $account['first_name'];
+  $minutes = RESET_CODE_MINUTES;
+  $text = "Hi $name,\r\n\r\n"
+    . "Use this code to reset the password for your RoomEase account:\r\n\r\n"
+    . "    $code\r\n\r\n"
+    . "It expires in $minutes minutes. Never share it; RoomEase will not ask you for it.\r\n\r\n"
+    . "If you didn't ask for this, ignore this email. Your password stays the same.\r\n\r\n"
+    . "RoomEase\r\n";
+  // Email apps ignore stylesheets, so the styles are inline.
+  $e = function ($value) {
+    return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+  };
+  $html = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"></head>'
+    . '<body style="margin:0;padding:32px 16px;background:#f5f7f6;">'
+    . '<div style="max-width:440px;margin:0 auto;font-family:\'Segoe UI\',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#1f2a28;">'
+    . '<p style="margin:0 0 28px;font-size:20px;font-weight:700;color:#166534;">RoomEase</p>'
+    . '<p style="margin:0 0 16px;">Hi ' . $e($name) . ',</p>'
+    . '<p style="margin:0 0 20px;">Use this code to reset the password for your RoomEase account:</p>'
+    . '<p style="margin:0 0 20px;font-family:Consolas,\'Courier New\',monospace;font-size:36px;font-weight:700;letter-spacing:10px;color:#166534;">' . $e($code) . '</p>'
+    . '<p style="margin:0 0 16px;">It expires in ' . $minutes . ' minutes. Never share it; RoomEase will not ask you for it.</p>'
+    . '<p style="margin:0;color:#5c6b66;font-size:13.5px;">If you didn\'t ask for this, ignore this email. Your password stays the same.</p>'
+    . '</div></body></html>';
+  return send_mail($account['email'], 'Your RoomEase password code', $text, $html);
 }
 
 // The newest unused reset request for an email, with "live" = not expired.

@@ -17,6 +17,7 @@ require __DIR__ . '/lib/auth.php';
 require __DIR__ . '/lib/throttle.php';
 require __DIR__ . '/lib/images.php';
 require __DIR__ . '/../lib/validation.php';
+require __DIR__ . '/../lib/mailer.php';
 require __DIR__ . '/routes/auth.php';
 require __DIR__ . '/routes/me.php';
 require __DIR__ . '/routes/listings.php';

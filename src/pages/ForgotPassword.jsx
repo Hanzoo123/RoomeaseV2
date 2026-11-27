@@ -11,7 +11,8 @@ import { Notice } from '../components/ui'
 const STEPS = ['Your email', 'Enter the code', 'New password']
 
 // Same flow as the PHP site: email → 6-digit code (valid 10 minutes) → new password.
-// Until email is set up, the code is shown on screen instead (on this computer only).
+// The code is emailed (Gmail, set up in .env). When it can't be (not set up yet, or sending
+// failed), it is shown on screen instead, on this computer only. The demo always shows it.
 export default function ForgotPassword() {
   const { user, requestPasswordReset, verifyResetCode, completePasswordReset } = useAuth()
   const navigate = useNavigate()
@@ -22,6 +23,7 @@ export default function ForgotPassword() {
   const [email, setEmail] = useState(location.state?.email ?? '')
   const [demoCode, setDemoCode] = useState(null)
   const [codeOnScreen, setCodeOnScreen] = useState(true)
+  const [emailProblem, setEmailProblem] = useState(null)
   const [busy, setBusy] = useState(false)
   const [code, setCode] = useState('')
   const [password, setPassword] = useState('')
@@ -48,6 +50,7 @@ export default function ForgotPassword() {
     if (!result.ok) return setError(result.error)
     setDemoCode(result.code)
     setCodeOnScreen(result.codeOnScreen)
+    setEmailProblem(result.emailProblem ?? null)
     setCode('')
     setError('')
     setStep(1)
@@ -120,12 +123,16 @@ export default function ForgotPassword() {
           {codeOnScreen && (
             <div className="dashed-box bg-body rounded-3 p-3 small">
               <p className="text-xs fw-semibold text-uppercase text-body-secondary mb-1" style={{ letterSpacing: '0.05em' }}>
-                Demo inbox
+                {emailProblem ? 'Shown on this computer only' : 'Demo inbox'}
               </p>
               {demoCode ? (
-                <p className="mb-0">
-                  Email isn’t set up yet, so here is the code: <strong className="fs-5 font-monospace ms-1">{demoCode}</strong>
-                </p>
+                <>
+                  <p className="mb-0">
+                    {emailProblem ? 'The email couldn’t be sent, so here is the code' : 'Email isn’t set up yet, so here is the code'}:{' '}
+                    <strong className="fs-5 font-monospace ms-1">{demoCode}</strong>
+                  </p>
+                  {emailProblem && <p className="text-xs text-body-secondary mt-2 mb-0">Why: {emailProblem}</p>}
+                </>
               ) : (
                 <p className="mb-0 text-body-secondary">No code was created: no active boarder or landlord account uses this email. Check the address and try again.</p>
               )}

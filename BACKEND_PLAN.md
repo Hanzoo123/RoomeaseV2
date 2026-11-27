@@ -113,8 +113,12 @@ The compare list and recently viewed rooms stay in the browser; they don't need 
 backend/
   config/
     database.php         ✅ MySQL settings, shared with the admin panel
-    app.php              ✅ site settings (reset codes on screen until email is set up)
+    app.php              ✅ site settings (a reset code that can't be emailed is shown to this computer only)
   lib/validation.php     ✅ password, phone and email rules, shared with the admin panel
+  lib/env.php            ✅ reads .env (project root): Gmail App Password, optional database settings
+  lib/mailer.php         ✅ sends email through Gmail (TLS on 465, or STARTTLS on 587); logs to logs/mail.log
+  tools/send-test-email.php ✅ php backend/tools/send-test-email.php you@example.com (command line only)
+  logs/                  ✅ mail.log; .htaccess: never served
   admin/                 ✅ AdminLTE panel
   api/
     index.php            ✅ router: the $routes list maps "METHOD /path" to a function
@@ -166,7 +170,7 @@ The CSRF check runs on every non-GET request before your function.
 | `POST /auth/login` | Guest | Email, password, role and "remember me". Throttled with `login_attempts` |
 | `POST /auth/logout` | Signed in | Ends the session and deletes the remember-me token |
 | `GET /auth/me` | Anyone | Current user (or null) and the CSRF token |
-| `POST /auth/forgot` | Guest | Creates a `password_resets` row with a 6-digit code (only its hash is stored). Answers the same whether or not the email has an account. Until email is set up (phase 6), the code comes back in the answer, but only for requests from the WAMP computer itself (`backend/config/app.php`) |
+| `POST /auth/forgot` | Guest | Creates a `password_resets` row with a 6-digit code (only its hash is stored). Answers the same whether or not the email has an account. The code is emailed through Gmail (`backend/lib/mailer.php`). If it can't be (Gmail isn't set up in `.env`, or sending failed), the code and the reason come back in the answer, but only for requests from the WAMP computer itself, and only while `ROOMEASE_SHOW_RESET_CODES` isn't `false` |
 | `POST /auth/verify-code` | Guest | Code check: 10 minutes, 5 tries |
 | `POST /auth/reset` | Guest | New password, after the code was verified |
 | `PATCH /me`, `POST /me/avatar`, `DELETE /me/avatar`, `POST /me/password` | Signed in | Profile, photo (re-drawn as a 256 × 256 JPEG with GD), password (other devices are signed out) |
@@ -252,7 +256,8 @@ Admins need no API endpoints: the AdminLTE panel talks to MySQL itself.
   - re-encode with GD, which strips hidden data
   - give each file a random name
   - save to `backend/uploads/`, with an `.htaccess` there that blocks PHP
-- [ ] Reset codes and remember-me tokens stored only as hashes (the tables are ready)
+- [x] Reset codes and remember-me tokens stored only as hashes (`password_hash` for codes, SHA-256 for tokens)
+- [x] Secrets (the Gmail App Password, optionally the database password) in `.env`, which git ignores and Apache refuses to serve; mail.log never holds a code or a password
 - [ ] `display_errors = Off` when you present or deploy; log errors to a file instead
 - [x] Write `audit_logs` entries for landlord listing actions (submitted, resubmitted, updated, deleted), so the super admin's Activity Log stays complete
 - [x] The same for reservation decisions and cancellations (`reservation.accepted`, `reservation.declined`, `reservation.cancelled`)
@@ -290,7 +295,7 @@ Each phase ends with something you can show.
 | **3** ✅ | Landlord listings, rooms, photos and availability; resubmitting | A landlord's new listing appears in the AdminLTE review queue. Sending it back shows the reason in React |
 | **4** ✅ | Reservations, favorites, reviews, landlord replies, analytics | The full reservation flow works between two browsers |
 | **5** ✅ | Messages, notifications (polling), Contact form | A Contact Us message appears in the AdminLTE inbox |
-| **6** | Real email for reset codes, e.g. PHPMailer with a Gmail app password; "Remember me" tokens | A reset code arrives by email |
+| **6** ✅ | Real email for reset codes through Gmail with an App Password (a small SMTP client, as in the first RoomEase project, so no Composer is needed); "Remember me" tokens (done in phase 1) | A reset code arrives by email |
 | **7** | ✅ The website served by WAMP: a relative build in `dist/`, plus `index.php` and `.htaccess`, so it works from any folder name. Still to do before going live: errors off, demo accounts replaced, a `mysqldump` backup | The whole system runs from `http://localhost/RoomeaseV2/` with Vite stopped |
 
 **Test checklist for every phase:**
@@ -304,6 +309,6 @@ Each phase ends with something you can show.
 
 ## 7. Decisions to make
 
-- **Email:** Gmail SMTP with an app password is the simplest for a school project. Without it, the reset flow can show the code on screen in development only, as the React demo does now.
+- **Email:** ✅ Gmail SMTP with an App Password (`.env`: `ROOMEASE_MAIL_USERNAME`, `ROOMEASE_MAIL_PASSWORD`, `ROOMEASE_MAIL_PORT`). `php backend/tools/send-test-email.php you@example.com` checks the settings. Without them, the code is shown on screen to the WAMP computer only.
 - **Room-level reservations:** ✅ decided: boarders pick the room in the reservation form, and the request is for that room.
 - **Hosting:** WAMP is fine for the defense and demos. A real public site would need a host with PHP 8 and MySQL, plus HTTPS.

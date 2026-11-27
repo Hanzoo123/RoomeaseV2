@@ -115,7 +115,7 @@ export default function ApiAuthProvider({ children }) {
   // Until email is set up, the API returns the code so the page can show it (this computer only).
   const requestPasswordReset = useCallback(async (email) => {
     const response = await api('/auth/forgot', { method: 'POST', body: { email: email.trim() } })
-    return result(response, response.ok ? { code: response.data.code, codeOnScreen: response.data.codeOnScreen } : {})
+    return result(response, response.ok ? { code: response.data.code, codeOnScreen: response.data.codeOnScreen, emailProblem: response.data.emailProblem } : {})
   }, [])
 
   const verifyResetCode = useCallback(async (email, code) => {

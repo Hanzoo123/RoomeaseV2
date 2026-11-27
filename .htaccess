@@ -2,6 +2,13 @@
 # the PHP admin panel (backend/) as it is. Needs Apache's rewrite_module (on in WAMP).
 DirectoryIndex index.php
 
+# Never hand out dotfiles: .env holds the Gmail App Password, .git the code history.
+# (This applies to every folder below this one too.)
+<FilesMatch "^\.">
+  Require all denied
+</FilesMatch>
+RedirectMatch 404 (?i)/\.git(/|$)
+
 <IfModule mod_rewrite.c>
   RewriteEngine On
 

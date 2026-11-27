@@ -77,5 +77,5 @@ The database and the admin panel are done. What remains is a PHP JSON API in `ba
 3. ✅ Landlord listings, several rooms per house with their own rent, photos and availability; the admin's reason when a listing is sent back, and resubmitting
 4. ✅ Reservations for a chosen room, favorites, reviews, landlord replies and analytics, working between two browsers
 5. ✅ Messages, notifications (polling) and the contact form into the AdminLTE inbox
-6. Real email for password reset codes; "Remember me"
+6. ✅ Real email for password reset codes (Gmail, settings in `.env`); "Remember me"
 7. A production build served by WAMP

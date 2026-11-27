@@ -1,0 +1,2 @@
+# Logs (e.g. mail.log) are for the site's owner, never for browsers.
+Require all denied

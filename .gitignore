@@ -28,3 +28,11 @@ roomease.zip
 # Photos uploaded through the API
 /backend/uploads/*
 !/backend/uploads/.htaccess
+
+# Secrets for PHP (the Gmail App Password): copy .env.example to .env
+.env
+
+# Logs written by PHP (mail.log). The folder's .htaccess is kept: it stops Apache serving them.
+!/backend/logs/
+/backend/logs/*
+!/backend/logs/.htaccess
