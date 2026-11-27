@@ -21,10 +21,10 @@ function InsightsPlaceholder() {
 
 export default function LandlordDashboard() {
   const { user } = useAuth()
-  const { myListings, myListingsReady, incomingReservations, setReservationStatus, listingById, counts } = useData()
+  const { myListings, myListingsReady, incomingReservations, incomingReservationsReady, setReservationStatus, listingById, counts } = useData()
   const [selectedId, setSelectedId] = useState(null)
 
-  const listingName = (id) => listingById(id)?.name ?? 'Removed listing'
+  const listingName = (id, reservation) => listingById(id)?.name ?? reservation?.listingName ?? 'Removed listing'
   const availableSlots = myListings.reduce((total, listing) => total + listing.availableSlots, 0)
   const selected = incomingReservations.find((reservation) => reservation.id === selectedId)
 
@@ -93,7 +93,11 @@ export default function LandlordDashboard() {
 
       <section>
         <SectionHeader title="Recent Reservation Requests" actionTo="/landlord/reservations" />
-        {incomingReservations.length > 0 ? (
+        {!incomingReservationsReady ? (
+          <div className="placeholder-glow" aria-busy="true" aria-label="Loading requests">
+            <span className="placeholder rounded-4 w-100" style={{ height: '10rem' }} />
+          </div>
+        ) : incomingReservations.length > 0 ? (
           <ReservationsTable reservations={incomingReservations.slice(0, 4)} listingName={listingName} onView={setSelectedId} />
         ) : (
           <EmptyState icon={CalendarDays} title="No reservation requests yet" body="Requests from boarders will show up here." />
@@ -114,11 +118,12 @@ export default function LandlordDashboard() {
       {selected && (
         <ReservationDialog
           reservation={selected}
-          listingName={listingName(selected.listingId)}
+          listingName={listingName(selected.listingId, selected)}
           onClose={() => setSelectedId(null)}
-          onDecide={(status, note) => {
-            setReservationStatus(selected.id, status, note)
-            setSelectedId(null)
+          onDecide={async (status, note) => {
+            const result = await setReservationStatus(selected, status, note)
+            if (result.ok) setSelectedId(null)
+            return result
           }}
         />
       )}

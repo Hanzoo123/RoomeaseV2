@@ -24,9 +24,9 @@ function Kpi({ icon: Icon, label, value, detail, children }) {
 }
 
 export default function Analytics() {
-  const { myListings, myListingsReady, incomingReservations, reviews } = useData()
+  const { myListings, myListingsReady, incomingReservations, incomingReservationsReady, reviews } = useData()
 
-  if (!myListingsReady) return <PageSkeleton />
+  if (!myListingsReady || !incomingReservationsReady) return <PageSkeleton />
   if (myListings.length === 0) {
     return (
       <div>

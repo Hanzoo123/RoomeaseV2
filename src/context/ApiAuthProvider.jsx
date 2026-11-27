@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api/client'
+import { appUserId } from '../api/ids'
 import { backendFileUrl } from '../config/api'
 import { DEMO_USERS } from '../data/mockData'
 import { AuthContext } from './authContext'
@@ -9,13 +10,12 @@ import { useToast } from './ToastContext'
 // admin deactivates is signed out here too (also checked whenever the tab comes back).
 const RECHECK_MS = 60 * 1000
 
-// Listings, reservations and messages still come from the demo data in this browser until
-// later phases move them to the API. That data is keyed by the demo ids, so the demo
-// accounts keep them ("u-boarder-1"); new accounts get "db-<id>".
+// Messages and notifications still come from the demo data in this browser until phase 5.
+// That data is keyed by the demo ids, so the demo accounts keep them ("u-boarder-1"); new
+// accounts get "db-<id>" (see api/ids.js).
 function toAppUser(user) {
   if (!user) return null
-  const seed = DEMO_USERS.find((account) => account.email.toLowerCase() === user.email.toLowerCase())
-  return { ...user, dbId: user.id, id: seed?.id ?? `db-${user.id}`, active: true, avatar: backendFileUrl(user.avatarPath) }
+  return { ...user, dbId: user.id, id: appUserId(user), active: true, avatar: backendFileUrl(user.avatarPath) }
 }
 
 // Other people's names and numbers (e.g. a listing's landlord) still come from the demo data.

@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import { MessageSquareReply, Pencil, Star, Trash2 } from 'lucide-react'
-import { useAuth } from '../../context/AuthContext'
+import { LoaderCircle, MessageSquareReply, Pencil, Star, Trash2 } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import { useToast } from '../../context/ToastContext'
 import { timeAgo } from '../../data/mockData'
 import { TextArea } from '../ui/form'
 import { Notice } from '../ui'
 import { StarInput, Stars } from './Stars'
+import useListingReviews from './useListingReviews'
 
 function initials(name) {
   return name
@@ -53,18 +53,22 @@ function Summary({ reviews, rating }) {
   )
 }
 
-function ReviewForm({ listing, existing, onDone }) {
-  const { saveReview } = useData()
+function ReviewForm({ listing, existing, onSave, onDone }) {
   const toast = useToast()
   const [rating, setRating] = useState(existing?.rating ?? 0)
   const [comment, setComment] = useState(existing?.comment ?? '')
   const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
     if (!rating) return setError('Choose a star rating.')
     if (comment.trim().length < 10) return setError('Write at least a short sentence (10 characters or more).')
-    saveReview(listing, { rating, comment: comment.trim() })
+    setBusy(true)
+    const result = await onSave({ rating, comment: comment.trim() })
+    setBusy(false)
+    if (!result.ok) return setError(result.error)
+    setError('')
     toast(existing ? 'Your review was updated.' : 'Thanks! Your review is now posted.')
     onDone?.()
   }
@@ -88,8 +92,8 @@ function ReviewForm({ listing, existing, onDone }) {
             Cancel
           </button>
         )}
-        <button type="submit" className="btn btn-primary">
-          <Star size={16} aria-hidden="true" />
+        <button type="submit" className="btn btn-primary" disabled={busy}>
+          {busy ? <LoaderCircle size={16} className="spin" aria-hidden="true" /> : <Star size={16} aria-hidden="true" />}
           {existing ? 'Save review' : 'Post review'}
         </button>
       </div>
@@ -97,17 +101,20 @@ function ReviewForm({ listing, existing, onDone }) {
   )
 }
 
-function ReplyForm({ review, onDone }) {
-  const { replyToReview } = useData()
+function ReplyForm({ review, onReply, onDone }) {
   const toast = useToast()
   const [text, setText] = useState(review.reply?.text ?? '')
+  const [busy, setBusy] = useState(false)
 
   return (
     <form
       className="mt-2 d-flex flex-column gap-2"
-      onSubmit={(event) => {
+      onSubmit={async (event) => {
         event.preventDefault()
-        replyToReview(review.id, text.trim())
+        setBusy(true)
+        const result = await onReply(review, text.trim())
+        setBusy(false)
+        if (!result.ok) return toast(result.error, 'error')
         toast(text.trim() ? 'Reply posted.' : 'Reply removed.')
         onDone()
       }}
@@ -128,7 +135,8 @@ function ReplyForm({ review, onDone }) {
         <button type="button" className="btn btn-sm btn-outline-secondary" onClick={onDone}>
           Cancel
         </button>
-        <button type="submit" className="btn btn-sm btn-primary">
+        <button type="submit" className="btn btn-sm btn-primary" disabled={busy}>
+          {busy && <LoaderCircle size={14} className="spin" aria-hidden="true" />}
           Save reply
         </button>
       </div>
@@ -136,10 +144,10 @@ function ReplyForm({ review, onDone }) {
   )
 }
 
-function ReviewItem({ review, isMine, landlordMode, ownerName, onEdit }) {
-  const { deleteReview } = useData()
+function ReviewItem({ review, landlordMode, ownerName, onEdit, onDelete, onReply }) {
   const toast = useToast()
   const [replying, setReplying] = useState(false)
+  const isMine = review.mine
 
   return (
     <li className="py-3 border-top">
@@ -162,7 +170,7 @@ function ReviewItem({ review, isMine, landlordMode, ownerName, onEdit }) {
               <p className="mb-0 mt-1">{review.reply.text}</p>
             </div>
           )}
-          {replying && <ReplyForm review={review} onDone={() => setReplying(false)} />}
+          {replying && <ReplyForm review={review} onReply={onReply} onDone={() => setReplying(false)} />}
 
           <div className="d-flex gap-3 mt-2">
             {landlordMode && !replying && (
@@ -180,9 +188,9 @@ function ReviewItem({ review, isMine, landlordMode, ownerName, onEdit }) {
                 <button
                   type="button"
                   className="btn btn-link btn-sm p-0 link-danger text-decoration-none"
-                  onClick={() => {
-                    deleteReview(review.id)
-                    toast('Your review was deleted.', 'info')
+                  onClick={async () => {
+                    const result = await onDelete(review)
+                    toast(result.ok ? 'Your review was deleted.' : result.error, result.ok ? 'info' : 'error')
                   }}
                 >
                   <Trash2 size={14} aria-hidden="true" />
@@ -199,15 +207,13 @@ function ReviewItem({ review, isMine, landlordMode, ownerName, onEdit }) {
 
 // Rating summary, review list and (for eligible boarders) the review form.
 export default function ReviewsSection({ listing, landlordMode = false }) {
-  const { user } = useAuth()
-  const { reviewsFor, ratingOf, canReview, ownerOf } = useData()
+  const { ownerOf } = useData()
+  const { loading, error, reviews, rating, canReview, save, remove, reply } = useListingReviews(listing)
   const [editing, setEditing] = useState(false)
   const [showAll, setShowAll] = useState(false)
 
-  const reviews = reviewsFor(listing.id)
-  const rating = ratingOf(listing.id)
-  const mine = reviews.find((item) => item.userId === user?.id)
-  const eligible = !landlordMode && canReview(listing.id)
+  const mine = reviews.find((item) => item.mine)
+  const eligible = !landlordMode && canReview
   const visible = showAll ? reviews : reviews.slice(0, 4)
   const ownerName = ownerOf(listing).name
 
@@ -215,36 +221,39 @@ export default function ReviewsSection({ listing, landlordMode = false }) {
     <section className="card" id="reviews">
       <div className="card-body p-4">
         <h2 className="h5 fw-semibold mb-4">Ratings & reviews</h2>
-        <Summary reviews={reviews} rating={rating} />
-
-        {!landlordMode && (
-          <div className="mt-4">
-            {eligible && (!mine || editing) && <ReviewForm key={mine?.id ?? 'new'} listing={listing} existing={mine} onDone={mine ? () => setEditing(false) : undefined} />}
-            {!eligible && <p className="small text-body-secondary bg-page rounded-3 px-3 py-2 mb-0">Only boarders who have stayed here (an approved reservation) can leave a review.</p>}
+        {loading ? (
+          <div className="placeholder-glow" aria-busy="true" aria-label="Loading reviews">
+            <span className="placeholder col-12 rounded-3" style={{ height: '7rem' }} />
           </div>
-        )}
-
-        {reviews.length > 0 ? (
-          <ul className="list-unstyled mt-4 mb-0">
-            {visible.map((review) => (
-              <ReviewItem
-                key={review.id}
-                review={review}
-                isMine={review.userId === user?.id}
-                landlordMode={landlordMode}
-                ownerName={ownerName}
-                onEdit={() => setEditing(true)}
-              />
-            ))}
-          </ul>
+        ) : error ? (
+          <p className="small text-body-secondary mb-0">{error}</p>
         ) : (
-          <p className="small text-body-secondary mt-4 mb-0">No reviews yet.</p>
-        )}
+          <>
+            <Summary reviews={reviews} rating={rating} />
 
-        {reviews.length > 4 && (
-          <button type="button" className="btn btn-outline-secondary w-100 mt-2" onClick={() => setShowAll((value) => !value)}>
-            {showAll ? 'Show fewer reviews' : `Show all ${reviews.length} reviews`}
-          </button>
+            {!landlordMode && (
+              <div className="mt-4">
+                {eligible && (!mine || editing) && <ReviewForm key={mine?.id ?? 'new'} listing={listing} existing={mine} onSave={save} onDone={mine ? () => setEditing(false) : undefined} />}
+                {!eligible && <p className="small text-body-secondary bg-page rounded-3 px-3 py-2 mb-0">Only boarders who have stayed here (an approved reservation) can leave a review.</p>}
+              </div>
+            )}
+
+            {reviews.length > 0 ? (
+              <ul className="list-unstyled mt-4 mb-0">
+                {visible.map((review) => (
+                  <ReviewItem key={review.id} review={review} landlordMode={landlordMode} ownerName={ownerName} onEdit={() => setEditing(true)} onDelete={remove} onReply={reply} />
+                ))}
+              </ul>
+            ) : (
+              <p className="small text-body-secondary mt-4 mb-0">No reviews yet.</p>
+            )}
+
+            {reviews.length > 4 && (
+              <button type="button" className="btn btn-outline-secondary w-100 mt-2" onClick={() => setShowAll((value) => !value)}>
+                {showAll ? 'Show fewer reviews' : `Show all ${reviews.length} reviews`}
+              </button>
+            )}
+          </>
         )}
       </div>
     </section>

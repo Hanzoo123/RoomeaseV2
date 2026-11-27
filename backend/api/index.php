@@ -21,6 +21,7 @@ require __DIR__ . '/routes/auth.php';
 require __DIR__ . '/routes/me.php';
 require __DIR__ . '/routes/listings.php';
 require __DIR__ . '/routes/landlord.php';
+require __DIR__ . '/routes/boarder.php';
 
 // METHOD path => handler. {name} matches one path segment.
 $routes = [
@@ -41,12 +42,25 @@ $routes = [
   'GET /listings/{id}' => 'route_listing',
   'POST /listings/{id}/view' => 'route_listing_view',
   'GET /listings/{id}/reviews' => 'route_listing_reviews',
+  'GET /reviews/highlights' => 'route_review_highlights',
+  // A boarder's saved listings, requests and reviews
+  'GET /favorites' => 'route_favorites',
+  'PUT /favorites/{id}' => 'route_add_favorite',
+  'DELETE /favorites/{id}' => 'route_remove_favorite',
+  'GET /reservations' => 'route_my_reservations',
+  'POST /reservations' => 'route_create_reservation',
+  'POST /reservations/{id}/cancel' => 'route_cancel_reservation',
+  'POST /listings/{id}/reviews' => 'route_save_review',
+  'DELETE /reviews/{id}' => 'route_delete_review',
   // A landlord's own listings
   'GET /landlord/listings' => 'route_landlord_listings',
   'POST /landlord/listings' => 'route_create_listing',
   'PUT /landlord/listings/{id}' => 'route_update_listing',
   'DELETE /landlord/listings/{id}' => 'route_delete_listing',
   'PATCH /landlord/rooms/{id}' => 'route_update_room',
+  'GET /landlord/reservations' => 'route_landlord_reservations',
+  'POST /landlord/reservations/{id}/decide' => 'route_decide_reservation',
+  'POST /landlord/reviews/{id}/reply' => 'route_reply_to_review',
 ];
 
 // The path after .../backend/api, e.g. "/auth/me".

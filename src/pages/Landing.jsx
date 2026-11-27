@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
@@ -16,6 +16,8 @@ import {
   ShieldCheck,
   Star,
 } from 'lucide-react'
+import { fetchReviewHighlights } from '../api/reviews'
+import { USE_API } from '../config/api'
 import { publicUrl } from '../config/base'
 import { useData } from '../context/DataContext'
 import { AREAS, availabilityOf, distanceKm, formatDistance, formatPeso, LOCATIONS, rentLabel, ROOM_TYPE_INFO, ROOM_TYPES, VSU_COORDS } from '../data/mockData'
@@ -352,17 +354,27 @@ export default function Landing() {
 
   const ratedListings = [...publicListings].sort((a, b) => ratingOf(b.id).average - ratingOf(a.id).average)
   const featured = ratedListings.slice(0, 3)
+  // With the API, the review numbers and the five-star quotes come from /reviews/highlights.
+  const [highlights, setHighlights] = useState(null)
+  useEffect(() => {
+    if (!USE_API) return undefined
+    let current = true
+    fetchReviewHighlights().then((result) => current && result.ok && setHighlights(result))
+    return () => {
+      current = false
+    }
+  }, [])
   const publicIds = new Set(publicListings.map((listing) => listing.id))
   const publicReviews = reviews.filter((item) => publicIds.has(item.listingId))
   const stats = {
     houses: publicListings.length,
     rooms: publicListings.reduce((sum, listing) => sum + listing.availableRooms, 0),
-    reviews: publicReviews.length,
-    rating: publicReviews.length ? publicReviews.reduce((sum, item) => sum + item.rating, 0) / publicReviews.length : 0,
+    reviews: USE_API ? (highlights?.count ?? '—') : publicReviews.length,
+    rating: USE_API ? (highlights?.average ?? 0) : publicReviews.length ? publicReviews.reduce((sum, item) => sum + item.rating, 0) / publicReviews.length : 0,
     // What it costs to move in somewhere today, not the cheapest full house.
     lowestOpen: Math.min(...publicListings.filter((listing) => listing.availableRooms > 0).map((listing) => listing.price)),
   }
-  const testimonials = publicReviews.filter((item) => item.rating === 5).slice(0, 3)
+  const testimonials = USE_API ? (highlights?.reviews ?? []).filter((item) => publicIds.has(item.listingId)) : publicReviews.filter((item) => item.rating === 5).slice(0, 3)
 
   return (
     <>

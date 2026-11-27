@@ -8,7 +8,7 @@ import { EmptyState, PageHeader, Tabs } from '../../components/ui'
 const STATUSES = ['Pending', 'Approved', 'Declined', 'Cancelled']
 
 export default function ReservationRequests() {
-  const { myListings, incomingReservations, listingById, setReservationStatus } = useData()
+  const { myListings, incomingReservations, incomingReservationsReady, listingById, setReservationStatus } = useData()
   const [tab, setTab] = useState('Pending')
   const [listingFilter, setListingFilter] = useState('')
   const [selectedId, setSelectedId] = useState(null)
@@ -20,7 +20,8 @@ export default function ReservationRequests() {
   ]
   const visible = tab === 'All' ? byListing : byListing.filter((item) => item.status === tab)
   const selected = incomingReservations.find((item) => item.id === selectedId)
-  const listingName = (id) => listingById(id)?.name ?? 'Removed listing'
+  // A deleted listing still has its name on the request (with the API).
+  const listingName = (id, reservation) => listingById(id)?.name ?? reservation?.listingName ?? 'Removed listing'
 
   return (
     <div>
@@ -42,7 +43,11 @@ export default function ReservationRequests() {
       </div>
 
       <div className="mt-4">
-        {visible.length > 0 ? (
+        {!incomingReservationsReady ? (
+          <div className="placeholder-glow" aria-busy="true" aria-label="Loading requests">
+            <span className="placeholder rounded-4 w-100" style={{ height: '12rem' }} />
+          </div>
+        ) : visible.length > 0 ? (
           <ReservationsTable reservations={visible} listingName={listingName} onView={setSelectedId} />
         ) : (
           <EmptyState
@@ -56,11 +61,12 @@ export default function ReservationRequests() {
       {selected && (
         <ReservationDialog
           reservation={selected}
-          listingName={listingName(selected.listingId)}
+          listingName={listingName(selected.listingId, selected)}
           onClose={() => setSelectedId(null)}
-          onDecide={(status, note) => {
-            setReservationStatus(selected.id, status, note)
-            setSelectedId(null)
+          onDecide={async (status, note) => {
+            const result = await setReservationStatus(selected, status, note)
+            if (result.ok) setSelectedId(null)
+            return result
           }}
         />
       )}

@@ -8,7 +8,7 @@ export default function ReservationsTable({ reservations, listingName, onView })
         <table className="table table-hover align-middle mb-0 table-min">
           <thead>
             <tr className="text-xs">
-              {['Date', 'Boarder', 'Property', 'Room Type', 'Status', 'Action'].map((heading) => (
+              {['Date', 'Boarder', 'Property', 'Room', 'Status', 'Action'].map((heading) => (
                 <th key={heading} scope="col" className="px-4 py-3 fw-semibold">
                   {heading}
                 </th>
@@ -20,8 +20,8 @@ export default function ReservationsTable({ reservations, listingName, onView })
               <tr key={reservation.id}>
                 <td className="px-4 py-3 text-nowrap text-body-secondary">{formatDate(reservation.date)}</td>
                 <td className="px-4 py-3 text-nowrap fw-medium">{reservation.boarder}</td>
-                <td className="px-4 py-3 text-nowrap text-body-secondary">{listingName(reservation.listingId)}</td>
-                <td className="px-4 py-3 text-nowrap text-body-secondary">{reservation.roomType}</td>
+                <td className="px-4 py-3 text-nowrap text-body-secondary">{listingName(reservation.listingId, reservation)}</td>
+                <td className="px-4 py-3 text-nowrap text-body-secondary">{reservation.roomName ? `${reservation.roomName} · ${reservation.roomType}` : reservation.roomType}</td>
                 <td className="px-4 py-3">
                   <StatusPill status={reservation.status} />
                 </td>

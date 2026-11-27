@@ -39,3 +39,11 @@ function audit($action, $targetType, $targetId, $targetLabel, $detail = null, $a
       $isSignIn ? mb_substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 120) : null,
     ]);
 }
+
+// A notification for one person. The React app shows them from phase 5; the admin panel
+// writes them the same way (backend/admin/includes/functions.php).
+function notify($userId, $title, $body, $link = null)
+{
+  db()->prepare('INSERT INTO notifications (user_id, title, body, link) VALUES (?, ?, ?, ?)')
+    ->execute([$userId, mb_substr($title, 0, 150), mb_substr($body, 0, 500), $link]);
+}

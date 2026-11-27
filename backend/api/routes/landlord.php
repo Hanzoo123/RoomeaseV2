@@ -487,3 +487,73 @@ function string_list($value)
   foreach ($value as $item) if (!is_string($item)) return null;
   return array_values($value);
 }
+
+// ---------- Reservation requests and reviews ----------
+
+// GET /landlord/reservations: requests for any of the landlord's rooms, newest first.
+function route_landlord_reservations()
+{
+  $user = require_user('landlord');
+  ok(['reservations' => load_reservations('b.landlord_id = ?', [$user['user_id']])]);
+}
+
+// POST /landlord/reservations/{id}/decide { decision: "accept" | "decline", note? }
+// Accepting takes a bed in the room; declining can say why.
+function route_decide_reservation($params)
+{
+  $user = require_user('landlord');
+  $decision = body()['decision'] ?? '';
+  if (!in_array($decision, ['accept', 'decline'], true)) fail(422, 'Choose accept or decline.');
+  $note = input('note');
+  if (mb_strlen($note) > 500) fail(422, 'Keep the reason under 500 characters.', ['note' => 'Keep the reason under 500 characters.']);
+
+  $pdo = db();
+  $pdo->beginTransaction();
+  // Locks the request and its room, so two quick answers can't both take the last bed.
+  $stmt = $pdo->prepare('SELECT v.reservation_id, v.status, v.boarder_id, r.room_id, r.name AS room_name, r.capacity, r.slots_taken, r.is_open,
+      b.name AS listing_name, b.deleted_at, u.first_name, u.last_name
+    FROM reservations v JOIN rooms r ON r.room_id = v.room_id JOIN boarding_houses b ON b.boarding_house_id = r.boarding_house_id
+    JOIN users u ON u.user_id = v.boarder_id
+    WHERE v.reservation_id = ? AND b.landlord_id = ? FOR UPDATE');
+  $stmt->execute([ctype_digit((string) $params['id']) ? (int) $params['id'] : 0, $user['user_id']]);
+  $row = $stmt->fetch();
+  if (!$row) fail(404, 'That request wasn’t found.');
+  $boarder = trim($row['first_name'] . ' ' . $row['last_name']);
+  if ($row['status'] !== 'pending') {
+    fail(409, $row['status'] === 'cancelled' ? "$boarder cancelled this request." : "This request was already {$row['status']}.", null, 'decided');
+  }
+
+  if ($decision === 'accept') {
+    if ($row['deleted_at']) fail(409, 'This listing was removed, so requests for it can only be declined.');
+    if (!$row['is_open'] || $row['slots_taken'] >= $row['capacity']) {
+      fail(409, "{$row['room_name']} has no free bed. Free one in Room Availability, or decline the request.");
+    }
+    $pdo->prepare('UPDATE rooms SET slots_taken = slots_taken + 1, updated_by = ? WHERE room_id = ?')->execute([$user['user_id'], $row['room_id']]);
+    $pdo->prepare("UPDATE reservations SET status = 'accepted', landlord_note = NULL, decided_at = NOW(), updated_by = ? WHERE reservation_id = ?")
+      ->execute([$user['user_id'], $row['reservation_id']]);
+    notify($row['boarder_id'], 'Reservation approved', "Good news! {$row['listing_name']} approved your request for {$row['room_name']}. Contact the landlord to arrange your move-in.", '/boarder/reservations');
+  } else {
+    $pdo->prepare("UPDATE reservations SET status = 'declined', landlord_note = ?, decided_at = NOW(), updated_by = ? WHERE reservation_id = ?")
+      ->execute([$note ?: null, $user['user_id'], $row['reservation_id']]);
+    notify($row['boarder_id'], 'Reservation declined', "{$row['listing_name']} declined your request" . ($note ? ": “{$note}”" : '.') . ' You can look for another room.', '/boarder/reservations');
+  }
+  $pdo->commit();
+  audit($decision === 'accept' ? 'reservation.accepted' : 'reservation.declined', 'reservation', $row['reservation_id'], "$boarder · {$row['listing_name']}", $note ?: null);
+  ok(['reservation' => load_reservations('v.reservation_id = ?', [$row['reservation_id']])[0]]);
+}
+
+// POST /landlord/reviews/{id}/reply { text }: an empty text removes the reply.
+function route_reply_to_review($params)
+{
+  $user = require_user('landlord');
+  $stmt = db()->prepare('SELECT v.review_id, v.boarding_house_id FROM reviews v JOIN boarding_houses b ON b.boarding_house_id = v.boarding_house_id
+    WHERE v.review_id = ? AND b.landlord_id = ?');
+  $stmt->execute([ctype_digit((string) $params['id']) ? (int) $params['id'] : 0, $user['user_id']]);
+  $review = $stmt->fetch();
+  if (!$review) fail(404, 'That review wasn’t found.');
+  $text = input('text');
+  if (mb_strlen($text) > 1000) fail(422, 'Keep your reply under 1,000 characters.', ['text' => 'Keep your reply under 1,000 characters.']);
+  db()->prepare('UPDATE reviews SET landlord_reply = ?, replied_at = ? WHERE review_id = ?')
+    ->execute([$text ?: null, $text ? date('Y-m-d H:i:s') : null, $review['review_id']]);
+  ok(listing_reviews((int) $review['boarding_house_id'], $user));
+}

@@ -1,25 +1,18 @@
 import { api } from './client'
 import { backendFileUrl } from '../config/api'
-import { AREA_CENTERS, BAYBAY_CENTER, DEMO_USERS, LISTINGS, SHARED_ROOM_TYPES } from '../data/mockData'
-
-// Public listings come from MySQL, but favorites, reservations, reviews and messages are still
-// the demo data in this browser, keyed by the demo listing ids ("sunrise"). Until those move to
-// the API (phases 3–5), a listing that is one of the demo listings keeps its demo id and
-// illustration, and its landlord keeps the demo landlord id; others get "db-<id>".
-const DEMO_LISTINGS = new Map(LISTINGS.map((listing) => [listing.name, listing]))
-const DEMO_LANDLORDS = new Map(DEMO_USERS.filter((user) => user.role === 'landlord').map((user) => [user.name, user.id]))
+import { AREA_CENTERS, BAYBAY_CENTER, SHARED_ROOM_TYPES } from '../data/mockData'
+import { appLandlordId, appListingId, demoListingOf } from './ids'
 
 // An API listing in the shape the pages already use (see LISTINGS in data/mockData.js).
+// Ids follow the bridge in ./ids.js, so "sunrise" stays "sunrise" and a new listing is "db-11".
 export function toAppListing(listing) {
-  const ownerId = DEMO_LANDLORDS.get(listing.landlord.name) ?? `db-${listing.landlord.id}`
-  // Only the demo landlord's own listing of that name, not a new one that reuses the name.
-  const demo = DEMO_LISTINGS.get(listing.name)?.ownerId === ownerId ? DEMO_LISTINGS.get(listing.name) : null
+  const demo = demoListingOf(listing)
   const roomType = listing.roomTypes[0] ?? demo?.roomType ?? 'Single Room'
   return {
     ...listing.stayTerms,
-    id: demo?.id ?? `db-${listing.id}`,
+    id: appListingId(listing),
     dbId: listing.id,
-    ownerId,
+    ownerId: appLandlordId(listing.landlord),
     landlord: listing.landlord,
     name: listing.name,
     area: listing.area,
@@ -45,6 +38,8 @@ export function toAppListing(listing) {
     photos: listing.photos.map(backendFileUrl),
     coords: listing.coords ?? AREA_CENTERS[listing.area] ?? BAYBAY_CENTER,
     views: listing.views,
+    // { average, count } from MySQL (ratingOf reads it).
+    rating: listing.rating,
     submittedAt: listing.listedAt,
   }
 }

@@ -196,9 +196,10 @@ export default function ListingView() {
           reservation={selected}
           listingName={listing.name}
           onClose={() => setSelectedId(null)}
-          onDecide={(status, note) => {
-            setReservationStatus(selected.id, status, note)
-            setSelectedId(null)
+          onDecide={async (status, note) => {
+            const result = await setReservationStatus(selected, status, note)
+            if (result.ok) setSelectedId(null)
+            return result
           }}
         />
       )}

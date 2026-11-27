@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, CalendarCheck, CircleHelp, DoorOpen, GraduationCap, House, Link2, LoaderCircle, LocateFixed, LogIn, MapPin, MessageCircle, Navigation, Phone, SearchX, Users } from 'lucide-react'
-import { fetchListingRooms } from '../../api/listings'
 import { publicUrl } from '../../config/base'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
 import { useRequireBoarder, useSitePaths } from '../../context/SitePaths'
 import { useToast } from '../../context/ToastContext'
-import { availabilityOf, BAYBAY_CENTER, distanceKm, formatDate, formatDistance, rentLabel, SHARED_ROOM_TYPES, UTILITIES, VSU_COORDS } from '../../data/mockData'
+import { availabilityOf, BAYBAY_CENTER, distanceKm, formatDate, formatDistance, formatPeso, rentLabel, SHARED_ROOM_TYPES, UTILITIES, VSU_COORDS } from '../../data/mockData'
 import MapView from '../../components/map/MapView'
 import useMyLocation from '../../components/map/useMyLocation'
 import PhotoGallery from '../../components/listings/PhotoGallery'
@@ -15,9 +14,11 @@ import LivingHere from '../../components/listings/LivingHere'
 import { FavoriteButton, FeatureList } from '../../components/listings/RoomCard'
 import ReviewsSection from '../../components/reviews/ReviewsSection'
 import RoomsTable from '../../components/listings/RoomsTable'
+import useListingRooms from '../../components/listings/useListingRooms'
+import { freeSlotsOf } from '../../data/rooms'
 import { RatingBadge } from '../../components/reviews/Stars'
 import CopyButton from '../../components/ui/CopyButton'
-import { TextArea, TextField } from '../../components/ui/form'
+import { SelectField, TextArea, TextField } from '../../components/ui/form'
 import { ListingsError } from '../../components/listings/ListingsStatus'
 import { EmptyState, Notice, StatusPill, Tag } from '../../components/ui'
 import { PageSkeleton } from '../../components/ui/feedback'
@@ -57,25 +58,45 @@ function SignInToReserve({ listing }) {
   )
 }
 
-function ReservePanel({ listing }) {
-  const { user } = useAuth()
+// A boarder's request for one of the rooms with a free bed, or their request in progress.
+function ReservePanel({ listing, rooms }) {
   const { myReservations, createReservation, setReservationStatus } = useData()
+  const [roomId, setRoomId] = useState('')
   const [moveIn, setMoveIn] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
   const toast = useToast()
   const [todayIso] = useState(() => new Date().toLocaleDateString('en-CA'))
+  // An approved request shows here around move-in; after that the boarder can ask again.
+  const [recentIso] = useState(() => new Date(Date.now() - 30 * 86400000).toLocaleDateString('en-CA'))
 
-  const active = myReservations.find((item) => item.listingId === listing.id && ['Pending', 'Approved'].includes(item.status))
-  const isFull = listing.availableRooms === 0
+  const active = myReservations.find(
+    (item) => item.listingId === listing.id && (item.status === 'Pending' || (item.status === 'Approved' && (item.moveIn ?? todayIso) >= recentIso)),
+  )
+  const openRooms = rooms.rooms.filter((room) => freeSlotsOf(room) > 0)
+  const room = openRooms.find((item) => String(item.id) === roomId) ?? openRooms[0]
+  const isFull = !rooms.loading && !room
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
+    if (!room) return setError('Choose a room.')
     if (!moveIn) return setError('Choose your preferred move-in date.')
     if (moveIn < todayIso) return setError('The move-in date can’t be in the past.')
-    createReservation({ boarder: user, listing, roomType: listing.roomType, moveIn, message: message.trim() })
+    setBusy(true)
+    const result = await createReservation({ listing, room, moveIn, message: message.trim() })
+    setBusy(false)
+    if (!result.ok) return setError(result.fields?.moveIn ?? result.error)
     setError('')
+    setMessage('')
     toast('Reservation request sent! You’ll be notified when the landlord responds.')
+  }
+
+  async function cancel() {
+    setBusy(true)
+    const result = await setReservationStatus(active, 'Cancelled')
+    setBusy(false)
+    toast(result.ok ? 'Reservation request cancelled.' : result.error, result.ok ? 'info' : 'error')
   }
 
   return (
@@ -84,7 +105,7 @@ function ReservePanel({ listing }) {
         <p className="small text-body-secondary mb-1">
           <span className="fs-3 fw-bold text-body">{rentLabel(listing)}</span> / month
         </p>
-        <p className="small text-body-secondary mb-0">{isFull ? 'No rooms available right now' : `${listing.availableRooms} of ${listing.totalRooms} rooms available`}</p>
+        <p className="small text-body-secondary mb-0">{listing.availableRooms === 0 ? 'No rooms available right now' : `${listing.availableRooms} of ${listing.totalRooms} rooms available`}</p>
 
         {active ? (
           <div className="d-flex flex-column gap-3 mt-4">
@@ -94,6 +115,7 @@ function ReservePanel({ listing }) {
                 <StatusPill status={active.status} />
               </div>
               <p className="text-body-secondary mt-2 mb-0">
+                {active.roomName ? `${active.roomName} · ` : ''}
                 {active.roomType} · move-in {active.moveIn ? formatDate(active.moveIn) : 'to be arranged'}
               </p>
             </div>
@@ -101,23 +123,29 @@ function ReservePanel({ listing }) {
               View my reservations
             </Link>
             {active.status === 'Pending' && (
-              <button
-                type="button"
-                onClick={() => {
-                  setReservationStatus(active.id, 'Cancelled')
-                  toast('Reservation request cancelled.', 'info')
-                }}
-                className="btn btn-outline-danger w-100"
-              >
+              <button type="button" onClick={cancel} className="btn btn-outline-danger w-100" disabled={busy}>
                 Cancel request
               </button>
             )}
           </div>
         ) : (
           <form onSubmit={handleSubmit} noValidate className="d-flex flex-column gap-3 mt-4">
-            <div className="bg-page rounded-3 px-3 py-2 small">
-              Room type: <strong>{listing.roomType}</strong>
-            </div>
+            {rooms.loading ? (
+              <div className="placeholder-glow" aria-busy="true" aria-label="Loading rooms">
+                <span className="placeholder col-12 rounded-3" style={{ height: '2.75rem' }} />
+              </div>
+            ) : room ? (
+              <SelectField id="room" label="Room" value={String(room.id)} onChange={(event) => setRoomId(event.target.value)}>
+                {openRooms.map((item) => {
+                  const free = freeSlotsOf(item)
+                  return (
+                    <option key={item.id} value={String(item.id)}>
+                      {item.name} · {item.type} · {formatPeso(item.rent)} · {free} free {free === 1 ? 'bed' : 'beds'}
+                    </option>
+                  )
+                })}
+              </SelectField>
+            ) : null}
             <TextField id="move-in" label="Preferred move-in date" type="date" min={todayIso} value={moveIn} onChange={(event) => setMoveIn(event.target.value)} disabled={isFull} />
             <TextArea
               id="message"
@@ -129,9 +157,9 @@ function ReservePanel({ listing }) {
               disabled={isFull}
             />
             {error && <Notice tone="error">{error}</Notice>}
-            <button type="submit" className="btn btn-primary w-100" style={{ height: '2.75rem' }} disabled={isFull}>
-              <CalendarCheck size={16} aria-hidden="true" />
-              {isFull ? 'Fully booked' : 'Request reservation'}
+            <button type="submit" className="btn btn-primary w-100" style={{ height: '2.75rem' }} disabled={isFull || busy || rooms.loading}>
+              {busy ? <LoaderCircle size={16} className="spin" aria-hidden="true" /> : <CalendarCheck size={16} aria-hidden="true" />}
+              {isFull ? 'Fully booked' : busy ? 'Sending…' : 'Request reservation'}
             </button>
             <p className="text-xs text-body-secondary text-center mb-0">You won’t be charged. The landlord confirms availability first.</p>
           </form>
@@ -205,21 +233,7 @@ function LocationCard({ listing }) {
 }
 
 // Each room with its own type, rent and free slots (from MySQL).
-// With the API the rooms are loaded for this page; the demo listings carry their own.
-function RoomsList({ listing }) {
-  const [state, setState] = useState(() => (listing.dbId ? { loading: true, rooms: [], error: '' } : { loading: false, rooms: listing.rooms ?? [], error: '' }))
-
-  useEffect(() => {
-    if (!listing.dbId) return undefined
-    let current = true
-    fetchListingRooms(listing.dbId).then((result) => {
-      if (current) setState({ loading: false, rooms: result.ok ? result.rooms : [], error: result.ok ? '' : result.error })
-    })
-    return () => {
-      current = false
-    }
-  }, [listing.dbId])
-
+function RoomsList({ listing, rooms: state }) {
   if (!state.loading && !state.error && state.rooms.length === 0) return null
   return (
     <section className="card">
@@ -288,6 +302,7 @@ export default function RoomDetails() {
   const requireBoarder = useRequireBoarder()
   const { publicListings, listingsReady, listingsError, reloadListings, favorites, toggleFavorite, recordView, ownerOf, ratingOf, startConversation } = useData()
   const listing = publicListings.find((item) => item.id === listingId)
+  const rooms = useListingRooms(listing)
 
   // Once per listing opened (the data reloads every minute, which mustn't count again).
   const viewed = useRef(null)
@@ -387,7 +402,7 @@ export default function RoomDetails() {
             </div>
           </section>
 
-          <RoomsList key={listing.id} listing={listing} />
+          <RoomsList listing={listing} rooms={rooms} />
 
           <LivingHere listing={listing} />
 
@@ -435,7 +450,7 @@ export default function RoomDetails() {
         </div>
 
         <aside className="col-lg-4">
-          <div className="sticky-lg">{user?.role === 'boarder' ? <ReservePanel listing={listing} /> : <SignInToReserve listing={listing} />}</div>
+          <div className="sticky-lg">{user?.role === 'boarder' ? <ReservePanel key={listing.id} listing={listing} rooms={rooms} /> : <SignInToReserve listing={listing} />}</div>
         </aside>
       </div>
     </div>

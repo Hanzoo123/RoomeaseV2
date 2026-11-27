@@ -17,22 +17,32 @@ import {
 import { loadJSON, newId, saveJSON } from '../data/storage'
 import { countListingView, fetchPublicListings } from '../api/listings'
 import { deleteMyListing, fetchMyListings, saveMyListing, updateMyRoom } from '../api/landlord'
+import { cancelReservation, decideReservation, fetchFavorites, fetchIncomingReservations, fetchMyReservations, requestRoom, saveFavorite } from '../api/reservations'
 import { roomsFromTotals, summarizeRooms } from '../data/rooms'
 import { USE_API } from '../config/api'
 import { useAuth } from './AuthContext'
+import { useToast } from './ToastContext'
+import usePolled from './usePolled'
 
 // Stand-in for a backend: app data lives here and is saved to localStorage, so both roles
 // see the same listings, reservations, reviews and messages in this browser. Other tabs pick
 // up changes through the `storage` event, so two signed-in tabs stay in sync.
-// With the API on (USE_API), the public listings (phase 2) and a landlord's own listings
-// (phase 3) come from MySQL instead; everything else still lives here until phases 4–5.
+// With the API on (USE_API), listings (phases 2–3), reservations, saved listings and reviews
+// (phase 4) come from MySQL instead; messages and notifications still live here until phase 5.
 const DATA_KEY = 'roomease.data.v3'
 const DataContext = createContext(null)
 
 const DEFAULT_PREFERENCES = { emailUpdates: true, reservationAlerts: true, listingTips: false }
 export const MAX_COMPARE = 3
-// How often to reload the listings, so approvals in the admin panel show up.
-const LISTINGS_RECHECK_MS = 60 * 1000
+// The API's lists in the { ok, data } shape usePolled expects.
+const loadPublicListings = async () => {
+  const result = await fetchPublicListings()
+  return result.ok ? { ok: true, data: result.listings } : result
+}
+const loadMyListings = async () => {
+  const result = await fetchMyListings()
+  return result.ok ? { ok: true, data: result.listings } : result
+}
 
 function seedState() {
   return {
@@ -190,14 +200,17 @@ export function DataProvider({ children }) {
   const clearCompare = useCallback((userId) => update(({ compare }) => ({ compare: { ...compare, [userId]: [] } })), [update])
 
   const createReservation = useCallback(
-    ({ boarder, listing, roomType, moveIn, message }) =>
+    ({ boarder, listing, room, moveIn, message }) =>
       update(({ reservations, notifications }) => {
+        const roomType = room?.type ?? listing.roomType
         const reservation = {
           id: newId('r'),
           date: today(),
           boarderId: boarder.id,
           boarder: boarder.name,
           listingId: listing.id,
+          roomId: room?.id ?? null,
+          roomName: room?.name ?? null,
           roomType,
           moveIn,
           message,
@@ -421,79 +434,30 @@ export function DataProvider({ children }) {
     [update],
   )
 
-  // Public listings from MySQL: loaded at start, when the tab regains focus and every minute.
-  const [apiListings, setApiListings] = useState({ ready: !USE_API, error: null, listings: [] })
-  const loadApiListings = useCallback(async () => {
-    const result = await fetchPublicListings()
-    setApiListings((current) => {
-      // Keep what was there if a reload fails; skip identical answers to avoid re-rendering.
-      if (!result.ok) return { ...current, ready: true, error: current.listings.length ? null : result.error }
-      if (current.ready && !current.error && JSON.stringify(current.listings) === JSON.stringify(result.listings)) return current
-      return { ready: true, error: null, listings: result.listings }
-    })
-  }, [])
-
-  useEffect(() => {
-    if (!USE_API) return undefined
-    const onVisible = () => document.visibilityState === 'visible' && loadApiListings()
-    const firstLoad = setTimeout(loadApiListings, 0)
-    const timer = setInterval(loadApiListings, LISTINGS_RECHECK_MS)
-    window.addEventListener('focus', loadApiListings)
-    document.addEventListener('visibilitychange', onVisible)
-    return () => {
-      clearTimeout(firstLoad)
-      clearInterval(timer)
-      window.removeEventListener('focus', loadApiListings)
-      document.removeEventListener('visibilitychange', onVisible)
-    }
-  }, [loadApiListings])
-
-  // A landlord's own listings from MySQL, with the same reload rhythm. Answers for an
-  // account that has since signed out are dropped.
-  const isLandlord = USE_API && user?.role === 'landlord'
-  const landlordId = isLandlord ? user.id : null
-  const landlordRef = useRef(landlordId)
-  useEffect(() => {
-    landlordRef.current = landlordId
-  }, [landlordId])
-  const [apiMine, setApiMine] = useState({ ready: !USE_API, error: null, listings: [], ownerId: null })
-  const loadMyListings = useCallback(async () => {
-    const ownerId = landlordRef.current
-    if (!ownerId) return
-    const result = await fetchMyListings()
-    if (landlordRef.current !== ownerId) return
-    setApiMine((current) => {
-      const mine = current.ownerId === ownerId ? current : { ready: false, error: null, listings: [], ownerId }
-      if (!result.ok) return { ...mine, ready: true, error: mine.listings.length ? null : result.error }
-      const listings = result.listings.map((listing) => ({ ...listing, ownerId }))
-      if (mine.ready && !mine.error && JSON.stringify(mine.listings) === JSON.stringify(listings)) return mine
-      return { ready: true, error: null, listings, ownerId }
-    })
-  }, [])
-
-  useEffect(() => {
-    if (!landlordId) return undefined
-    const onVisible = () => document.visibilityState === 'visible' && loadMyListings()
-    const firstLoad = setTimeout(loadMyListings, 0)
-    const timer = setInterval(loadMyListings, LISTINGS_RECHECK_MS)
-    window.addEventListener('focus', loadMyListings)
-    document.addEventListener('visibilitychange', onVisible)
-    return () => {
-      clearTimeout(firstLoad)
-      clearInterval(timer)
-      window.removeEventListener('focus', loadMyListings)
-      document.removeEventListener('visibilitychange', onVisible)
-    }
-  }, [landlordId, loadMyListings])
+  // ---------- From the API (USE_API) ----------
+  // Each list loads at start, when the tab regains focus and every minute (see usePolled), for
+  // the account it belongs to. Writes wait for the API and then update the list they changed.
+  const role = USE_API ? user?.role : null
+  const isLandlord = role === 'landlord'
+  const isBoarder = role === 'boarder'
+  const publicApi = usePolled(USE_API ? 'public' : null, loadPublicListings)
+  const mineApi = usePolled(isLandlord ? user.id : null, loadMyListings)
+  const incomingApi = usePolled(isLandlord ? user.id : null, fetchIncomingReservations)
+  const requestsApi = usePolled(isBoarder ? user.id : null, fetchMyReservations)
+  const favoritesApi = usePolled(isBoarder ? user.id : null, fetchFavorites)
+  const { reload: reloadPublic } = publicApi
+  const { reload: reloadMine, mutate: mutateMine } = mineApi
+  const { reload: reloadIncoming, mutate: mutateIncoming } = incomingApi
+  const { mutate: mutateRequests } = requestsApi
+  const { reload: reloadFavorites, mutate: mutateFavorites } = favoritesApi
 
   // Puts a listing the API just sent back in place (or first, if it's new).
-  const putMine = useCallback((listing) => {
-    setApiMine((current) => {
-      const mine = { ...listing, ownerId: current.ownerId }
-      const exists = current.listings.some((item) => item.dbId === listing.dbId)
-      return { ...current, listings: exists ? current.listings.map((item) => (item.dbId === listing.dbId ? mine : item)) : [mine, ...current.listings] }
-    })
-  }, [])
+  const putMine = useCallback(
+    (listing) =>
+      mutateMine((listings) => (listings.some((item) => item.dbId === listing.dbId) ? listings.map((item) => (item.dbId === listing.dbId ? listing : item)) : [listing, ...listings])),
+    [mutateMine],
+  )
+  const putReservation = (mutate) => (reservation) => mutate((list) => (list.some((item) => item.id === reservation.id) ? list.map((item) => (item.id === reservation.id ? reservation : item)) : [reservation, ...list]))
 
   // Saving, deleting and room changes resolve to { ok, … } or { ok: false, error, fields }.
   const saveOwnListing = useCallback(
@@ -502,10 +466,10 @@ export function DataProvider({ children }) {
       const result = await saveMyListing(fields, existing)
       if (!result.ok) return result
       putMine(result.listing)
-      loadApiListings()
+      reloadPublic()
       return { ok: true, id: result.listing.id, resubmitted: result.resubmitted }
     },
-    [saveListing, putMine, loadApiListings],
+    [saveListing, putMine, reloadPublic],
   )
 
   const deleteOwnListing = useCallback(
@@ -516,13 +480,13 @@ export function DataProvider({ children }) {
       }
       const result = await deleteMyListing(listing)
       if (result.ok || result.status === 404) {
-        setApiMine((current) => ({ ...current, listings: current.listings.filter((item) => item.dbId !== listing.dbId) }))
-        loadApiListings()
+        mutateMine((listings) => listings.filter((item) => item.dbId !== listing.dbId))
+        reloadPublic()
         return { ok: true }
       }
       return result
     },
-    [deleteListing, loadApiListings],
+    [deleteListing, mutateMine, reloadPublic],
   )
 
   // The change shows at once; the server's answer then replaces it (only the latest answer
@@ -534,20 +498,79 @@ export function DataProvider({ children }) {
         updateRoom(listing.id, roomId, changes)
         return { ok: true }
       }
-      setApiMine((current) => ({ ...current, listings: current.listings.map((item) => (item.dbId === listing.dbId ? withRoomChange(item, roomId, changes) : item)) }))
+      mutateMine((listings) => listings.map((item) => (item.dbId === listing.dbId ? withRoomChange(item, roomId, changes) : item)))
       const request = (roomRequests.current[roomId] ?? 0) + 1
       roomRequests.current[roomId] = request
       const result = await updateMyRoom(roomId, changes)
       if (roomRequests.current[roomId] !== request) return result
       if (result.ok) {
         putMine(result.listing)
-        loadApiListings()
+        reloadPublic()
       } else {
-        loadMyListings()
+        reloadMine()
       }
       return result
     },
-    [updateRoom, putMine, loadApiListings, loadMyListings],
+    [updateRoom, mutateMine, putMine, reloadPublic, reloadMine],
+  )
+
+  // A boarder's request for one room. In the demo, the room is noted on the request.
+  const requestReservation = useCallback(
+    async (boarder, { listing, room, moveIn, message }) => {
+      if (!USE_API) {
+        createReservation({ boarder, listing, room, moveIn, message })
+        return { ok: true }
+      }
+      const result = await requestRoom({ roomId: room.id, moveIn, message })
+      if (result.ok) putReservation(mutateRequests)(result.reservation)
+      return result
+    },
+    [createReservation, mutateRequests],
+  )
+
+  // Cancelled (by the boarder), or Approved / Declined (by the landlord, with an optional
+  // reason). Approving takes a bed, so the landlord's rooms and the public counts reload.
+  const changeReservation = useCallback(
+    async (actor, reservation, status, note = '') => {
+      if (!USE_API) {
+        setReservationStatus(actor, reservation.id, status, note)
+        return { ok: true }
+      }
+      if (status === 'Cancelled') {
+        const result = await cancelReservation(reservation)
+        if (result.ok) putReservation(mutateRequests)(result.reservation)
+        return result
+      }
+      const result = await decideReservation(reservation, status === 'Approved' ? 'accept' : 'decline', note)
+      if (result.ok) {
+        putReservation(mutateIncoming)(result.reservation)
+        if (status === 'Approved') {
+          reloadMine()
+          reloadPublic()
+        }
+      } else if (result.status === 409) {
+        // The boarder cancelled meanwhile, or the room filled up: show what is true now.
+        reloadIncoming()
+      }
+      return result
+    },
+    [setReservationStatus, mutateRequests, mutateIncoming, reloadMine, reloadPublic, reloadIncoming],
+  )
+
+  // Saved listings are kept by MySQL id; the heart changes at once and is put back if the
+  // server says no.
+  const toast = useToast()
+  const toggleSaved = useCallback(
+    async (listing, saved) => {
+      mutateFavorites((ids) => (saved ? [listing.dbId, ...ids.filter((id) => id !== listing.dbId)] : ids.filter((id) => id !== listing.dbId)))
+      const result = await saveFavorite(listing.dbId, saved)
+      if (result.ok) mutateFavorites(() => result.data)
+      else {
+        reloadFavorites()
+        toast(result.error, 'error')
+      }
+    },
+    [mutateFavorites, reloadFavorites, toast],
   )
 
   const resetDemoData = useCallback(() => setState(seedState()), [])
@@ -558,30 +581,37 @@ export function DataProvider({ children }) {
     // Personal notifications plus ones sent to the whole role (e.g. every admin).
     const myNotificationIds = user ? [user.id, `role:${user.role}`] : []
     const myNotifications = notifications.filter((item) => myNotificationIds.includes(item.userId))
-    const myListings = USE_API ? (isLandlord && apiMine.ownerId === userId ? apiMine.listings : []) : listings.filter((item) => item.ownerId === userId)
+    const myListings = USE_API ? (mineApi.data ?? []).map((listing) => ({ ...listing, ownerId: userId })) : listings.filter((item) => item.ownerId === userId)
     const myListingIds = new Set(myListings.map((item) => item.id))
 
     // Boarders only see listings an admin has approved.
-    const publicListings = USE_API ? apiListings.listings : listings.filter((item) => item.approval === 'Approved' && !item.removed)
+    const publicListings = USE_API ? (publicApi.data ?? []) : listings.filter((item) => item.approval === 'Approved' && !item.removed)
     // With the API, a listing that isn't public any more reads as removed, except to its landlord.
-    const listingById = (id) =>
-      USE_API ? (apiListings.listings.find((item) => item.id === id) ?? myListings.find((item) => item.id === id)) : listings.find((item) => item.id === id)
+    const listingById = (id) => (USE_API ? (publicListings.find((item) => item.id === id) ?? myListings.find((item) => item.id === id)) : listings.find((item) => item.id === id))
     const ownerOf = (listing) => {
       if (listing.landlord) return { name: listing.landlord.name, phone: listing.landlord.phone ?? '' }
       const account = findAccount(listing.ownerId)
       return account ? { name: account.name, phone: account.phone, email: account.email } : (OTHER_LANDLORDS[listing.ownerId] ?? { name: 'Landlord' })
     }
 
+    // With the API each listing carries its rating; the demo counts its own reviews.
     const ratingTotals = {}
-    for (const item of reviews) {
+    for (const item of USE_API ? [] : reviews) {
       const total = (ratingTotals[item.listingId] ??= { sum: 0, count: 0 })
       total.sum += item.rating
       total.count += 1
     }
     const ratingOf = (listingId) => {
+      if (USE_API) return listingById(listingId)?.rating ?? { average: 0, count: 0 }
       const total = ratingTotals[listingId]
       return total ? { average: total.sum / total.count, count: total.count } : { average: 0, count: 0 }
     }
+
+    const myReservations = USE_API ? (requestsApi.data ?? []) : reservations.filter((item) => item.boarderId === userId)
+    const incomingReservations = USE_API ? (incomingApi.data ?? []) : reservations.filter((item) => myListingIds.has(item.listingId))
+    // Saved listings: MySQL ids from the API, shown for the listings that are still public.
+    const appIdOf = new Map(publicListings.map((listing) => [listing.dbId, listing.id]))
+    const myFavorites = USE_API ? (favoritesApi.data ?? []).map((id) => appIdOf.get(id)).filter(Boolean) : (favorites[userId] ?? [])
 
     const myConversations = conversations
       .filter((item) => item.boarderId === userId || item.landlordId === userId)
@@ -600,24 +630,27 @@ export function DataProvider({ children }) {
     return {
       listings,
       reservations,
-      reviews,
+      // The demo's reviews (with the API, reviews load per listing: see useListingReviews).
+      reviews: USE_API ? [] : reviews,
       publicListings,
       // False while the public listings are loading from the API; error if they couldn't.
-      listingsReady: apiListings.ready,
-      listingsError: apiListings.error,
-      reloadListings: loadApiListings,
+      listingsReady: publicApi.ready,
+      listingsError: publicApi.error,
+      reloadListings: publicApi.reload,
       activity,
       contactMessages,
       myListings,
       // False while a landlord's own listings are loading from the API.
-      myListingsReady: !isLandlord || (apiMine.ready && apiMine.ownerId === userId),
-      myListingsError: isLandlord ? apiMine.error : null,
-      reloadMyListings: loadMyListings,
-      myReservations: reservations.filter((item) => item.boarderId === userId),
-      incomingReservations: reservations.filter((item) => myListingIds.has(item.listingId)),
+      myListingsReady: mineApi.ready,
+      myListingsError: mineApi.error,
+      reloadMyListings: mineApi.reload,
+      myReservations,
+      myReservationsReady: requestsApi.ready,
+      incomingReservations,
+      incomingReservationsReady: incomingApi.ready,
       notifications: myNotifications,
       conversations: myConversations,
-      favorites: favorites[userId] ?? [],
+      favorites: myFavorites,
       recentlyViewed: recentlyViewed[userId] ?? [],
       compare: myCompare,
       preferences: { ...DEFAULT_PREFERENCES, ...preferences[userId] },
@@ -629,19 +662,25 @@ export function DataProvider({ children }) {
       canReview: (listingId) => reservations.some((item) => item.boarderId === userId && item.listingId === listingId && item.status === 'Approved'),
       counts: {
         notifications: myNotifications.filter((item) => !item.read).length,
-        pendingReservations: reservations.filter((item) => myListingIds.has(item.listingId) && item.status === 'Pending').length,
+        pendingReservations: incomingReservations.filter((item) => item.status === 'Pending').length,
         messages: myConversations.reduce((sum, item) => sum + item.unread, 0),
       },
-      toggleFavorite: (listingId) => toggleFavorite(userId, listingId),
+      toggleFavorite: (listingId) => {
+        if (!USE_API) return toggleFavorite(userId, listingId)
+        const listing = publicListings.find((item) => item.id === listingId)
+        if (listing) toggleSaved(listing, !myFavorites.includes(listingId))
+      },
       recordView: (listingId) => {
         recordView(compareKey, listingId)
-        const listing = USE_API && apiListings.listings.find((item) => item.id === listingId)
+        const listing = USE_API && publicListings.find((item) => item.id === listingId)
         if (listing) countListingView(listing.dbId)
       },
       toggleCompare: (listingId) => toggleCompare(compareKey, listingId),
       clearCompare: () => clearCompare(compareKey),
-      createReservation,
-      setReservationStatus: (reservationId, status, note) => setReservationStatus(user, reservationId, status, note),
+      // { listing, room, moveIn, message }. Resolves to { ok } or { ok: false, error, fields }.
+      createReservation: (details) => requestReservation(user, details),
+      // status: 'Cancelled', 'Approved' or 'Declined'. Resolves to { ok } or { ok: false, error }.
+      setReservationStatus: (reservation, status, note) => changeReservation(user, reservation, status, note),
       // existing: the listing being edited, or null for a new one.
       saveListing: (fields, existing) => saveOwnListing(user, fields, existing),
       deleteListing: (listing) => deleteOwnListing(user, listing),
@@ -667,19 +706,20 @@ export function DataProvider({ children }) {
     }
   }, [
     state,
-    apiListings,
-    loadApiListings,
+    publicApi,
+    mineApi,
+    incomingApi,
+    requestsApi,
+    favoritesApi,
     user,
     findAccount,
     toggleFavorite,
+    toggleSaved,
     recordView,
     toggleCompare,
     clearCompare,
-    createReservation,
-    setReservationStatus,
-    apiMine,
-    isLandlord,
-    loadMyListings,
+    requestReservation,
+    changeReservation,
     saveOwnListing,
     deleteOwnListing,
     updateOwnRoom,

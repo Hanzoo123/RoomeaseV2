@@ -1,18 +1,30 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarX, Phone } from 'lucide-react'
+import { CalendarX, LoaderCircle, Phone } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import { useToast } from '../../context/ToastContext'
-import { formatDate, rentLabel } from '../../data/mockData'
+import { formatDate, formatPeso, rentLabel } from '../../data/mockData'
 import { EmptyState, ListingImage, Modal, PageHeader, StatusPill, Tabs } from '../../components/ui'
+import { PageSkeleton } from '../../components/ui/feedback'
 
 const STATUSES = ['Pending', 'Approved', 'Declined', 'Cancelled']
 
 export default function MyReservations() {
-  const { myReservations, listingById, ownerOf, setReservationStatus } = useData()
+  const { myReservations, myReservationsReady, listingById, ownerOf, setReservationStatus } = useData()
   const [tab, setTab] = useState('All')
   const [cancelling, setCancelling] = useState(null)
+  const [busy, setBusy] = useState(false)
   const toast = useToast()
+
+  async function confirmCancel() {
+    setBusy(true)
+    const result = await setReservationStatus(cancelling, 'Cancelled')
+    setBusy(false)
+    setCancelling(null)
+    toast(result.ok ? 'Reservation request cancelled.' : result.error, result.ok ? 'info' : 'error')
+  }
+
+  if (!myReservationsReady) return <PageSkeleton />
 
   const tabs = [
     { value: 'All', label: 'All', count: myReservations.length },
@@ -41,7 +53,8 @@ export default function MyReservations() {
 
         {visible.map((reservation) => {
           const listing = listingById(reservation.listingId)
-          const owner = listing && ownerOf(listing)
+          // With the API the request carries the house's name and landlord, even if it's no longer listed.
+          const owner = listing ? ownerOf(listing) : reservation.landlordName && { name: reservation.landlordName, phone: reservation.landlordPhone }
           return (
             <article key={reservation.id} className="card">
               <div className="card-body p-3 d-flex flex-column flex-sm-row align-items-sm-center gap-3">
@@ -57,13 +70,14 @@ export default function MyReservations() {
                         {listing.name}
                       </Link>
                     ) : (
-                      <span className="fw-semibold text-body-secondary">Listing removed</span>
+                      <span className="fw-semibold text-body-secondary">{reservation.listingName ?? 'Listing removed'}</span>
                     )}
                     <StatusPill status={reservation.status} />
                   </div>
                   <p className="small text-body-secondary mt-1 mb-1">
+                    {reservation.roomName ? `${reservation.roomName} · ` : ''}
                     {reservation.roomType}
-                    {listing && ` · ${rentLabel(listing)}/month`}
+                    {reservation.rent ? ` · ${formatPeso(reservation.rent)}/month` : listing && ` · ${rentLabel(listing)}/month`}
                   </p>
                   <p className="text-xs text-body-secondary mb-0">
                     Requested {formatDate(reservation.date)}
@@ -107,28 +121,21 @@ export default function MyReservations() {
       {cancelling && (
         <Modal
           title="Cancel this request?"
-          onClose={() => setCancelling(null)}
+          onClose={() => !busy && setCancelling(null)}
           footer={
             <>
-              <button type="button" onClick={() => setCancelling(null)} className="btn btn-outline-secondary">
+              <button type="button" onClick={() => setCancelling(null)} className="btn btn-outline-secondary" disabled={busy}>
                 Keep request
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setReservationStatus(cancelling.id, 'Cancelled')
-                  setCancelling(null)
-                  toast('Reservation request cancelled.', 'info')
-                }}
-                className="btn btn-danger"
-              >
+              <button type="button" onClick={confirmCancel} className="btn btn-danger" disabled={busy}>
+                {busy && <LoaderCircle size={16} className="spin" aria-hidden="true" />}
                 Cancel request
               </button>
             </>
           }
         >
           <p className="small text-body-secondary mb-0">
-            The landlord of <strong className="text-body">{listingById(cancelling.listingId)?.name ?? 'this listing'}</strong> will be told you’re no longer interested.
+            The landlord of <strong className="text-body">{listingById(cancelling.listingId)?.name ?? cancelling.listingName ?? 'this listing'}</strong> will be told you’re no longer interested.
           </p>
         </Modal>
       )}

@@ -129,9 +129,10 @@ backend/
       auth.php           ✅ me, register, login, logout, forgot, verify-code, reset
       me.php             ✅ profile, avatar, password
       listings.php       ✅ lookups, browse (filters, sort, pages), one listing with rooms, views, reviews
-      landlord.php       ✅ a landlord's own listings: add, edit, resubmit, delete, room availability
-                         to come: reservations.php, reviews.php (writing),
-                         favorites.php, messages.php, notifications.php, contact.php
+      landlord.php       ✅ a landlord's own listings: add, edit, resubmit, delete, room availability;
+                            answering requests; replying to reviews
+      boarder.php        ✅ saved listings, requesting a room, cancelling, writing reviews
+                         to come: messages.php, notifications.php, contact.php
   uploads/               ✅ avatars/ and listings/. .htaccess: no scripts run here
 ```
 
@@ -178,15 +179,19 @@ The CSRF check runs on every non-GET request before your function.
 | ✅ `GET /listings?q&area&min&max&roomType&amenities&available&stay&sort&page&perPage` | Approved and not removed only. Each listing has its rent range (`rent.min`/`rent.max`), room types (most common first), room counts and free slots, amenities, bills, house rules, stay terms, map pin, photos, rating and landlord name and number. `min`/`max` compare the cheapest room; a room-type filter matches any of a house's rooms. `sort`: `recommended`, `newest`, `price-asc`, `price-desc`, `rating`. Distance filters stay in the browser |
 | ✅ `GET /listings/{id}` | The same, plus each room: name, type, rent, capacity, slots taken, free slots, photos. A pending, rejected or removed listing answers 404 |
 | ✅ `POST /listings/{id}/view` | Counts a room-page visit, once per listing per session |
-| ✅ `GET /listings/{id}/reviews` | Reviews with landlord replies (the website switches to it in phase 4, when writing reviews moves too) |
+| ✅ `GET /listings/{id}/reviews` | Reviews with landlord replies, the rating, `mine` on the signed-in boarder's review and `canReview` (an approved stay). The landlord can also read their own listing's reviews while it isn't public |
+| ✅ `GET /reviews/highlights` | The review count and average across live listings, and the three newest five-star reviews (home page) |
 
 **Boarders**
 
 | Method and path | Does |
 | --- | --- |
-| `GET /favorites`, `PUT /favorites/{listingId}`, `DELETE /favorites/{listingId}` | Saved rooms |
-| `GET /reservations`, `POST /reservations`, `POST /reservations/{id}/cancel` | Requests use a `roomId` and a move-in date |
-| `POST /listings/{id}/reviews`, `PATCH /reviews/{id}`, `DELETE /reviews/{id}` | Only after an accepted stay |
+| ✅ `GET /favorites`, `PUT /favorites/{listingId}`, `DELETE /favorites/{listingId}` | Saved listings (MySQL ids, newest first). Only live listings can be saved |
+| ✅ `GET /reservations` | The boarder's requests, newest first, each with its room, boarding house, landlord (name and number) and status: `pending`, `accepted`, `declined` (with the landlord's reason) or `cancelled` |
+| ✅ `POST /reservations` | `{ roomId, moveIn, message? }`. The room must be in a live listing and have a free bed; the move-in date today to a year ahead. One waiting request per boarding house, and at most 5 waiting at a time. The landlord gets a notification |
+| ✅ `POST /reservations/{id}/cancel` | Only while it's still waiting. The landlord gets a notification |
+| ✅ `POST /listings/{id}/reviews` | `{ rating, comment }`, only after an approved stay. One review per boarder per boarding house: posting again edits it |
+| ✅ `DELETE /reviews/{id}` | The boarder's own review |
 
 **Landlords** (only for their own listings)
 
@@ -197,7 +202,9 @@ The CSRF check runs on every non-GET request before your function.
 | ✅ `PUT /landlord/listings/{id}` | Saves the whole form. A `rejected` listing goes back to `pending` (reason cleared, `submitted_at = NOW()`) and answers `resubmitted: true`; a live one stays live. A listing an admin removed answers 409 |
 | ✅ `DELETE /landlord/listings/{id}` | Hides it (`deleted_at`, `deleted_by` = the landlord, kept for the admins under Removed) and declines its requests that were still waiting |
 | ✅ `PATCH /landlord/rooms/{id}` | `{ slotsTaken?, isOpen? }` from Room Availability |
-| `GET /landlord/reservations`, `POST /landlord/reservations/{id}/decide` | Accept, or decline with a reason. Accepting takes a slot |
+| ✅ `GET /landlord/reservations` | Requests for the landlord's rooms, newest first, with the boarder's name, email and phone |
+| ✅ `POST /landlord/reservations/{id}/decide` | `{ decision: "accept" \| "decline", note? }`. Accepting takes a bed in that room (refused with 409 if it's full); declining can give a reason the boarder sees. A request that was already answered or cancelled answers 409. The boarder gets a notification |
+| ✅ `POST /landlord/reviews/{id}/reply` | `{ text }`; an empty text removes the reply |
 
 How a listing save works (`routes/landlord.php`):
 - **Rooms** are sent as the full list: `{ id?, name, type, rent, capacity, slotsTaken, isOpen }`. Rooms with an id are updated, new ones added, missing ones deleted. A room with pending or accepted requests can't be deleted (its requests would go with it), so the landlord closes it instead. Names must differ within a listing.
@@ -205,8 +212,10 @@ How a listing save works (`routes/landlord.php`):
 - Everything is one transaction: if anything fails, nothing changes and new photo files are removed.
 - Errors answer 422 with a message per field, e.g. `{ "name": "…", "rooms.1.rent": "…" }`, which the form shows next to each field.
 - Audit log: `listing.submitted`, `listing.resubmitted`, `listing.updated`, `listing.deleted`.
-| `POST /landlord/reviews/{id}/reply` | Reply to a review |
-| `GET /landlord/analytics` | The numbers behind the Analytics charts |
+
+Analytics need no endpoint of their own: the charts are worked out in the browser from `GET /landlord/listings` (views, rooms, ratings) and `GET /landlord/reservations`.
+
+Notifications for requests, answers, cancellations and new reviews are written to the `notifications` table now (as the admin panel already does for listings). The website shows them from phase 5.
 
 **Everyone signed in**
 
@@ -238,7 +247,7 @@ Admins need no API endpoints: the AdminLTE panel talks to MySQL itself.
 - [ ] Reset codes and remember-me tokens stored only as hashes (the tables are ready)
 - [ ] `display_errors = Off` when you present or deploy; log errors to a file instead
 - [x] Write `audit_logs` entries for landlord listing actions (submitted, resubmitted, updated, deleted), so the super admin's Activity Log stays complete
-- [ ] The same for reservation decisions (phase 4)
+- [x] The same for reservation decisions and cancellations (`reservation.accepted`, `reservation.declined`, `reservation.cancelled`)
 
 ---
 
@@ -247,13 +256,16 @@ Admins need no API endpoints: the AdminLTE panel talks to MySQL itself.
 1. ✅ `src/api/client.js`: a small `fetch` wrapper. It sends the CSRF header, reads `{ ok, data, error }`, and turns failures (WAMP off, a PHP error page) into messages the pages can show.
 2. ✅ `vite.config.js` forwards `/backend/…` to WAMP during `npm run dev`. The API lives at `` `${BASE_PATH}backend/api` `` (`src/config/api.js`), so the WAMP build works from any folder.
 3. ✅ `AuthContext` now picks `ApiAuthProvider` (the API) or the in-browser demo provider (`VITE_USE_API=false`). Both have the same functions, now async: `login`, `register`, `logout`, `updateProfile`, `changePassword`, `requestPasswordReset`… The pages `await` them.
-   - **Temporary bridge:** reservations and messages are still the browser demo data, keyed by demo ids such as `u-boarder-1`. So the demo accounts keep those ids after signing in through the API, and new accounts get `db-<user_id>`. Phases 3–5 replace this with real ids.
+   - **Temporary bridge:** messages and notifications are still the browser demo data, keyed by demo ids such as `u-boarder-1`. So the demo accounts keep those ids after signing in through the API, and new accounts get `db-<user_id>` (`src/api/ids.js`). Phase 5 replaces this with real ids.
 4. ✅ (phase 2) `DataContext` takes the public listings from `GET /listings` (`src/api/listings.js` turns them into the shape the pages already use). It reloads them when the tab regains focus and every minute, so an approval in the admin panel shows up. The room page loads each room from `GET /listings/{id}`. Pages show placeholders while loading, and a "couldn't be loaded / Try again" card if WAMP is off.
-   - **Temporary bridge:** favorites, compare, reservations, reviews and messages still point at the demo listing ids (`sunrise`). So a demo landlord's own demo listing keeps its demo id and illustration, and other listings get `db-<id>` (e.g. `/rooms/db-11`).
+   - **Temporary bridge:** compare and messages still point at the demo listing ids (`sunrise`). So a demo landlord's own demo listing keeps its demo id and illustration, and other listings get `db-<id>` (e.g. `/rooms/db-11`).
 5. ✅ (phase 3) A landlord's own listings come from `GET /landlord/listings` (`src/api/landlord.js`), with the same reload rhythm. Add, edit, resubmit and delete call the API and wait for it; the form shows the API's field errors. The listing form has a **Rooms** section (`RoomsEditor`): each room with its own name, type, rent, beds and beds taken. Room Availability changes each room's beds taken and open/closed (`PATCH /landlord/rooms/{id}`), showing the change at once. The landlord's listing page shows the rooms, and opens from a MySQL id too (`/landlord/listings/12`, as in the admin panel's notifications).
    - In demo mode the demo listings get rooms made up from their totals (`src/data/rooms.js`), and saving works the totals out from the rooms, so both modes use the same form.
-   - Next: do the same for each remaining feature. Load lists from the API and refetch after a change; the `VITE_USE_API` switch keeps the demo working meanwhile.
-6. Let boarders pick a room when they reserve (phase 4).
+6. ✅ (phase 4) Reservations, saved listings and reviews come from the API (`src/api/reservations.js`, `src/api/reviews.js`). Every list from the API loads through one hook, `usePolled`: at first, when the tab regains focus and every minute, so a request sent in one browser shows up for the landlord in another, and the answer comes back the same way.
+   - The reservation form has a **room picker** (rooms with a free bed, with their type, rent and free beds), and the request is for that room. The landlord sees the room, the boarder's phone and email, and their message; approving takes a bed in that room.
+   - Reviews load per listing (`useListingReviews`); ratings on cards come with each listing. The home page's review numbers and quotes come from `GET /reviews/highlights`.
+   - Writes wait for the API and show its message if it says no (e.g. the room filled up, or the boarder cancelled while the landlord was deciding). The heart on a listing changes at once and is put back if saving fails.
+   - Next: messages, notifications and the contact form (phase 5). The `VITE_USE_API` switch keeps the demo working meanwhile.
 7. Remove the mock seed data (`src/data/mockData.js`) once everything comes from MySQL.
 
 ---
@@ -268,7 +280,7 @@ Each phase ends with something you can show.
 | **1** ✅ | API skeleton (router, JSON helpers, session, CSRF) and the Accounts endpoints; React `AuthContext` on the API | A boarder who signs up in React appears under Boarders & Landlords. Deactivating them in AdminLTE signs them out of React |
 | **2** ✅ | Public listing endpoints; React browse and room pages from MySQL | Approving a listing in AdminLTE makes it appear on Find Place to Stay |
 | **3** ✅ | Landlord listings, rooms, photos and availability; resubmitting | A landlord's new listing appears in the AdminLTE review queue. Sending it back shows the reason in React |
-| **4** | Reservations, favorites, reviews, landlord replies, analytics | The full reservation flow works between two browsers |
+| **4** ✅ | Reservations, favorites, reviews, landlord replies, analytics | The full reservation flow works between two browsers |
 | **5** | Messages, notifications (polling), Contact form | A Contact Us message appears in the AdminLTE inbox |
 | **6** | Real email for reset codes, e.g. PHPMailer with a Gmail app password; "Remember me" tokens | A reset code arrives by email |
 | **7** | ✅ The website served by WAMP: a relative build in `dist/`, plus `index.php` and `.htaccess`, so it works from any folder name. Still to do before going live: errors off, demo accounts replaced, a `mysqldump` backup | The whole system runs from `http://localhost/RoomeaseV2/` with Vite stopped |
@@ -285,5 +297,5 @@ Each phase ends with something you can show.
 ## 7. Decisions to make
 
 - **Email:** Gmail SMTP with an app password is the simplest for a school project. Without it, the reset flow can show the code on screen in development only, as the React demo does now.
-- **Room-level reservations:** the React app reserves "a listing"; the database reserves a room. Phase 4 adds a room picker to the reservation form (the rooms now exist in React). Until then, the API can pick the first room with a free slot.
+- **Room-level reservations:** ✅ decided: boarders pick the room in the reservation form, and the request is for that room.
 - **Hosting:** WAMP is fine for the defense and demos. A real public site would need a host with PHP 8 and MySQL, plus HTTPS.

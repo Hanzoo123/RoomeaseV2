@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MessageCircle } from 'lucide-react'
+import { LoaderCircle, MessageCircle } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
 import { useToast } from '../../context/ToastContext'
@@ -11,6 +11,7 @@ import { TextArea } from '../ui/form'
 const DECLINE_SUGGESTIONS = ['All rooms are taken for that month.', 'This room is for female boarders only.', 'Please visit first so we can talk about the terms.']
 
 // Landlord view of one request, with approve / decline (and an optional reason) while it is pending.
+// onDecide(status, note) resolves to { ok } or { ok: false, error }; the parent closes the dialog.
 export default function ReservationDialog({ reservation, listingName, onClose, onDecide }) {
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -20,11 +21,19 @@ export default function ReservationDialog({ reservation, listingName, onClose, o
   const toast = useToast()
   const [declining, setDeclining] = useState(false)
   const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(null)
 
-  function decide(status) {
-    onDecide(status, status === 'Declined' ? note.trim() : '')
+  async function decide(status) {
+    setBusy(status)
+    const result = await onDecide(status, status === 'Declined' ? note.trim() : '')
+    setBusy(null)
+    if (!result?.ok) {
+      toast(result?.error ?? 'That didn’t save. Please try again.', 'error')
+      return
+    }
     toast(status === 'Approved' ? `Approved ${reservation.boarder}’s request. They’ve been notified.` : `Declined ${reservation.boarder}’s request.`, status === 'Approved' ? 'success' : 'info')
   }
+  const spinner = (status) => busy === status && <LoaderCircle size={16} className="spin" aria-hidden="true" />
 
   function messageBoarder() {
     const id = startConversation({ listing, boarderId: reservation.boarderId, boarderName: reservation.boarder, landlordName: user.name })
@@ -32,8 +41,10 @@ export default function ReservationDialog({ reservation, listingName, onClose, o
   }
   const details = [
     ['Boarder', reservation.boarder],
+    ...(reservation.boarderPhone ? [['Phone', reservation.boarderPhone]] : []),
+    ...(reservation.boarderEmail ? [['Email', reservation.boarderEmail]] : []),
     ['Property', listingName],
-    ['Room type', reservation.roomType],
+    ...(reservation.roomName ? [['Room', `${reservation.roomName} · ${reservation.roomType}`]] : [['Room type', reservation.roomType]]),
     ['Requested on', formatDate(reservation.date)],
     ...(reservation.moveIn ? [['Move-in date', formatDate(reservation.moveIn)]] : []),
   ]
@@ -48,7 +59,8 @@ export default function ReservationDialog({ reservation, listingName, onClose, o
             <button type="button" onClick={() => setDeclining(false)} className="btn btn-outline-secondary me-auto">
               Back
             </button>
-            <button type="button" onClick={() => decide('Declined')} className="btn btn-danger">
+            <button type="button" onClick={() => decide('Declined')} className="btn btn-danger" disabled={Boolean(busy)}>
+              {spinner('Declined')}
               Decline request
             </button>
           </>
@@ -60,10 +72,11 @@ export default function ReservationDialog({ reservation, listingName, onClose, o
                 Message
               </button>
             )}
-            <button type="button" onClick={() => setDeclining(true)} className="btn btn-outline-danger">
+            <button type="button" onClick={() => setDeclining(true)} className="btn btn-outline-danger" disabled={Boolean(busy)}>
               Decline
             </button>
-            <button type="button" onClick={() => decide('Approved')} className="btn btn-primary">
+            <button type="button" onClick={() => decide('Approved')} className="btn btn-primary" disabled={Boolean(busy)}>
+              {spinner('Approved')}
               Approve
             </button>
           </>

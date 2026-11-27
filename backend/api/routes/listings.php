@@ -123,25 +123,77 @@ function route_listing_view($params)
   ok(['counted' => $counted]);
 }
 
-// GET /listings/{id}/reviews: newest first, with the landlord's replies.
+// GET /listings/{id}/reviews: newest first, with the landlord's replies. The landlord can
+// also read the reviews of their own listing while it isn't public.
 function route_listing_reviews($params)
 {
-  $listing = public_listing_or_404($params['id']);
+  $user = current_user();
+  $id = ctype_digit((string) $params['id']) ? (int) $params['id'] : 0;
+  $stmt = db()->prepare('SELECT b.landlord_id, (' . PUBLIC_LISTING . ') AS public FROM boarding_houses b WHERE b.boarding_house_id = ?');
+  $stmt->execute([$id]);
+  $listing = $stmt->fetch();
+  $owner = $listing && $user && (int) $listing['landlord_id'] === (int) $user['user_id'];
+  if (!$listing || (!$listing['public'] && !$owner)) fail(404, 'This listing isn’t available.');
+  ok(listing_reviews($id, $user));
+}
+
+// A listing's reviews and rating, plus what the signed-in boarder may do:
+// mine marks their review; canReview is true after an approved stay.
+function listing_reviews($listingId, $user)
+{
   $stmt = db()->prepare('SELECT * FROM reviews WHERE boarding_house_id = ? ORDER BY created_at DESC, review_id DESC');
-  $stmt->execute([$listing['id']]);
+  $stmt->execute([$listingId]);
+  $rows = $stmt->fetchAll();
+  $userId = $user ? (int) $user['user_id'] : 0;
+  $isBoarder = $user && $user['role'] === 'boarder';
+  $ratings = array_column($rows, 'rating');
+  return [
+    'reviews' => array_map(function ($review) use ($userId) {
+      return public_review($review) + ['mine' => $userId && (int) $review['boarder_id'] === $userId];
+    }, $rows),
+    'rating' => ['average' => $ratings ? round(array_sum($ratings) / count($ratings), 2) : 0, 'count' => count($ratings)],
+    'canReview' => $isBoarder && has_stayed($userId, $listingId),
+  ];
+}
+
+function public_review($review)
+{
+  return [
+    'id' => (int) $review['review_id'],
+    'listingId' => (int) $review['boarding_house_id'],
+    'name' => $review['reviewer_name'],
+    'rating' => (int) $review['rating'],
+    'comment' => $review['comment'],
+    'date' => date(DATE_ATOM, strtotime($review['created_at'])),
+    'reply' => $review['landlord_reply'] ? ['text' => $review['landlord_reply'], 'date' => date(DATE_ATOM, strtotime($review['replied_at']))] : null,
+  ];
+}
+
+// GET /reviews/highlights: the review count and average across live listings, and a few
+// recent five-star reviews, for the home page.
+function route_review_highlights()
+{
+  $totals = db()->query('SELECT COUNT(*) AS n, AVG(v.rating) AS average FROM reviews v
+    JOIN boarding_houses b ON b.boarding_house_id = v.boarding_house_id WHERE ' . PUBLIC_LISTING)->fetch();
+  $rows = db()->query('SELECT v.*, b.name AS listing_name, u.first_name, u.last_name FROM reviews v
+    JOIN boarding_houses b ON b.boarding_house_id = v.boarding_house_id JOIN users u ON u.user_id = b.landlord_id
+    WHERE ' . PUBLIC_LISTING . ' AND v.rating = 5 ORDER BY v.created_at DESC, v.review_id DESC LIMIT 3')->fetchAll();
   ok([
-    'reviews' => array_map(function ($review) {
-      return [
-        'id' => (int) $review['review_id'],
-        'name' => $review['reviewer_name'],
-        'rating' => (int) $review['rating'],
-        'comment' => $review['comment'],
-        'date' => date(DATE_ATOM, strtotime($review['created_at'])),
-        'reply' => $review['landlord_reply'] ? ['text' => $review['landlord_reply'], 'date' => date(DATE_ATOM, strtotime($review['replied_at']))] : null,
-      ];
-    }, $stmt->fetchAll()),
-    'rating' => $listing['rating'],
+    'count' => (int) $totals['n'],
+    'average' => $totals['n'] ? round((float) $totals['average'], 2) : 0,
+    'reviews' => array_map(function ($row) {
+      // The listing's name and landlord let the app match it to the listings it shows.
+      return public_review($row) + ['listing' => ['id' => (int) $row['boarding_house_id'], 'name' => $row['listing_name'], 'landlord' => ['name' => trim($row['first_name'] . ' ' . $row['last_name'])]]];
+    }, $rows),
   ]);
+}
+
+// The id of a public listing, or a 404 (a lighter check than loading the whole listing).
+function public_listing_id_or_404($id)
+{
+  $stmt = db()->prepare('SELECT b.boarding_house_id FROM boarding_houses b WHERE ' . PUBLIC_LISTING . ' AND b.boarding_house_id = ?');
+  $stmt->execute([ctype_digit((string) $id) ? (int) $id : 0]);
+  return (int) ($stmt->fetchColumn() ?: fail(404, 'This listing isn’t available. It may have been removed.'));
 }
 
 function public_listing_or_404($id)
