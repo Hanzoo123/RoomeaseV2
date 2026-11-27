@@ -26,6 +26,7 @@ export function toAppReservation(reservation) {
     roomType: reservation.room.type,
     rent: reservation.room.rent,
     boarderId: appUserId(reservation.boarder),
+    boarderDbId: reservation.boarder.id,
     boarder: reservation.boarder.name,
     boarderEmail: reservation.boarder.email,
     boarderPhone: reservation.boarder.phone,

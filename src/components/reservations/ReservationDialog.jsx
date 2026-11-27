@@ -35,9 +35,10 @@ export default function ReservationDialog({ reservation, listingName, onClose, o
   }
   const spinner = (status) => busy === status && <LoaderCircle size={16} className="spin" aria-hidden="true" />
 
-  function messageBoarder() {
-    const id = startConversation({ listing, boarderId: reservation.boarderId, boarderName: reservation.boarder, landlordName: user.name })
-    navigate(`/landlord/messages/${id}`)
+  async function messageBoarder() {
+    const result = await startConversation({ listing, boarderId: reservation.boarderId, boarderDbId: reservation.boarderDbId, boarderName: reservation.boarder, landlordName: user.name })
+    if (!result.ok) return toast(result.error, 'error')
+    navigate(`/landlord/messages/${result.id}`)
   }
   const details = [
     ['Boarder', reservation.boarder],

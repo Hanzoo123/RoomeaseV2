@@ -9,9 +9,10 @@ Find and manage boarding houses in Baybay City. Two parts:
   - the public listings on Find Place to Stay and the room pages, including each room's own rent and free slots;
   - landlords' own listings: adding one (with its rooms and photos) sends it to the admin panel's review queue, the admin's reason shows when it is sent back, and saving it resubmits it;
   - reservations: a boarder requests a particular room, the landlord approves (taking a bed) or declines with a reason, and each sees the other's answer in their own browser;
-  - saved listings, reviews (after an approved stay) and landlord replies.
+  - saved listings, reviews (after an approved stay) and landlord replies;
+  - messages between boarders and landlords (an open chat shows a reply within a few seconds), notifications, and the Contact Us form, which lands in the admin panel's inbox.
 
-  Messages, notifications and the contact form move over in phase 5 ([BACKEND_PLAN.md](BACKEND_PLAN.md)).
+  What's left is in [BACKEND_PLAN.md](BACKEND_PLAN.md): real email for reset codes, and getting ready to go live.
 
 It follows the PHP version of RoomEase ([Hanzoo123/Roomease](https://github.com/Hanzoo123/Roomease)): same room types, the same public menu (Home · Find Place to Stay · About Us · Contact Us), the same listing review states and the same password rules.
 
@@ -68,7 +69,7 @@ Other scripts: `npm run build` (updates `dist/`, the version WAMP serves) and `n
 
 The website's sign-in page links to the admin panel ("Admin or super admin?"), and `/admin` redirects there. On WAMP it finds the panel by itself; with `npm run dev` it follows `ROOMEASE_WAMP_URL`.
 
-Website accounts and the admin panel share MySQL: someone who signs up on the website appears under **Boarders & Landlords**, and deactivating them there signs them out of the website within a minute. Listings are shared too: a landlord's new listing appears under **Listings > In review**, and approving it, sending it back with a reason or removing it shows on the website. Reservations made on the website appear in the admin panel's reports and on each boarder's page. Messages and notifications still live in the browser until phase 5 of **[BACKEND_PLAN.md](BACKEND_PLAN.md)**.
+Website accounts and the admin panel share MySQL: someone who signs up on the website appears under **Boarders & Landlords**, and deactivating them there signs them out of the website within a minute. Listings are shared too: a landlord's new listing appears under **Listings > In review**, and approving it, sending it back with a reason or removing it shows on the website. Reservations made on the website appear in the admin panel's reports and on each boarder's page, a Contact Us message appears in the **Contact Inbox**, and the admin panel's decisions on a listing reach the landlord's notifications.
 
 ## Features
 
@@ -185,11 +186,12 @@ src/
   - accounts (sign-up, sign-in, profile, photo, passwords; only bcrypt hashes are stored);
   - the public listings: approving, removing or restoring a listing in the admin panel shows on Find Place to Stay the next time the page is focused, or within a minute;
   - landlords' own listings, rooms and photos (saved in `backend/uploads/listings/`);
-  - reservations, saved listings, reviews and replies. Another browser sees a change when its tab regains focus, or within a minute.
+  - reservations, saved listings, reviews and replies. Another browser sees a change when its tab regains focus, or within a minute;
+  - messages, notifications and Contact Us messages.
 
-  Messages, notifications and the contact form still live in the browser's localStorage until phase 5 of [BACKEND_PLAN.md](BACKEND_PLAN.md). Until then, the demo accounts keep their demo data, and a new account starts empty. No email is sent yet; reset codes appear on screen.
+  The browser only keeps the compare list, recently viewed rooms and notification settings. No email is sent yet; reset codes appear on screen. (If you imported `database/roomease.sql` before this phase, import it again to get the sample notifications; this resets the data to the demo data.)
 - **Not carried over from the PHP version yet** (they need a server): Google sign-in and real email (reset codes, notifications).
-- **Start over:** Settings → *Reset demo data* restores the original listings, reservations, reviews and messages.
+- **Start over:** import `database/roomease.sql` again in phpMyAdmin. In demo mode (`VITE_USE_API=false`), Settings → *Reset demo data* restores the original listings, reservations, reviews and messages in the browser.
 - **Maps** use free OpenStreetMap tiles, so they need an internet connection. Pin locations are approximate. If tiles can't load, the pins still show.
 - **Photos:** landlords can upload up to 5 photos per listing. The browser shrinks them first; the API checks each one, re-draws it with PHP's GD extension and saves it in `backend/uploads/listings/`. In demo mode (`VITE_USE_API=false`) they are kept in the browser, which holds roughly 5 MB. Without photos, illustrations are shown.
 - **Serving the site:** this is a single-page app with browser routing. On WAMP, `.htaccess` sends every page address to `index.php`, which serves `dist/index.html` with the right folder filled in. It also keeps the source, `database/` and config files from being opened in the browser. Another host must also serve the page for every app address (e.g. a rewrite rule on Vercel or Netlify).

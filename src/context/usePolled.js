@@ -5,13 +5,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 export const RECHECK_MS = 60 * 1000
 
 // Something loaded from the API while `key` is set (e.g. the signed-in boarder's id): at
-// first, when the tab regains focus or becomes visible, and every minute.
+// first, when the tab regains focus or becomes visible, and every minute (or `interval` ms).
 // - Answers for an older key (someone who has since signed out) are dropped.
 // - A failed reload keeps what was there; identical answers don't re-render.
 // fetcher() resolves to { ok, data } or { ok: false, error }. Returns
 // { ready, error, data, reload, mutate }; mutate(recipe) changes the data right after a
 // write, until the next load.
-export default function usePolled(key, fetcher) {
+export default function usePolled(key, fetcher, interval = RECHECK_MS) {
   const [state, setState] = useState({ key: null, ready: false, error: null, data: null })
   const keyRef = useRef(key)
   useEffect(() => {
@@ -35,7 +35,7 @@ export default function usePolled(key, fetcher) {
     if (!key) return undefined
     const onVisible = () => document.visibilityState === 'visible' && reload()
     const firstLoad = setTimeout(reload, 0)
-    const timer = setInterval(reload, RECHECK_MS)
+    const timer = setInterval(reload, interval)
     window.addEventListener('focus', reload)
     document.addEventListener('visibilitychange', onVisible)
     return () => {
@@ -44,10 +44,15 @@ export default function usePolled(key, fetcher) {
       window.removeEventListener('focus', reload)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [key, reload])
+  }, [key, reload, interval])
 
   const mutate = useCallback(
-    (recipe) => setState((previous) => (previous.key === keyRef.current && previous.data ? { ...previous, data: recipe(previous.data) } : previous)),
+    (recipe) =>
+      setState((previous) => {
+        if (previous.key !== keyRef.current || !previous.data) return previous
+        const data = recipe(previous.data)
+        return data === previous.data ? previous : { ...previous, data }
+      }),
     [],
   )
 

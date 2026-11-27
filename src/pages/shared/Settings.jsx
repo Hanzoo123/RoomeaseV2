@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LogOut, RotateCcw } from 'lucide-react'
+import { USE_API } from '../../config/api'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
 import { useToast } from '../../context/ToastContext'
@@ -121,16 +122,19 @@ export default function Settings() {
 
       <PasswordForm />
 
-      <section className="card">
-        <div className="card-body p-4 d-flex flex-column gap-3 align-items-start">
-          <h2 className="fs-6 fw-semibold mb-0">Demo data</h2>
-          <p className="small text-body-secondary mb-0">Listings, reservations and notifications are saved in this browser. Reset them to start the demo over (accounts are kept).</p>
-          <button type="button" onClick={() => setConfirmReset(true)} className="btn btn-outline-secondary">
-            <RotateCcw size={16} aria-hidden="true" />
-            Reset demo data
-          </button>
-        </div>
-      </section>
+      {/* Only the demo keeps its data in the browser; with the API it is in MySQL. */}
+      {!USE_API && (
+        <section className="card">
+          <div className="card-body p-4 d-flex flex-column gap-3 align-items-start">
+            <h2 className="fs-6 fw-semibold mb-0">Demo data</h2>
+            <p className="small text-body-secondary mb-0">Listings, reservations and notifications are saved in this browser. Reset them to start the demo over (accounts are kept).</p>
+            <button type="button" onClick={() => setConfirmReset(true)} className="btn btn-outline-secondary">
+              <RotateCcw size={16} aria-hidden="true" />
+              Reset demo data
+            </button>
+          </div>
+        </section>
+      )}
 
       <section className="card">
         <div className="card-body p-4 d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">

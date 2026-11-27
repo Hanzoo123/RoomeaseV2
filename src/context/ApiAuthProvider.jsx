@@ -10,9 +10,8 @@ import { useToast } from './ToastContext'
 // admin deactivates is signed out here too (also checked whenever the tab comes back).
 const RECHECK_MS = 60 * 1000
 
-// Messages and notifications still come from the demo data in this browser until phase 5.
-// That data is keyed by the demo ids, so the demo accounts keep them ("u-boarder-1"); new
-// accounts get "db-<id>" (see api/ids.js).
+// The demo accounts keep their demo ids ("u-boarder-1") and new accounts get "db-<id>"
+// (see api/ids.js); the API itself is always called with the MySQL id.
 function toAppUser(user) {
   if (!user) return null
   return { ...user, dbId: user.id, id: appUserId(user), active: true, avatar: backendFileUrl(user.avatarPath) }

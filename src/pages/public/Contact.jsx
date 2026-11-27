@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, CircleUser, House, Link2, Mail, MessageCircle, Send, UserPlus } from 'lucide-react'
+import { ArrowRight, CircleUser, House, Link2, LoaderCircle, Mail, MessageCircle, Send, UserPlus } from 'lucide-react'
+import { USE_API } from '../../config/api'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
 import { useToast } from '../../context/ToastContext'
@@ -12,7 +13,8 @@ import PageHero from './PageHero'
 
 export const CONTACT_TOPICS = ['A listing is wrong', 'My account', 'Listing my boarding house', 'Something else']
 const LIMITS = { name: 100, email: 150, message: 5000 }
-// Same idea as the PHP site's throttle: one address can't post all afternoon.
+// Same idea as the PHP site's throttle: one address can't post all afternoon. With the API
+// the server counts (3 an hour per email); the demo counts what this browser sent.
 const MAX_PER_HOUR = 3
 const HOUR = 60 * 60 * 1000
 
@@ -52,14 +54,16 @@ function ContactForm() {
   const [errors, setErrors] = useState({})
   const [error, setError] = useState('')
   const [sentTo, setSentTo] = useState('')
+  const [sending, setSending] = useState(false)
 
   const set = (key) => (event) => {
     setForm((current) => ({ ...current, [key]: event.target.value }))
     setErrors(({ [key]: _cleared, ...rest }) => rest)
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
+    if (sending) return
     const nextErrors = validate(form)
     setErrors(nextErrors)
     setError('')
@@ -67,9 +71,16 @@ function ContactForm() {
     const email = form.email.trim()
     const since = new Date(Date.now() - HOUR).toISOString()
     const recent = contactMessages.filter((item) => item.email.toLowerCase() === email.toLowerCase() && item.date > since).length
-    if (recent >= MAX_PER_HOUR) return setError('You have sent several messages already. Please try again in an hour.')
+    if (!USE_API && recent >= MAX_PER_HOUR) return setError('You have sent several messages already. Please try again in an hour.')
     // The hidden "website" field is a trap for bots: nothing is sent, and nothing says why.
-    if (!form.website) sendContactMessage({ name: form.name.trim(), email, topic: form.topic, message: form.message.trim() })
+    setSending(true)
+    const result = await sendContactMessage({ name: form.name.trim(), email, topic: form.topic, message: form.message.trim(), website: form.website })
+    setSending(false)
+    if (!result.ok) {
+      if (result.fields) setErrors(result.fields)
+      setError(result.fields ? '' : result.error)
+      return
+    }
     setSentTo(email)
     setForm({ ...blank, message: '' })
     toast('Thank you. Your message has been sent.')
@@ -125,9 +136,9 @@ function ContactForm() {
           </div>
           {error && <Notice tone="error">{error}</Notice>}
           <div>
-            <button type="submit" className="btn btn-primary px-4" style={{ height: '2.75rem' }}>
-              <Send size={16} aria-hidden="true" />
-              Send message
+            <button type="submit" className="btn btn-primary px-4" style={{ height: '2.75rem' }} disabled={sending}>
+              {sending ? <LoaderCircle size={16} className="spin" aria-hidden="true" /> : <Send size={16} aria-hidden="true" />}
+              {sending ? 'Sending…' : 'Send message'}
             </button>
           </div>
         </form>

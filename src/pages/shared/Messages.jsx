@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
-import { ArrowLeft, MessageCircle, Send } from 'lucide-react'
+import { ArrowLeft, LoaderCircle, MessageCircle, Send } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
+import { useToast } from '../../context/ToastContext'
 import { formatDate, timeAgo } from '../../data/mockData'
 import { PageHeader } from '../../components/ui'
+import { PageSkeleton } from '../../components/ui/feedback'
+import useChat from './useChat'
 
 const timeOnly = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' })
 
@@ -29,7 +32,7 @@ function ConversationList({ conversations, activeId, role }) {
   return (
     <ul className="list-unstyled mb-0">
       {conversations.map((item) => {
-        const last = item.messages.at(-1)
+        const last = item.lastMessage
         return (
           <li key={item.id}>
             <Link to={`/${role}/messages/${item.id}`} className={`conversation-item d-flex gap-3 px-3 py-3 text-reset-link ${item.id === activeId ? 'active' : ''}`} aria-current={item.id === activeId ? 'page' : undefined}>
@@ -39,7 +42,7 @@ function ConversationList({ conversations, activeId, role }) {
                   <span className={`small text-truncate ${item.unread ? 'fw-bold' : 'fw-semibold'}`}>{item.otherName}</span>
                   {last && <span className="text-2xs text-body-secondary flex-shrink-0">{timeAgo(last.date)}</span>}
                 </div>
-                <p className="text-xs text-body-secondary text-truncate mb-1">{item.listing?.name ?? 'Removed listing'}</p>
+                <p className="text-xs text-body-secondary text-truncate mb-1">{item.listing?.name ?? item.listingName ?? 'Removed listing'}</p>
                 <div className="d-flex align-items-center gap-2">
                   <p className={`text-xs text-truncate mb-0 flex-grow-1 ${item.unread ? 'text-body fw-medium' : 'text-body-secondary'}`}>{last ? last.text : 'No messages yet'}</p>
                   {item.unread > 0 && (
@@ -60,27 +63,39 @@ function ConversationList({ conversations, activeId, role }) {
 
 function Thread({ conversation, role }) {
   const { user } = useAuth()
-  const { sendMessage, markConversationRead } = useData()
+  const { markConversationRead } = useData()
+  const { ready, error, messages, send: sendText } = useChat(conversation)
+  const toast = useToast()
   // A question picked on the room page ("Worth asking the landlord") arrives as a draft.
   const location = useLocation()
   const [text, setText] = useState(() => location.state?.draft ?? '')
+  const [sending, setSending] = useState(false)
   const scrollRef = useRef(null)
-  const messageCount = conversation.messages.length
+  const messageCount = messages.length
 
+  // Marks the chat read when it opens and when a message arrives (not on every re-render).
+  const markRead = useRef(markConversationRead)
   useEffect(() => {
-    markConversationRead(conversation.id)
-  }, [conversation.id, messageCount, markConversationRead])
+    markRead.current = markConversationRead
+  })
+  useEffect(() => {
+    markRead.current(conversation.id)
+  }, [conversation.id, messageCount])
 
   useEffect(() => {
     const node = scrollRef.current
     if (node) node.scrollTop = node.scrollHeight
   }, [conversation.id, messageCount])
 
-  function send(event) {
+  async function send(event) {
     event?.preventDefault()
     const message = text.trim()
-    if (!message) return
-    sendMessage(conversation.id, message)
+    if (!message || sending) return
+    setSending(true)
+    const result = await sendText(message)
+    setSending(false)
+    // On failure the text stays, so nothing typed is lost.
+    if (!result.ok) return toast(result.error, 'error')
     setText('')
   }
 
@@ -100,17 +115,25 @@ function Thread({ conversation, role }) {
               {conversation.listing.name}
             </Link>
           ) : (
-            <span className="text-xs text-body-secondary">Removed listing</span>
+            <span className="text-xs text-body-secondary">{conversation.listingName ?? 'Removed listing'}</span>
           )}
         </div>
       </div>
 
       <div ref={scrollRef} className="flex-grow-1 overflow-y-auto px-3 py-3 bg-page" aria-live="polite">
-        {messageCount === 0 && <p className="small text-body-secondary text-center my-5">Say hello and ask anything about the room.</p>}
-        {conversation.messages.map((message, index) => {
+        {!ready ? (
+          <div className="d-flex justify-content-center my-5 text-body-secondary" aria-busy="true">
+            <LoaderCircle size={20} className="spin" aria-label="Loading messages" />
+          </div>
+        ) : error ? (
+          <p className="small text-body-secondary text-center my-5">{error}</p>
+        ) : (
+          messageCount === 0 && <p className="small text-body-secondary text-center my-5">Say hello and ask anything about the room.</p>
+        )}
+        {messages.map((message, index) => {
           const mine = message.senderId === user.id
           const day = dayLabel(message.date)
-          const showDay = index === 0 || day !== dayLabel(conversation.messages[index - 1].date)
+          const showDay = index === 0 || day !== dayLabel(messages[index - 1].date)
           return (
             <div key={message.id}>
               {showDay && (
@@ -148,8 +171,8 @@ function Thread({ conversation, role }) {
           }}
           style={{ resize: 'none', maxHeight: '8rem' }}
         />
-        <button type="submit" className="btn btn-primary" disabled={!text.trim()} aria-label="Send message">
-          <Send size={16} />
+        <button type="submit" className="btn btn-primary" disabled={!text.trim() || sending} aria-label="Send message">
+          {sending ? <LoaderCircle size={16} className="spin" /> : <Send size={16} />}
         </button>
       </form>
     </div>
@@ -158,8 +181,11 @@ function Thread({ conversation, role }) {
 
 export default function Messages({ role }) {
   const { conversationId } = useParams()
-  const { conversations } = useData()
-  const active = conversations.find((item) => item.id === conversationId)
+  const { conversations, conversationsReady } = useData()
+  // Links carry the id as text; conversations from MySQL have number ids.
+  const active = conversations.find((item) => String(item.id) === conversationId)
+
+  if (!conversationsReady) return <PageSkeleton />
 
   return (
     <div>
@@ -184,7 +210,7 @@ export default function Messages({ role }) {
         ) : (
           <div className="row g-0 h-100">
             <div className={`col-md-4 border-end h-100 overflow-y-auto ${conversationId ? 'd-none d-md-block' : ''}`}>
-              <ConversationList conversations={conversations} activeId={conversationId} role={role} />
+              <ConversationList conversations={conversations} activeId={active?.id} role={role} />
             </div>
             <div className={`col-md-8 h-100 ${conversationId ? '' : 'd-none d-md-block'}`}>
               {active ? (

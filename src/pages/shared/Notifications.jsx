@@ -5,10 +5,11 @@ import { useData } from '../../context/DataContext'
 import { useToast } from '../../context/ToastContext'
 import { formatDateTime } from '../../data/mockData'
 import { EmptyState, PageHeader, Tabs } from '../../components/ui'
+import { PageSkeleton } from '../../components/ui/feedback'
 
 export default function Notifications() {
   const navigate = useNavigate()
-  const { notifications, counts, markNotificationRead, markAllRead, deleteNotification } = useData()
+  const { notifications, notificationsReady, counts, markNotificationRead, markAllRead, deleteNotification } = useData()
   const [tab, setTab] = useState('All')
   const toast = useToast()
 
@@ -16,9 +17,11 @@ export default function Notifications() {
   const visible = tab === 'Unread' ? sorted.filter((item) => !item.read) : sorted
 
   function open(item) {
-    markNotificationRead(item.id)
+    if (!item.read) markNotificationRead(item.id)
     if (item.link) navigate(item.link)
   }
+
+  if (!notificationsReady) return <PageSkeleton />
 
   return (
     <div className="content-narrow">

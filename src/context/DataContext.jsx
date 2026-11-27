@@ -18,6 +18,16 @@ import { loadJSON, newId, saveJSON } from '../data/storage'
 import { countListingView, fetchPublicListings } from '../api/listings'
 import { deleteMyListing, fetchMyListings, saveMyListing, updateMyRoom } from '../api/landlord'
 import { cancelReservation, decideReservation, fetchFavorites, fetchIncomingReservations, fetchMyReservations, requestRoom, saveFavorite } from '../api/reservations'
+import {
+  dismissNotification,
+  fetchConversations,
+  fetchNotifications,
+  markConversationSeen,
+  openConversation,
+  readAllNotifications,
+  readNotification,
+  sendContact,
+} from '../api/messages'
 import { roomsFromTotals, summarizeRooms } from '../data/rooms'
 import { USE_API } from '../config/api'
 import { useAuth } from './AuthContext'
@@ -27,8 +37,8 @@ import usePolled from './usePolled'
 // Stand-in for a backend: app data lives here and is saved to localStorage, so both roles
 // see the same listings, reservations, reviews and messages in this browser. Other tabs pick
 // up changes through the `storage` event, so two signed-in tabs stay in sync.
-// With the API on (USE_API), listings (phases 2–3), reservations, saved listings and reviews
-// (phase 4) come from MySQL instead; messages and notifications still live here until phase 5.
+// With the API on (USE_API), all of it comes from MySQL instead (phases 2–5); what stays here
+// is per browser: the compare list, recently viewed rooms and notification preferences.
 const DATA_KEY = 'roomease.data.v3'
 const DataContext = createContext(null)
 
@@ -43,6 +53,9 @@ const loadMyListings = async () => {
   const result = await fetchMyListings()
   return result.ok ? { ok: true, data: result.listings } : result
 }
+// Chats and notifications reload more often than the rest, so they feel live.
+const CONVERSATIONS_RECHECK_MS = 20 * 1000
+const NOTIFICATIONS_RECHECK_MS = 30 * 1000
 
 function seedState() {
   return {
@@ -445,11 +458,15 @@ export function DataProvider({ children }) {
   const incomingApi = usePolled(isLandlord ? user.id : null, fetchIncomingReservations)
   const requestsApi = usePolled(isBoarder ? user.id : null, fetchMyReservations)
   const favoritesApi = usePolled(isBoarder ? user.id : null, fetchFavorites)
+  const conversationsApi = usePolled(role ? user.id : null, fetchConversations, CONVERSATIONS_RECHECK_MS)
+  const notificationsApi = usePolled(role ? user.id : null, fetchNotifications, NOTIFICATIONS_RECHECK_MS)
   const { reload: reloadPublic } = publicApi
   const { reload: reloadMine, mutate: mutateMine } = mineApi
   const { reload: reloadIncoming, mutate: mutateIncoming } = incomingApi
   const { mutate: mutateRequests } = requestsApi
   const { reload: reloadFavorites, mutate: mutateFavorites } = favoritesApi
+  const { mutate: mutateConversations } = conversationsApi
+  const { reload: reloadNotifications, mutate: mutateNotifications } = notificationsApi
 
   // Puts a listing the API just sent back in place (or first, if it's new).
   const putMine = useCallback(
@@ -573,6 +590,62 @@ export function DataProvider({ children }) {
     [mutateFavorites, reloadFavorites, toast],
   )
 
+  // Opens the chat about a listing, starting it if needed. Resolves to { ok, id }.
+  // details: { listing, boarderId, boarderName, landlordName, boarderDbId (a landlord's chat) }.
+  const openChat = useCallback(
+    async (details, existing) => {
+      if (!USE_API) return { ok: true, id: startConversation(details, existing) }
+      const result = await openConversation({ listingDbId: details.listing.dbId, boarderDbId: details.boarderDbId })
+      if (!result.ok) return result
+      const opened = result.conversation
+      mutateConversations((list) => (list.some((item) => item.id === opened.id) ? list : [opened, ...list]))
+      return { ok: true, id: opened.id }
+    },
+    [startConversation, mutateConversations],
+  )
+
+  // After a message is sent or read in the open chat (see useChat), the list follows. Nothing
+  // changes (and nothing re-renders) when it already says so; messages compare by id.
+  const noteChat = useCallback(
+    (conversationId, changes) =>
+      mutateConversations((list) => {
+        const differs = (item) => Object.entries(changes).some(([key, value]) => (value?.id !== undefined ? item[key]?.id !== value.id : item[key] !== value))
+        return list.some((item) => item.id === conversationId && differs(item)) ? list.map((item) => (item.id === conversationId ? { ...item, ...changes } : item)) : list
+      }),
+    [mutateConversations],
+  )
+  const markChatRead = useCallback(
+    (conversationId) => {
+      noteChat(conversationId, { unread: 0 })
+      markConversationSeen({ id: conversationId })
+    },
+    [noteChat],
+  )
+
+  // Notification changes show at once; the server's list then replaces it.
+  const changeNotifications = useCallback(
+    async (recipe, call) => {
+      mutateNotifications((data) => {
+        const list = recipe(data.notifications)
+        return { notifications: list, unread: list.filter((item) => !item.read).length }
+      })
+      const result = await call()
+      if (result.ok) mutateNotifications(() => result.data)
+      else reloadNotifications()
+    },
+    [mutateNotifications, reloadNotifications],
+  )
+
+  // Contact Us. Resolves to { ok } or { ok: false, error, fields }.
+  const submitContact = useCallback(
+    async (fields) => {
+      if (USE_API) return sendContact(fields)
+      if (!fields.website) sendContactMessage({ name: fields.name, email: fields.email, topic: fields.topic, message: fields.message })
+      return { ok: true }
+    },
+    [sendContactMessage],
+  )
+
   const resetDemoData = useCallback(() => setState(seedState()), [])
 
   const value = useMemo(() => {
@@ -580,7 +653,7 @@ export function DataProvider({ children }) {
     const userId = user?.id
     // Personal notifications plus ones sent to the whole role (e.g. every admin).
     const myNotificationIds = user ? [user.id, `role:${user.role}`] : []
-    const myNotifications = notifications.filter((item) => myNotificationIds.includes(item.userId))
+    const myNotifications = USE_API ? (notificationsApi.data?.notifications ?? []).map((item) => ({ ...item, userId })) : notifications.filter((item) => myNotificationIds.includes(item.userId))
     const myListings = USE_API ? (mineApi.data ?? []).map((listing) => ({ ...listing, ownerId: userId })) : listings.filter((item) => item.ownerId === userId)
     const myListingIds = new Set(myListings.map((item) => item.id))
 
@@ -613,15 +686,22 @@ export function DataProvider({ children }) {
     const appIdOf = new Map(publicListings.map((listing) => [listing.dbId, listing.id]))
     const myFavorites = USE_API ? (favoritesApi.data ?? []).map((id) => appIdOf.get(id)).filter(Boolean) : (favorites[userId] ?? [])
 
-    const myConversations = conversations
-      .filter((item) => item.boarderId === userId || item.landlordId === userId)
-      .map((item) => {
-        const read = item.lastRead[userId] ?? ''
-        const unread = item.messages.filter((message) => message.senderId !== userId && message.date > read).length
-        const isBoarder = item.boarderId === userId
-        return { ...item, unread, otherName: isBoarder ? item.landlordName : item.boarderName, listing: listingById(item.listingId) }
-      })
-      .sort((a, b) => lastMessageDate(b).localeCompare(lastMessageDate(a)))
+    // Each with its other person, its listing (if still shown), last message and unread count.
+    const myConversations = USE_API
+      ? (conversationsApi.data ?? []).map((item) => ({
+          ...item,
+          otherName: user?.role === 'boarder' ? item.landlordName : item.boarderName,
+          listing: listingById(item.listingId),
+        }))
+      : conversations
+          .filter((item) => item.boarderId === userId || item.landlordId === userId)
+          .map((item) => {
+            const read = item.lastRead[userId] ?? ''
+            const unread = item.messages.filter((message) => message.senderId !== userId && message.date > read).length
+            const isBoarder = item.boarderId === userId
+            return { ...item, unread, lastMessage: item.messages.at(-1), otherName: isBoarder ? item.landlordName : item.boarderName, listing: listingById(item.listingId) }
+          })
+          .sort((a, b) => lastMessageDate(b).localeCompare(lastMessageDate(a)))
 
     // Guests can compare rooms too; their picks are kept under "guest".
     const compareKey = userId ?? 'guest'
@@ -649,7 +729,9 @@ export function DataProvider({ children }) {
       incomingReservations,
       incomingReservationsReady: incomingApi.ready,
       notifications: myNotifications,
+      notificationsReady: notificationsApi.ready,
       conversations: myConversations,
+      conversationsReady: conversationsApi.ready,
       favorites: myFavorites,
       recentlyViewed: recentlyViewed[userId] ?? [],
       compare: myCompare,
@@ -661,7 +743,7 @@ export function DataProvider({ children }) {
       // Only boarders who stayed (an approved reservation) can review a listing.
       canReview: (listingId) => reservations.some((item) => item.boarderId === userId && item.listingId === listingId && item.status === 'Approved'),
       counts: {
-        notifications: myNotifications.filter((item) => !item.read).length,
+        notifications: USE_API ? (notificationsApi.data?.unread ?? 0) : myNotifications.filter((item) => !item.read).length,
         pendingReservations: incomingReservations.filter((item) => item.status === 'Pending').length,
         messages: myConversations.reduce((sum, item) => sum + item.unread, 0),
       },
@@ -687,20 +769,24 @@ export function DataProvider({ children }) {
       updateRoom: updateOwnRoom,
       // For the moment right after sign-up, before the new account is the signed-in user.
       logEventAs: logEvent,
-      sendContactMessage,
+      // { name, email, topic, message, website }. Resolves to { ok } or { ok: false, error, fields }.
+      sendContactMessage: submitContact,
       saveReview: (listing, fields) => saveReview(user, listing, fields),
       deleteReview,
       replyToReview,
+      // Resolves to { ok, id } (the conversation to open) or { ok: false, error }.
       startConversation: (details) =>
-        startConversation(
+        openChat(
           details,
           conversations.find((item) => item.listingId === details.listing.id && item.boarderId === details.boarderId),
         ),
       sendMessage: (conversationId, text) => sendMessage(userId, conversationId, text),
-      markConversationRead: (conversationId) => markConversationRead(userId, conversationId),
-      markNotificationRead,
-      markAllRead: () => markAllRead(myNotificationIds),
-      deleteNotification,
+      noteChat,
+      markConversationRead: (conversationId) => (USE_API ? markChatRead(conversationId) : markConversationRead(userId, conversationId)),
+      markNotificationRead: (id) =>
+        USE_API ? changeNotifications((list) => list.map((item) => (item.id === id ? { ...item, read: true } : item)), () => readNotification(id)) : markNotificationRead(id),
+      markAllRead: () => (USE_API ? changeNotifications((list) => list.map((item) => ({ ...item, read: true })), readAllNotifications) : markAllRead(myNotificationIds)),
+      deleteNotification: (id) => (USE_API ? changeNotifications((list) => list.filter((item) => item.id !== id), () => dismissNotification(id)) : deleteNotification(id)),
       setPreferences: (changes) => setPreferences(userId, changes),
       resetDemoData,
     }
@@ -711,6 +797,8 @@ export function DataProvider({ children }) {
     incomingApi,
     requestsApi,
     favoritesApi,
+    conversationsApi,
+    notificationsApi,
     user,
     findAccount,
     toggleFavorite,
@@ -724,16 +812,19 @@ export function DataProvider({ children }) {
     deleteOwnListing,
     updateOwnRoom,
     logEvent,
-    sendContactMessage,
+    submitContact,
     saveReview,
     deleteReview,
     replyToReview,
-    startConversation,
+    openChat,
     sendMessage,
+    noteChat,
+    markChatRead,
     markConversationRead,
     markNotificationRead,
     markAllRead,
     deleteNotification,
+    changeNotifications,
     setPreferences,
     resetDemoData,
   ])

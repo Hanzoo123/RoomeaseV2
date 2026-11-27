@@ -1,8 +1,9 @@
 import { DEMO_USERS, LISTINGS } from '../data/mockData'
 
-// Temporary bridge: messages and notifications are still the browser's demo data until
-// phase 5, keyed by the demo ids ("sunrise", "u-boarder-1"). So a MySQL row that is one of
-// the demo listings or accounts keeps its demo id, and the others get "db-<id>".
+// App ids for MySQL rows. A demo listing or account keeps its demo id ("sunrise",
+// "u-boarder-1"), so its page address and illustration stay the same and what this browser
+// keeps per person (the compare list, recently viewed rooms) still matches; the others get
+// "db-<id>". Requests to the API always use the MySQL id (dbId).
 const DEMO_LISTINGS = new Map(LISTINGS.map((listing) => [listing.name, listing]))
 const DEMO_LANDLORDS = new Map(DEMO_USERS.filter((user) => user.role === 'landlord').map((user) => [user.name, user.id]))
 const DEMO_EMAILS = new Map(DEMO_USERS.map((user) => [user.email.toLowerCase(), user.id]))

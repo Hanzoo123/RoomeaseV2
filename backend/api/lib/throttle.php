@@ -1,6 +1,6 @@
 <?php
-// Limits on repeated tries (sign-in, sign-up, password reset), counted in login_attempts
-// per account and per IP address.
+// Limits on repeated tries (sign-in, sign-up, password reset, the Contact form), counted in
+// login_attempts per account (or email) and per IP address.
 
 const LIMITS = [
   // kind => [per account, per IP, minutes]
@@ -8,6 +8,7 @@ const LIMITS = [
   'register' => [null, 10, 60],
   'reset' => [3, 10, 15],
   'reset_code' => [5, 20, 15],
+  'contact' => [3, 10, 60],
 ];
 
 // Seconds until another try is allowed, or 0.

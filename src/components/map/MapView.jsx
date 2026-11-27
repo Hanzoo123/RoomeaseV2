@@ -81,9 +81,11 @@ export default function MapView({ markers = [], onMarkerClick, onMapClick, cente
     if (fit && key !== fittedKey.current && markers.length) {
       fittedKey.current = key
       const coords = markers.map((marker) => marker.coords)
+      // Without animation: leaving the page during a zoom animation makes Leaflet touch the
+      // removed map ("Cannot read properties of undefined (reading '_leaflet_pos')").
       fitView.current = () => {
-        if (coords.length === 1) map.setView(coords[0], Math.max(map.getZoom(), 15))
-        else map.fitBounds(L.latLngBounds(coords), { padding: [48, 48], maxZoom: 15 })
+        if (coords.length === 1) map.setView(coords[0], Math.max(map.getZoom(), 15), { animate: false })
+        else map.fitBounds(L.latLngBounds(coords), { padding: [48, 48], maxZoom: 15, animate: false })
       }
       fitView.current()
     }

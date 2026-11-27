@@ -132,7 +132,7 @@ backend/
       landlord.php       ✅ a landlord's own listings: add, edit, resubmit, delete, room availability;
                             answering requests; replying to reviews
       boarder.php        ✅ saved listings, requesting a room, cancelling, writing reviews
-                         to come: messages.php, notifications.php, contact.php
+      messages.php       ✅ conversations and messages, notifications, the Contact form
   uploads/               ✅ avatars/ and listings/. .htaccess: no scripts run here
 ```
 
@@ -215,16 +215,24 @@ How a listing save works (`routes/landlord.php`):
 
 Analytics need no endpoint of their own: the charts are worked out in the browser from `GET /landlord/listings` (views, rooms, ratings) and `GET /landlord/reservations`.
 
-Notifications for requests, answers, cancellations and new reviews are written to the `notifications` table now (as the admin panel already does for listings). The website shows them from phase 5.
+Notifications for requests, answers, cancellations and new reviews are written to the `notifications` table (as the admin panel does for listing decisions), and the website shows them.
 
 **Everyone signed in**
 
 | Method and path | Does |
 | --- | --- |
-| `GET /conversations`, `POST /conversations` | Chats, or start one about a listing |
-| `GET /conversations/{id}/messages?after=…`, `POST /conversations/{id}/messages`, `POST /conversations/{id}/read` | Messages. React polls every 10 seconds (WAMP has no WebSockets) |
-| `GET /notifications`, `POST /notifications/{id}/read`, `POST /notifications/read-all`, `DELETE /notifications/{id}` | Notifications |
-| `POST /contact` | Contact form, with a honeypot and a limit of 3 an hour per email or IP. Goes to the AdminLTE inbox |
+| ✅ `GET /conversations` | The signed-in person's chats, newest activity first, each with its boarding house, both people, the last message and how many are unread |
+| ✅ `POST /conversations` | `{ listingId, boarderId? }`: opens the chat about a boarding house, starting it if needed. A boarder starts one about a live listing; a landlord, with a boarder who asked for a room in one of their listings |
+| ✅ `GET /conversations/{id}/messages?after=…` | Messages, oldest first; with `after` (a message id), only newer ones. The open chat asks every 5 seconds (WAMP has no WebSockets) |
+| ✅ `POST /conversations/{id}/messages` | `{ body }`, up to 2,000 characters; at most 20 a minute per person. Sending also marks the chat read |
+| ✅ `POST /conversations/{id}/read` | Marks the chat read (`boarder_last_read` / `landlord_last_read`), which clears its unread count |
+| ✅ `GET /notifications`, `POST /notifications/{id}/read`, `POST /notifications/read-all`, `DELETE /notifications/{id}` | The newest 100 and the unread count. Each change answers with the new list. Links are app pages (`/landlord/reservations`, `/landlord/listings/12`) |
+
+**Anyone**
+
+| Method and path | Does |
+| --- | --- |
+| ✅ `POST /contact` | `{ name, email, topic, message, website }`. Saved in `contact_messages`, so it shows in the AdminLTE inbox as New. `website` is a hidden field: a bot that fills it gets a normal answer and nothing is saved. Each email can send 3 an hour and each IP address 10 (`login_attempts`, kind `contact`) |
 
 Admins need no API endpoints: the AdminLTE panel talks to MySQL itself.
 
@@ -256,17 +264,17 @@ Admins need no API endpoints: the AdminLTE panel talks to MySQL itself.
 1. ✅ `src/api/client.js`: a small `fetch` wrapper. It sends the CSRF header, reads `{ ok, data, error }`, and turns failures (WAMP off, a PHP error page) into messages the pages can show.
 2. ✅ `vite.config.js` forwards `/backend/…` to WAMP during `npm run dev`. The API lives at `` `${BASE_PATH}backend/api` `` (`src/config/api.js`), so the WAMP build works from any folder.
 3. ✅ `AuthContext` now picks `ApiAuthProvider` (the API) or the in-browser demo provider (`VITE_USE_API=false`). Both have the same functions, now async: `login`, `register`, `logout`, `updateProfile`, `changePassword`, `requestPasswordReset`… The pages `await` them.
-   - **Temporary bridge:** messages and notifications are still the browser demo data, keyed by demo ids such as `u-boarder-1`. So the demo accounts keep those ids after signing in through the API, and new accounts get `db-<user_id>` (`src/api/ids.js`). Phase 5 replaces this with real ids.
+   - **App ids** (`src/api/ids.js`): the demo accounts keep their demo ids such as `u-boarder-1` after signing in through the API, and new accounts get `db-<user_id>`. The API is always called with the MySQL id.
 4. ✅ (phase 2) `DataContext` takes the public listings from `GET /listings` (`src/api/listings.js` turns them into the shape the pages already use). It reloads them when the tab regains focus and every minute, so an approval in the admin panel shows up. The room page loads each room from `GET /listings/{id}`. Pages show placeholders while loading, and a "couldn't be loaded / Try again" card if WAMP is off.
-   - **Temporary bridge:** compare and messages still point at the demo listing ids (`sunrise`). So a demo landlord's own demo listing keeps its demo id and illustration, and other listings get `db-<id>` (e.g. `/rooms/db-11`).
+   - **App ids:** a demo landlord's own demo listing keeps its demo id and illustration (`/rooms/sunrise`), and other listings get `db-<id>` (e.g. `/rooms/db-11`). What stays in the browser per person (the compare list, recently viewed rooms) uses these ids.
 5. ✅ (phase 3) A landlord's own listings come from `GET /landlord/listings` (`src/api/landlord.js`), with the same reload rhythm. Add, edit, resubmit and delete call the API and wait for it; the form shows the API's field errors. The listing form has a **Rooms** section (`RoomsEditor`): each room with its own name, type, rent, beds and beds taken. Room Availability changes each room's beds taken and open/closed (`PATCH /landlord/rooms/{id}`), showing the change at once. The landlord's listing page shows the rooms, and opens from a MySQL id too (`/landlord/listings/12`, as in the admin panel's notifications).
    - In demo mode the demo listings get rooms made up from their totals (`src/data/rooms.js`), and saving works the totals out from the rooms, so both modes use the same form.
 6. ✅ (phase 4) Reservations, saved listings and reviews come from the API (`src/api/reservations.js`, `src/api/reviews.js`). Every list from the API loads through one hook, `usePolled`: at first, when the tab regains focus and every minute, so a request sent in one browser shows up for the landlord in another, and the answer comes back the same way.
    - The reservation form has a **room picker** (rooms with a free bed, with their type, rent and free beds), and the request is for that room. The landlord sees the room, the boarder's phone and email, and their message; approving takes a bed in that room.
    - Reviews load per listing (`useListingReviews`); ratings on cards come with each listing. The home page's review numbers and quotes come from `GET /reviews/highlights`.
    - Writes wait for the API and show its message if it says no (e.g. the room filled up, or the boarder cancelled while the landlord was deciding). The heart on a listing changes at once and is put back if saving fails.
-   - Next: messages, notifications and the contact form (phase 5). The `VITE_USE_API` switch keeps the demo working meanwhile.
-7. Remove the mock seed data (`src/data/mockData.js`) once everything comes from MySQL.
+7. ✅ (phase 5) Messages, notifications and the Contact form use the API (`src/api/messages.js`). The chat list and unread badges reload every 20 seconds and notifications every 30 (and when the tab regains focus); an open chat (`useChat`) asks for newer messages every 5 seconds, so a reply shows up without reloading. Starting a chat from a room page or a reservation request waits for the API, then opens it. With the API, nothing the website shows comes from the browser's demo data any more; Settings → *Reset demo data* is shown only in demo mode.
+8. Remove the mock seed data (`src/data/mockData.js`) once everything comes from MySQL.
 
 ---
 
@@ -281,7 +289,7 @@ Each phase ends with something you can show.
 | **2** ✅ | Public listing endpoints; React browse and room pages from MySQL | Approving a listing in AdminLTE makes it appear on Find Place to Stay |
 | **3** ✅ | Landlord listings, rooms, photos and availability; resubmitting | A landlord's new listing appears in the AdminLTE review queue. Sending it back shows the reason in React |
 | **4** ✅ | Reservations, favorites, reviews, landlord replies, analytics | The full reservation flow works between two browsers |
-| **5** | Messages, notifications (polling), Contact form | A Contact Us message appears in the AdminLTE inbox |
+| **5** ✅ | Messages, notifications (polling), Contact form | A Contact Us message appears in the AdminLTE inbox |
 | **6** | Real email for reset codes, e.g. PHPMailer with a Gmail app password; "Remember me" tokens | A reset code arrives by email |
 | **7** | ✅ The website served by WAMP: a relative build in `dist/`, plus `index.php` and `.htaccess`, so it works from any folder name. Still to do before going live: errors off, demo accounts replaced, a `mysqldump` backup | The whole system runs from `http://localhost/RoomeaseV2/` with Vite stopped |
 

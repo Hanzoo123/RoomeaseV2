@@ -22,6 +22,7 @@ require __DIR__ . '/routes/me.php';
 require __DIR__ . '/routes/listings.php';
 require __DIR__ . '/routes/landlord.php';
 require __DIR__ . '/routes/boarder.php';
+require __DIR__ . '/routes/messages.php';
 
 // METHOD path => handler. {name} matches one path segment.
 $routes = [
@@ -61,6 +62,18 @@ $routes = [
   'GET /landlord/reservations' => 'route_landlord_reservations',
   'POST /landlord/reservations/{id}/decide' => 'route_decide_reservation',
   'POST /landlord/reviews/{id}/reply' => 'route_reply_to_review',
+  // Messages and notifications (boarders and landlords)
+  'GET /conversations' => 'route_conversations',
+  'POST /conversations' => 'route_start_conversation',
+  'GET /conversations/{id}/messages' => 'route_conversation_messages',
+  'POST /conversations/{id}/messages' => 'route_send_message',
+  'POST /conversations/{id}/read' => 'route_read_conversation',
+  'GET /notifications' => 'route_notifications',
+  'POST /notifications/read-all' => 'route_read_all_notifications',
+  'POST /notifications/{id}/read' => 'route_read_notification',
+  'DELETE /notifications/{id}' => 'route_delete_notification',
+  // Contact Us (anyone)
+  'POST /contact' => 'route_contact',
 ];
 
 // The path after .../backend/api, e.g. "/auth/me".

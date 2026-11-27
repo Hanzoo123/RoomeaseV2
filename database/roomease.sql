@@ -899,6 +899,17 @@ VALUES
     (1, 3, 'Water and electricity are included up to ₱300 a month, by the way.', NOW() - INTERVAL 43 HOUR),
     (2, 7, 'Good evening sir, is there a curfew in the dorm?', NOW() - INTERVAL 3 HOUR);
 
+-- What each demo account was told about the requests and reviews above.
+INSERT INTO notifications
+    (user_id, title, body, link, is_read, created_at)
+VALUES
+    (3, 'New reservation request', 'Maria Santos wants Room 1 at Sunrise Boarding House.', '/landlord/reservations', 0, NOW() - INTERVAL 49 HOUR),
+    (3, 'New reservation request', 'John Reyes wants Room 1 at Riverside Dormitory.', '/landlord/reservations', 0, NOW() - INTERVAL 73 HOUR),
+    (3, 'Listing approved', 'City View Boarding House is now live. Boarders can find it, save it and request a room.', '/landlord/listings/3', 1, NOW() - INTERVAL 216 HOUR),
+    (2, 'Reservation declined', 'Seaside Boarding House declined your request: “Sorry, the last slot was taken the day before your request.” You can look for another room.', '/boarder/reservations', 1, NOW() - INTERVAL 120 HOUR),
+    (5, 'Listing needs changes', 'Kalinaw Boarding House: Please add the full street address and at least one photo of a room, so boarders know what to expect.', '/landlord/listings/10', 0, NOW() - INTERVAL 48 HOUR),
+    (3, 'New review', 'Luis Garcia rated Sunrise Boarding House 5 out of 5.', '/landlord/listings/1', 1, NOW() - INTERVAL 24 HOUR);
+
 INSERT INTO contact_messages
     (name, email, topic, message, is_read, created_at)
 VALUES

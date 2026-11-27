@@ -300,6 +300,7 @@ export default function RoomDetails() {
   const { user } = useAuth()
   const paths = useSitePaths()
   const requireBoarder = useRequireBoarder()
+  const toast = useToast()
   const { publicListings, listingsReady, listingsError, reloadListings, favorites, toggleFavorite, recordView, ownerOf, ratingOf, startConversation } = useData()
   const listing = publicListings.find((item) => item.id === listingId)
   const rooms = useListingRooms(listing)
@@ -338,10 +339,11 @@ export default function RoomDetails() {
   // The public address of this listing, whichever page it was opened from.
   const shareUrl = new URL(publicUrl(`rooms/${listing.id}`), window.location.origin).href
 
-  function messageLandlord(draft) {
+  async function messageLandlord(draft) {
     if (!requireBoarder('message the landlord')) return
-    const id = startConversation({ listing, boarderId: user.id, boarderName: user.name, landlordName: owner.name })
-    navigate(`/boarder/messages/${id}`, { state: draft ? { draft } : undefined })
+    const result = await startConversation({ listing, boarderId: user.id, boarderName: user.name, landlordName: owner.name })
+    if (!result.ok) return toast(result.error, 'error')
+    navigate(`/boarder/messages/${result.id}`, { state: draft ? { draft } : undefined })
   }
 
   return (
