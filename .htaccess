@@ -2,6 +2,17 @@
 # the PHP admin panel (backend/) as it is. Needs Apache's rewrite_module (on in WAMP).
 DirectoryIndex index.php
 
+# No folder listings (WAMP shows them by default), here and in every folder below.
+Options -Indexes
+
+# Basic protection for every page and file: no framing by other sites (clickjacking), no
+# guessing of file types, and other sites see only this site's address, not full links.
+<IfModule mod_headers.c>
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
 # Never hand out dotfiles: .env holds the Gmail App Password, .git the code history.
 # (This applies to every folder below this one too.)
 <FilesMatch "^\.">

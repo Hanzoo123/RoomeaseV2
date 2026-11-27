@@ -36,3 +36,7 @@ roomease.zip
 !/backend/logs/
 /backend/logs/*
 !/backend/logs/.htaccess
+
+# Database backups (backend/tools/backup-database.php). Same: only the .htaccess is kept.
+/backend/backups/*
+!/backend/backups/.htaccess

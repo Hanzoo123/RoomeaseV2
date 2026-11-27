@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD']=="POST") {
       $toast_message = "User added successfully! They will choose a new password at their first sign-in.";
       $toast_type = "success";
       } catch (PDOException $e) {
-      $toast_message = "Database Error: ". $e->getMessage();
+      $toast_message = 'Database Error: ' . error_text($e);
       $toast_type = "error";
       }
     }

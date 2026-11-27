@@ -5,7 +5,7 @@ try {
     WHERE role IN ('super_admin', 'administrator') AND deleted_at IS NULL ORDER BY created_at DESC");
   $users = $stmt->fetchALL(PDO::FETCH_ASSOC);
   } catch (PDOException $e) {
-    die("Database Error: " .$e->getMessage());
+    die('Database Error: ' . htmlspecialchars(error_text($e)));
   }
 ?>
   <!-- Content Wrapper. Contains page content -->

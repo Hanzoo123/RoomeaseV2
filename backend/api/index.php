@@ -3,7 +3,9 @@
 // (see .htaccess), is matched to a route below, and answers with JSON.
 // Admins and super admins don't use it: the AdminLTE panel talks to MySQL itself.
 date_default_timezone_set('Asia/Manila');
-ini_set('display_errors', '0');
+// Never shown (the answer is JSON); logged to backend/logs/php-errors.log.
+require __DIR__ . '/../lib/runtime.php';
+setup_error_handling(false);
 
 require __DIR__ . '/lib/http.php';
 // Anything unexpected becomes a JSON error instead of a PHP error page.

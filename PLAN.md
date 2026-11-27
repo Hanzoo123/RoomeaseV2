@@ -78,4 +78,4 @@ The database and the admin panel are done. What remains is a PHP JSON API in `ba
 4. ✅ Reservations for a chosen room, favorites, reviews, landlord replies and analytics, working between two browsers
 5. ✅ Messages, notifications (polling) and the contact form into the AdminLTE inbox
 6. ✅ Real email for password reset codes (Gmail, settings in `.env`); "Remember me"
-7. A production build served by WAMP
+7. ✅ A production build served by WAMP, and going live: production mode, your own super admin, the demo data removed, daily backups (`backend/tools/`)

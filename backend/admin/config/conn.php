@@ -11,6 +11,8 @@ try{
   // Show and compare times in Philippine time, whatever the server's own clock says.
   $pdo->exec("SET time_zone = '+08:00'");
 } catch (PDOException $e) {
-	die("Connection failed: " . $e->getMessage() . " (Is WAMP running, and was database/roomease.sql imported?)");
+  require_once __DIR__ . '/../../lib/runtime.php';
+  http_response_code(503);
+  die('Connection failed: ' . htmlspecialchars(error_text($e, 'the database is not reachable.')) . ' (Is WAMP running, and was database/roomease.sql imported?)');
 }
 ?>

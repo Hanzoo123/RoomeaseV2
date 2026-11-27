@@ -13,9 +13,7 @@
 // Each send is logged to backend/logs/mail.log: who, when and whether it worked. Never the
 // message, the code in it, or the password.
 
-require_once __DIR__ . '/env.php';
-
-const MAIL_LOG_DIR = __DIR__ . '/../logs';
+require_once __DIR__ . '/runtime.php';
 
 function mail_config()
 {
@@ -218,11 +216,9 @@ function mail_hostname()
 
 function mail_log($to, $outcome)
 {
-  if (!is_dir(MAIL_LOG_DIR)) @mkdir(MAIL_LOG_DIR, 0775, true);
-  // The log has email addresses: Apache must never serve it.
-  if (!is_file(MAIL_LOG_DIR . '/.htaccess')) @file_put_contents(MAIL_LOG_DIR . '/.htaccess', "Require all denied\n");
+  // logs_dir() keeps the folder's .htaccess: the log has email addresses.
   @file_put_contents(
-    MAIL_LOG_DIR . '/mail.log',
+    logs_dir() . '/mail.log',
     sprintf('[%s] to %s - %s%s', date('Y-m-d H:i:s'), str_replace(["\r", "\n"], '', (string) $to), preg_replace('/\s+/', ' ', $outcome), PHP_EOL),
     FILE_APPEND
   );

@@ -93,7 +93,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $stmt->execute(['id' => $target_user_id]);
     $target_user = $stmt->fetch(PDO:: FETCH_ASSOC);
     } catch (Exception $e) {
-      $toast_message = "Database Error: ". $e->getMessage();
+      $toast_message = 'Database Error: ' . error_text($e);
       $toast_type = "error";
     }
   }

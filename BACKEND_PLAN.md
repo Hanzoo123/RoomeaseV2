@@ -116,9 +116,16 @@ backend/
     app.php              ✅ site settings (a reset code that can't be emailed is shown to this computer only)
   lib/validation.php     ✅ password, phone and email rules, shared with the admin panel
   lib/env.php            ✅ reads .env (project root): Gmail App Password, optional database settings
+  lib/runtime.php        ✅ production mode (ROOMEASE_ENV), error logging to logs/php-errors.log
   lib/mailer.php         ✅ sends email through Gmail (TLS on 465, or STARTTLS on 587); logs to logs/mail.log
-  tools/send-test-email.php ✅ php backend/tools/send-test-email.php you@example.com (command line only)
-  logs/                  ✅ mail.log; .htaccess: never served
+  tools/                 ✅ command line only (.htaccess: never served):
+    send-test-email.php      checks the Gmail settings
+    go-live-check.php        what's left before going live, and how to fix it
+    create-super-admin.php   your own super admin, with a one-time password
+    remove-demo-data.php     the demo accounts and everything of theirs (backs up first)
+    backup-database.php      the database and photos into backups/, keeping the newest 30
+  logs/                  ✅ mail.log, php-errors.log; .htaccess: never served
+  backups/               ✅ roomease-<date>.sql and -uploads.zip; .htaccess: never served
   admin/                 ✅ AdminLTE panel
   api/
     index.php            ✅ router: the $routes list maps "METHOD /path" to a function
@@ -244,21 +251,23 @@ Admins need no API endpoints: the AdminLTE panel talks to MySQL itself.
 
 ## 4. Security checklist (API)
 
-- [ ] `password_hash()` / `password_verify()`, with the same password rules on the server as in the browser
-- [ ] PDO prepared statements everywhere; never put user input into SQL text
-- [ ] `session_regenerate_id(true)` on sign-in. On every request, reject users who are deactivated (`is_active = 0`) or removed (`deleted_at`)
-- [ ] Role and ownership checks in each route. For example, a landlord can only change their own listings, and a boarder can only cancel their own request
-- [ ] CSRF header on every write request
-- [ ] Throttling: sign-in, password reset and contact form, using `login_attempts`
-- [ ] Uploads:
-  - 10 MB maximum
+- [x] `password_hash()` / `password_verify()`, with the same password rules on the server as in the browser (`backend/lib/validation.php`, shared with the admin panel)
+- [x] PDO prepared statements everywhere; never put user input into SQL text (the few SQL pieces built in code, such as a status filter or sort order, come from fixed lists)
+- [x] `session_regenerate_id(true)` on sign-in. On every request, reject users who are deactivated (`is_active = 0`) or removed (`deleted_at`)
+- [x] Role and ownership checks in each route. For example, a landlord can only change their own listings, and a boarder can only cancel their own request
+- [x] CSRF header on every write request
+- [x] Throttling: sign-in, password reset and contact form, using `login_attempts`
+- [x] Uploads:
+  - the browser refuses files over 10 MB and shrinks photos; the API accepts up to 3 MB per listing photo and 1.5 MB per profile photo
   - check the real type with `finfo` (JPEG, PNG or WebP)
   - re-encode with GD, which strips hidden data
   - give each file a random name
   - save to `backend/uploads/`, with an `.htaccess` there that blocks PHP
 - [x] Reset codes and remember-me tokens stored only as hashes (`password_hash` for codes, SHA-256 for tokens)
 - [x] Secrets (the Gmail App Password, optionally the database password) in `.env`, which git ignores and Apache refuses to serve; mail.log never holds a code or a password
-- [ ] `display_errors = Off` when you present or deploy; log errors to a file instead
+- [x] `display_errors = Off` when you present or deploy; log errors to a file instead (`ROOMEASE_ENV=production` in `.env`; always logged to `backend/logs/php-errors.log`; the admin panel shows a plain message instead of database details)
+- [x] Session cookies `HttpOnly` and `SameSite=Lax`, and `Secure` on HTTPS
+- [x] No folder listings, and `X-Frame-Options`, `X-Content-Type-Options` and `Referrer-Policy` headers (root `.htaccess`)
 - [x] Write `audit_logs` entries for landlord listing actions (submitted, resubmitted, updated, deleted), so the super admin's Activity Log stays complete
 - [x] The same for reservation decisions and cancellations (`reservation.accepted`, `reservation.declined`, `reservation.cancelled`)
 
@@ -296,7 +305,7 @@ Each phase ends with something you can show.
 | **4** ✅ | Reservations, favorites, reviews, landlord replies, analytics | The full reservation flow works between two browsers |
 | **5** ✅ | Messages, notifications (polling), Contact form | A Contact Us message appears in the AdminLTE inbox |
 | **6** ✅ | Real email for reset codes through Gmail with an App Password (a small SMTP client, as in the first RoomEase project, so no Composer is needed); "Remember me" tokens (done in phase 1) | A reset code arrives by email |
-| **7** | ✅ The website served by WAMP: a relative build in `dist/`, plus `index.php` and `.htaccess`, so it works from any folder name. Still to do before going live: errors off, demo accounts replaced, a `mysqldump` backup | The whole system runs from `http://localhost/RoomeaseV2/` with Vite stopped |
+| **7** ✅ | The website served by WAMP: a relative build in `dist/`, plus `index.php` and `.htaccess`, so it works from any folder name. Going live: production mode (errors hidden and logged), your own super admin, the demo data removed, daily backups, and a check that says what's left (`backend/tools/`, README.md "Going live") | The whole system runs from `http://localhost/RoomeaseV2/` with Vite stopped |
 
 **Test checklist for every phase:**
 - [ ] Signed out: protected endpoints return 401

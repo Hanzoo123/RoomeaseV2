@@ -12,7 +12,7 @@ Find and manage boarding houses in Baybay City. Two parts:
   - saved listings, reviews (after an approved stay) and landlord replies;
   - messages between boarders and landlords (an open chat shows a reply within a few seconds), notifications, and the Contact Us form, which lands in the admin panel's inbox.
 
-  Password reset codes go out by email through Gmail (see [Email](#email-for-password-reset-codes-gmail) below). What's left is in [BACKEND_PLAN.md](BACKEND_PLAN.md): getting ready to go live.
+  Password reset codes go out by email through Gmail (see [Email](#email-for-password-reset-codes-gmail) below), and [Going live](#going-live) lists the steps (and tools) for production: errors hidden, your own super admin, the demo data removed, daily backups.
 
 It follows the PHP version of RoomEase ([Hanzoo123/Roomease](https://github.com/Hanzoo123/Roomease)): same room types, the same public menu (Home · Find Place to Stay · About Us · Contact Us), the same listing review states and the same password rules.
 
@@ -67,6 +67,21 @@ If you change anything in `src/`, run `npm run build` to update `dist/`; WAMP th
 4. Before anyone else can reach the site (including through ngrok), add `ROOMEASE_SHOW_RESET_CODES=false` to `.env`.
 
 Each email is logged in `backend/logs/mail.log` (who, when, and whether it worked; never the code or the password). The database settings can go in `.env` too (`ROOMEASE_DB_HOST`, `_NAME`, `_USER`, `_PASS`; see `.env.example`).
+
+### Going live
+
+Before other people use RoomEase (on your network, through ngrok, or on a host), run these from a Command Prompt in the project folder. `php` below means WAMP's PHP, e.g. `C:\wamp64\bin\php\php8.2.13\php.exe`.
+
+1. **See what's left:** `php backend/tools/go-live-check.php` lists what to fix and how. Run it again after each step; it ends with **Ready to go live**.
+2. **Production mode:** add `ROOMEASE_ENV=production` to `.env`. PHP errors are then never shown on a page (they're logged to `backend/logs/php-errors.log`), and reset codes are never shown on screen.
+3. **Email:** set up Gmail (above) and test it.
+4. **Your own super admin:** `php backend/tools/create-super-admin.php` asks for a username, email and name, and prints a one-time password. Sign in to the admin panel with it; it asks you to choose your own password straight away.
+5. **Remove the demo data:** `php backend/tools/remove-demo-data.php` shows what it would remove: the demo accounts (their passwords are in this README), with their listings, reservations, reviews, messages and notifications, and the sample Contact Us messages. Add `--yes` to remove it. It makes a backup first, keeps every account that isn't a demo one, and won't run until step 4 is done.
+6. **Back up every day:** `php backend/tools/backup-database.php` saves the database, and the uploaded photos as a zip, in `backend/backups/` (the newest 30 are kept). To make it daily, open Task Scheduler → Create Basic Task → Daily → Start a program: WAMP's `php.exe`, with the argument `backend\tools\backup-database.php` and "Start in" set to the project folder. Copy the backups to a USB drive or a cloud folder now and then.
+   - **Restoring:** phpMyAdmin → Import → choose the `.sql` file; then unzip the photos zip into `backend/`.
+7. **HTTPS:** if people reach it from other devices, serve it over HTTPS (ngrok gives you an `https://` address). Sign-in cookies then become secure-only by themselves.
+
+`.env`, `backend/tools/`, `backend/logs/` and `backend/backups/` can't be opened from a browser, and the site sends basic security headers and shows no folder listings (`.htaccess`).
 
 ### While developing (React with live reload)
 
