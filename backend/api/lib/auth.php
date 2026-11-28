@@ -190,6 +190,8 @@ function public_user($account)
     'avatarPath' => $account['avatar_path'],
     // Signs in with Google (its password, if any, was set with "Forgot password").
     'google' => !empty($account['google_id']),
+    // Settings > Notifications: { emailUpdates, reservationAlerts, listingTips }
+    'preferences' => preferences_for_app(user_preferences(db(), $account['user_id'])),
     'createdAt' => date(DATE_ATOM, strtotime($account['created_at'])),
   ];
 }

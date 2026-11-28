@@ -69,6 +69,11 @@ function route_delete_listing($params)
   $id = (int) $listing['boarding_house_id'];
   $pdo = db();
   $pdo->beginTransaction();
+  // Requests still waiting are declined; their boarders are told afterwards.
+  $stmt = $pdo->prepare("SELECT v.reservation_id, v.boarder_id, r.name AS room FROM reservations v JOIN rooms r ON r.room_id = v.room_id
+    WHERE v.status = 'pending' AND r.boarding_house_id = ? FOR UPDATE");
+  $stmt->execute([$id]);
+  $waiting = $stmt->fetchAll();
   $pdo->prepare("UPDATE boarding_houses SET deleted_at = COALESCE(deleted_at, NOW()), deleted_by = ?,
       removal_reason = COALESCE(removal_reason, 'Deleted by the landlord.'), updated_by = ? WHERE boarding_house_id = ?")
     ->execute([$user['user_id'], $user['user_id'], $id]);
@@ -77,6 +82,10 @@ function route_delete_listing($params)
     ->execute([$user['user_id'], $id]);
   $pdo->commit();
   audit('listing.deleted', 'listing', $id, $listing['name']);
+  foreach ($waiting as $request) {
+    notify_about_reservation($request['boarder_id'], 'Reservation declined', "{$listing['name']} was taken down, so your request for {$request['room']} was declined. You can look for another room.", '/boarder/reservations');
+    email_reservation_decision($pdo, $request['reservation_id']);
+  }
   ok(null);
 }
 
@@ -531,14 +540,17 @@ function route_decide_reservation($params)
     $pdo->prepare('UPDATE rooms SET slots_taken = slots_taken + 1, updated_by = ? WHERE room_id = ?')->execute([$user['user_id'], $row['room_id']]);
     $pdo->prepare("UPDATE reservations SET status = 'accepted', landlord_note = NULL, decided_at = NOW(), updated_by = ? WHERE reservation_id = ?")
       ->execute([$user['user_id'], $row['reservation_id']]);
-    notify($row['boarder_id'], 'Reservation approved', "Good news! {$row['listing_name']} approved your request for {$row['room_name']}. Contact the landlord to arrange your move-in.", '/boarder/reservations');
   } else {
     $pdo->prepare("UPDATE reservations SET status = 'declined', landlord_note = ?, decided_at = NOW(), updated_by = ? WHERE reservation_id = ?")
       ->execute([$note ?: null, $user['user_id'], $row['reservation_id']]);
-    notify($row['boarder_id'], 'Reservation declined', "{$row['listing_name']} declined your request" . ($note ? ": “{$note}”" : '.') . ' You can look for another room.', '/boarder/reservations');
   }
   $pdo->commit();
   audit($decision === 'accept' ? 'reservation.accepted' : 'reservation.declined', 'reservation', $row['reservation_id'], "$boarder · {$row['listing_name']}", $note ?: null);
+  // The boarder hears about it on the website, and by email if they want that.
+  $decision === 'accept'
+    ? notify_about_reservation($row['boarder_id'], 'Reservation approved', "Good news! {$row['listing_name']} approved your request for {$row['room_name']}. Contact the landlord to arrange your move-in.", '/boarder/reservations')
+    : notify_about_reservation($row['boarder_id'], 'Reservation declined', "{$row['listing_name']} declined your request" . ($note ? ": “{$note}”" : '.') . ' You can look for another room.', '/boarder/reservations');
+  email_reservation_decision($pdo, $row['reservation_id']);
   ok(['reservation' => load_reservations('v.reservation_id = ?', [$row['reservation_id']])[0]]);
 }
 

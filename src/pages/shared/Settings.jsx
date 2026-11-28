@@ -63,10 +63,12 @@ function PasswordForm() {
 const TOGGLE_COPY = {
   boarder: {
     reservations: ['Reservation updates', 'Get notified when a landlord approves or declines your request.'],
+    email: (email) => `Also email ${email} when a landlord approves or declines your request.`,
     tips: ['New listings near you', 'Hear about new boarding houses in your preferred areas.'],
   },
   landlord: {
     reservations: ['New reservation requests', 'Get notified when a boarder requests a room.'],
+    email: (email) => `Also email ${email} when an admin approves, sends back, removes or restores your listing.`,
     tips: ['Listing tips', 'Occasional tips to get more reservations.'],
   },
 }
@@ -78,6 +80,10 @@ export default function Settings() {
   const [confirmReset, setConfirmReset] = useState(false)
   const toast = useToast()
   const copy = TOGGLE_COPY[user.role]
+  const save = async (changes) => {
+    const result = await setPreferences(changes)
+    toast(result.ok ? 'Notification settings saved.' : result.error, result.ok ? 'success' : 'error')
+  }
 
   return (
     <div className="content-narrow d-flex flex-column gap-4">
@@ -92,22 +98,16 @@ export default function Settings() {
               label={copy.reservations[0]}
               description={copy.reservations[1]}
               checked={preferences.reservationAlerts}
-              onChange={(value) => {
-                setPreferences({ reservationAlerts: value })
-                toast('Notification settings saved.')
-              }}
+              onChange={(value) => save({ reservationAlerts: value })}
             />
           </div>
           <div className="border-top">
             <Toggle
               id="pref-email"
               label="Email updates"
-              description={`Also send important updates to ${user.email}.`}
+              description={copy.email(user.email)}
               checked={preferences.emailUpdates}
-              onChange={(value) => {
-                setPreferences({ emailUpdates: value })
-                toast('Notification settings saved.')
-              }}
+              onChange={(value) => save({ emailUpdates: value })}
             />
           </div>
           <div className="border-top">
@@ -116,10 +116,7 @@ export default function Settings() {
               label={copy.tips[0]}
               description={copy.tips[1]}
               checked={preferences.listingTips}
-              onChange={(value) => {
-                setPreferences({ listingTips: value })
-                toast('Notification settings saved.')
-              }}
+              onChange={(value) => save({ listingTips: value })}
             />
           </div>
         </div>

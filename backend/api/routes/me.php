@@ -45,6 +45,21 @@ function route_delete_avatar()
   ok(['user' => public_user(load_account($user['user_id']))]);
 }
 
+// PATCH /me/preferences { emailUpdates?, reservationAlerts?, listingTips? } (booleans)
+function route_update_preferences()
+{
+  $user = require_user();
+  $names = ['emailUpdates' => 'email_updates', 'reservationAlerts' => 'reservation_alerts', 'listingTips' => 'listing_tips'];
+  $changes = [];
+  foreach ($names as $name => $column) {
+    if (!array_key_exists($name, body())) continue;
+    if (!is_bool(body()[$name])) fail(422, 'Notification settings are on or off.');
+    $changes[$column] = body()[$name];
+  }
+  save_user_preferences(db(), $user['user_id'], $changes);
+  ok(['user' => public_user(load_account($user['user_id']))]);
+}
+
 // POST /me/password { current, next }: signs out other devices, keeps this one.
 function route_change_password()
 {

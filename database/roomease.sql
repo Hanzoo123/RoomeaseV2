@@ -26,6 +26,7 @@ USE roomease;
 -- Foreign key checks off, so the tables can be dropped in any order.
 SET FOREIGN_KEY_CHECKS = 0;
 
+DROP TABLE IF EXISTS user_preferences;
 DROP TABLE IF EXISTS contact_messages;
 DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS messages;
@@ -594,6 +595,19 @@ CREATE TABLE notifications (
 -- 21. contact_messages
 -- Sent from the public Contact Us page; read in the admin panel's inbox.
 -- ---------------------------------------------------------
+-- Each person's notification settings (Settings > Notifications). No row = the defaults.
+CREATE TABLE user_preferences (
+    user_id             INT NOT NULL PRIMARY KEY,
+    -- Also email important updates: decisions on their listings or reservation requests.
+    email_updates       TINYINT(1) NOT NULL DEFAULT 1,
+    -- Be told about reservation requests and answers.
+    reservation_alerts  TINYINT(1) NOT NULL DEFAULT 1,
+    listing_tips        TINYINT(1) NOT NULL DEFAULT 0,
+    updated_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_prefs_user FOREIGN KEY (user_id)
+        REFERENCES users(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE contact_messages (
     contact_message_id  INT AUTO_INCREMENT PRIMARY KEY,
     name                VARCHAR(100) NOT NULL,

@@ -37,8 +37,8 @@ import usePolled from './usePolled'
 // Stand-in for a backend: app data lives here and is saved to localStorage, so both roles
 // see the same listings, reservations, reviews and messages in this browser. Other tabs pick
 // up changes through the `storage` event, so two signed-in tabs stay in sync.
-// With the API on (USE_API), all of it comes from MySQL instead (phases 2–5); what stays here
-// is per browser: the compare list, recently viewed rooms and notification preferences.
+// With the API on (USE_API), all of it comes from MySQL instead (phases 2–5), notification
+// settings included; what stays here is per browser: the compare list and recently viewed rooms.
 const DATA_KEY = 'roomease.data.v3'
 const DataContext = createContext(null)
 
@@ -139,7 +139,7 @@ function lastMessageDate(conversation) {
 }
 
 export function DataProvider({ children }) {
-  const { user, findAccount } = useAuth()
+  const { user, findAccount, updatePreferences } = useAuth()
   const [state, setState] = useState(() => hydrate(loadJSON(DATA_KEY, {})))
   const fromOtherTab = useRef(false)
 
@@ -735,7 +735,8 @@ export function DataProvider({ children }) {
       favorites: myFavorites,
       recentlyViewed: recentlyViewed[userId] ?? [],
       compare: myCompare,
-      preferences: { ...DEFAULT_PREFERENCES, ...preferences[userId] },
+      // With the API they're on the account (so emails and notifications can follow them).
+      preferences: { ...DEFAULT_PREFERENCES, ...(USE_API ? user?.preferences : preferences[userId]) },
       listingById,
       ownerOf,
       ratingOf,
@@ -787,7 +788,12 @@ export function DataProvider({ children }) {
         USE_API ? changeNotifications((list) => list.map((item) => (item.id === id ? { ...item, read: true } : item)), () => readNotification(id)) : markNotificationRead(id),
       markAllRead: () => (USE_API ? changeNotifications((list) => list.map((item) => ({ ...item, read: true })), readAllNotifications) : markAllRead(myNotificationIds)),
       deleteNotification: (id) => (USE_API ? changeNotifications((list) => list.filter((item) => item.id !== id), () => dismissNotification(id)) : deleteNotification(id)),
-      setPreferences: (changes) => setPreferences(userId, changes),
+      // Resolves to { ok } or { ok: false, error }.
+      setPreferences: async (changes) => {
+        if (USE_API) return updatePreferences(changes)
+        setPreferences(userId, changes)
+        return { ok: true }
+      },
       resetDemoData,
     }
   }, [
@@ -826,6 +832,7 @@ export function DataProvider({ children }) {
     deleteNotification,
     changeNotifications,
     setPreferences,
+    updatePreferences,
     resetDemoData,
   ])
 

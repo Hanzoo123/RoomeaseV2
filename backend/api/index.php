@@ -20,6 +20,8 @@ require __DIR__ . '/lib/throttle.php';
 require __DIR__ . '/lib/images.php';
 require __DIR__ . '/../lib/validation.php';
 require __DIR__ . '/../lib/mailer.php';
+require __DIR__ . '/../lib/preferences.php';
+require __DIR__ . '/../lib/emails.php';
 require __DIR__ . '/routes/auth.php';
 require __DIR__ . '/routes/google.php';
 require __DIR__ . '/routes/me.php';
@@ -46,6 +48,7 @@ $routes = [
   'POST /me/avatar' => 'route_upload_avatar',
   'DELETE /me/avatar' => 'route_delete_avatar',
   'POST /me/password' => 'route_change_password',
+  'PATCH /me/preferences' => 'route_update_preferences',
   // Public listings (Find Place to Stay)
   'GET /lookups' => 'route_lookups',
   'GET /listings' => 'route_listings',

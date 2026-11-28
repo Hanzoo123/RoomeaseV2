@@ -114,6 +114,21 @@ export default function ApiAuthProvider({ children }) {
     [applyUser],
   )
 
+  // Settings > Notifications: { emailUpdates?, reservationAlerts?, listingTips? }, saved in MySQL
+  // (the server reads them before it sends a decision email or a reservation notification).
+  // The switch moves at once and goes back if saving fails.
+  const updatePreferences = useCallback(
+    async (changes) => {
+      const before = userRef.current
+      if (before) applyUser({ ...before, preferences: { ...before.preferences, ...changes } })
+      const response = await api('/me/preferences', { method: 'PATCH', body: changes })
+      if (response.ok) applyUser(toAppUser(response.data.user))
+      else if (before) applyUser(before)
+      return result(response)
+    },
+    [applyUser],
+  )
+
   const changePassword = useCallback(async (current, next) => result(await api('/me/password', { method: 'POST', body: { current, next } })), [])
 
   // Until email is set up, the API returns the code so the page can show it (this computer only).
@@ -190,8 +205,10 @@ export default function ApiAuthProvider({ children }) {
       refreshSession,
       googlePending,
       finishGoogleSignup,
+      updatePreferences,
     }),
     [
+      updatePreferences,
       user,
       ready,
       accounts,

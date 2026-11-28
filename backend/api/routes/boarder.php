@@ -90,7 +90,7 @@ function route_create_reservation()
     ->execute([$room['room_id'], $user['user_id'], $moveIn, $message ?: null, $user['user_id']]);
   $id = (int) db()->lastInsertId();
   $name = trim($user['first_name'] . ' ' . $user['last_name']);
-  notify($room['landlord_id'], 'New reservation request', "$name wants {$room['name']} at {$room['listing_name']}, moving in " . $date->format('M j, Y') . '.', '/landlord/reservations');
+  notify_about_reservation($room['landlord_id'], 'New reservation request', "$name wants {$room['name']} at {$room['listing_name']}, moving in " . $date->format('M j, Y') . '.', '/landlord/reservations');
   ok(['reservation' => load_reservations('v.reservation_id = ?', [$id])[0]], 201);
 }
 
@@ -106,7 +106,7 @@ function route_cancel_reservation($params)
   db()->prepare("UPDATE reservations SET status = 'cancelled', decided_at = NOW(), updated_by = ? WHERE reservation_id = ? AND status = 'pending'")
     ->execute([$user['user_id'], $reservation['id']]);
   $listing = $reservation['listing'];
-  notify($listing['landlord']['id'], 'Reservation cancelled', "{$reservation['boarder']['name']} cancelled their request for {$reservation['room']['name']} at {$listing['name']}.", '/landlord/reservations');
+  notify_about_reservation($listing['landlord']['id'], 'Reservation cancelled', "{$reservation['boarder']['name']} cancelled their request for {$reservation['room']['name']} at {$listing['name']}.", '/landlord/reservations');
   audit('reservation.cancelled', 'reservation', $reservation['id'], "{$reservation['boarder']['name']} · {$listing['name']}");
   ok(['reservation' => load_reservations('v.reservation_id = ?', [$reservation['id']])[0]]);
 }

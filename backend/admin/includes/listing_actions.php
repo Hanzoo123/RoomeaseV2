@@ -1,6 +1,8 @@
 <?php
 // Approve, send back (with a reason), remove (with a reason) or restore a listing.
 // Included by the listings table and the listing page; runs only on POST.
+// The landlord gets a notification on the website, and an email if they want one.
+require_once __DIR__ . '/../../lib/emails.php';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['listing_action'])) {
   $back = return_to('listings');
   if (!csrf_ok()) {
@@ -29,32 +31,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['listing_action'])) {
           ->execute([$admin, $admin, $id]);
         audit($pdo, 'listing.approved', 'listing', $id, $name);
         notify($pdo, $listing['landlord_id'], 'Listing approved', "$name is now live. Boarders can find it, save it and request a room.", $link);
-        flash("$name is now live.");
+        flash("$name is now live." . emailed_note(email_listing_decision($pdo, $id, 'approve')));
         break;
       case 'reject':
         $pdo->prepare("UPDATE boarding_houses SET moderation_status = 'rejected', rejection_reason = ?, moderated_at = NOW(), moderated_by = ?, updated_by = ? WHERE boarding_house_id = ?")
           ->execute([mb_substr($reason, 0, 500), $admin, $admin, $id]);
         audit($pdo, 'listing.rejected', 'listing', $id, $name, $reason);
         notify($pdo, $listing['landlord_id'], 'Listing needs changes', "$name: $reason", $link);
-        flash("$name was sent back to the landlord.", 'info');
+        flash("$name was sent back to the landlord." . emailed_note(email_listing_decision($pdo, $id, 'reject', $reason)), 'info');
         break;
       case 'remove':
         $pdo->prepare("UPDATE boarding_houses SET deleted_at = NOW(), deleted_by = ?, removal_reason = ? WHERE boarding_house_id = ? AND deleted_at IS NULL")
           ->execute([$admin, mb_substr($reason, 0, 500), $id]);
         audit($pdo, 'listing.removed', 'listing', $id, $name, $reason);
         notify($pdo, $listing['landlord_id'], 'Listing removed', "$name was removed by an administrator: $reason", $link);
-        flash("$name was removed from the site. It can be restored later.", 'info');
+        flash("$name was removed from the site. It can be restored later." . emailed_note(email_listing_decision($pdo, $id, 'remove', $reason)), 'info');
         break;
       case 'restore':
         $pdo->prepare("UPDATE boarding_houses SET deleted_at = NULL, deleted_by = NULL, removal_reason = NULL WHERE boarding_house_id = ?")
           ->execute([$id]);
         audit($pdo, 'listing.restored', 'listing', $id, $name);
         notify($pdo, $listing['landlord_id'], 'Listing restored', "$name is back on RoomEase.", $link);
-        flash("$name was restored.");
+        flash("$name was restored." . emailed_note(email_listing_decision($pdo, $id, 'restore')));
         break;
       default:
         flash('Unknown action.', 'error');
     }
   }
   go($back['page'], $back['params']);
+}
+
+// " The landlord was emailed." after a decision, when the email went out.
+function emailed_note($sent)
+{
+  return $sent === true ? ' The landlord was emailed.' : '';
 }

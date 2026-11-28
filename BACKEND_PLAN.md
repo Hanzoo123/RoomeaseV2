@@ -184,6 +184,7 @@ The CSRF check runs on every non-GET request before your function.
 | ✅ `GET /auth/google/callback` | Guest | Google sends the browser back here. The code is exchanged over checked HTTPS; the ID token's issuer, audience, expiry and verified email are checked. A known account (by Google id, or by email, which links it and retires its old password) is signed in; admins, removed and deactivated accounts are refused. Ends on the website's `/auth/google` (or `/login?googleError=…`) |
 | ✅ `GET /auth/google/pending`, `POST /auth/google/finish` | Guest | Someone new to RoomEase: shows their Google name and email, then creates the account with the role and mobile number they give |
 | `PATCH /me`, `POST /me/avatar`, `DELETE /me/avatar`, `POST /me/password` | Signed in | Profile, photo (re-drawn as a 256 × 256 JPEG with GD), password (other devices are signed out) |
+| ✅ `PATCH /me/preferences` | Signed in | Settings > Notifications: `{ emailUpdates?, reservationAlerts?, listingTips? }`, saved in `user_preferences` (created by itself in a database imported before it existed). The user from `/auth/me` carries them as `preferences` |
 
 **Public: Find Place to Stay**
 
@@ -229,7 +230,9 @@ How a listing save works (`routes/landlord.php`):
 
 Analytics need no endpoint of their own: the charts are worked out in the browser from `GET /landlord/listings` (views, rooms, ratings) and `GET /landlord/reservations`.
 
-Notifications for requests, answers, cancellations and new reviews are written to the `notifications` table (as the admin panel does for listing decisions), and the website shows them.
+Notifications for requests, answers, cancellations and new reviews are written to the `notifications` table (as the admin panel does for listing decisions), and the website shows them. Reservation notifications follow the person's "Reservation updates" setting.
+
+**Decision emails** (`backend/lib/emails.php`, through Gmail): landlords when an admin approves, sends back, removes or restores their listing (admin panel); boarders when a landlord approves or declines their request, or deletes the listing (API). Only to active accounts with "Email updates" on (and, for boarders, "Reservation updates" on). Sent after the decision is saved, so a failed email never undoes it; `mail.log` records it. Links use `ROOMEASE_SITE_URL` from `.env`, else the address of the request.
 
 **Everyone signed in**
 

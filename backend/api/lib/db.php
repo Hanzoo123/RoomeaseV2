@@ -40,6 +40,14 @@ function audit($action, $targetType, $targetId, $targetLabel, $detail = null, $a
     ]);
 }
 
+// A notification about reservations (a new request, an answer, a cancellation): only for
+// people with Settings > Notifications > "Reservation updates" on. Call it outside a
+// transaction (reading the settings can create their table, which ends a transaction).
+function notify_about_reservation($userId, $title, $body, $link)
+{
+  if (user_preferences(db(), $userId)['reservation_alerts']) notify($userId, $title, $body, $link);
+}
+
 // A notification for one person. The React app shows them from phase 5; the admin panel
 // writes them the same way (backend/admin/includes/functions.php).
 function notify($userId, $title, $body, $link = null)

@@ -12,7 +12,7 @@ Find and manage boarding houses in Baybay City. Two parts:
   - saved listings, reviews (after an approved stay) and landlord replies;
   - messages between boarders and landlords (an open chat shows a reply within a few seconds), notifications, and the Contact Us form, which lands in the admin panel's inbox.
 
-  Password reset codes go out by email through Gmail (see [Email](#email-for-password-reset-codes-gmail) below), and [Going live](#going-live) lists the steps (and tools) for production: errors hidden, your own super admin, the demo data removed, daily backups.
+  Password reset codes and decision emails go out through Gmail (see [Email](#email-gmail-reset-codes-and-decisions) below), and [Going live](#going-live) lists the steps (and tools) for production: errors hidden, your own super admin, the demo data removed, daily backups.
 
 It follows the PHP version of RoomEase ([Hanzoo123/Roomease](https://github.com/Hanzoo123/Roomease)): same room types, the same public menu (Home · Find Place to Stay · About Us · Contact Us), the same listing review states and the same password rules.
 
@@ -43,7 +43,14 @@ More landlords for testing: `rosa@roomease.ph` and `ramon@roomease.ph` (password
 
 If you change anything in `src/`, run `npm run build` to update `dist/`; WAMP then shows the new version.
 
-### Email for password reset codes (Gmail)
+### Email (Gmail): reset codes and decisions
+
+Once Gmail is set up, RoomEase emails:
+- **reset codes** for "Forgot password";
+- **landlords**, when an admin approves, sends back (with the reason), removes or restores their listing;
+- **boarders**, when a landlord approves their request (with the landlord's number) or declines it (with the reason), including when the landlord deletes the listing.
+
+Decision emails go only to people with **Email updates** on in Settings (it's on by default); boarders also need **Reservation updates** on, which also controls the reservation notifications on the website. These settings are saved in MySQL. A decision always goes through, even if its email can't be sent. Links in emails use the address of the page the decision was made on; set `ROOMEASE_SITE_URL` in `.env` (e.g. your ngrok or real address) if people open emails on other devices.
 
 "Forgot password" emails a 6-digit code. Until email is set up, the code is shown on the screen instead, but only to someone browsing on the WAMP computer itself.
 
@@ -254,8 +261,7 @@ src/
   - reservations, saved listings, reviews and replies. Another browser sees a change when its tab regains focus, or within a minute;
   - messages, notifications and Contact Us messages.
 
-  The browser only keeps the compare list, recently viewed rooms and notification settings. Reset codes are emailed once Gmail is set up in `.env`. (If you imported `database/roomease.sql` before this phase, import it again to get the sample notifications; this resets the data to the demo data.)
-- **Not carried over from the PHP version yet:** emails about listing and reservation decisions (those show as notifications on the website).
+  The browser only keeps the compare list and recently viewed rooms. Reset codes and decision emails go out once Gmail is set up in `.env`. (If you imported `database/roomease.sql` before this phase, import it again to get the sample notifications; this resets the data to the demo data.)
 - **Start over:** import `database/roomease.sql` again in phpMyAdmin. In demo mode (`VITE_USE_API=false`), Settings → *Reset demo data* restores the original listings, reservations, reviews and messages in the browser.
 - **Maps** use free OpenStreetMap tiles, so they need an internet connection. Pin locations are approximate. If tiles can't load, the pins still show.
 - **Photos:** landlords can upload up to 5 photos per listing. The browser shrinks them first; the API checks each one, re-draws it with PHP's GD extension and saves it in `backend/uploads/listings/`. In demo mode (`VITE_USE_API=false`) they are kept in the browser, which holds roughly 5 MB. Without photos, illustrations are shown.
