@@ -21,6 +21,7 @@ require __DIR__ . '/lib/images.php';
 require __DIR__ . '/../lib/validation.php';
 require __DIR__ . '/../lib/mailer.php';
 require __DIR__ . '/routes/auth.php';
+require __DIR__ . '/routes/google.php';
 require __DIR__ . '/routes/me.php';
 require __DIR__ . '/routes/listings.php';
 require __DIR__ . '/routes/landlord.php';
@@ -36,6 +37,11 @@ $routes = [
   'POST /auth/forgot' => 'route_forgot',
   'POST /auth/verify-code' => 'route_verify_code',
   'POST /auth/reset' => 'route_reset',
+  // Continue with Google (the browser goes to start and comes back to callback)
+  'GET /auth/google/start' => 'route_google_start',
+  'GET /auth/google/callback' => 'route_google_callback',
+  'GET /auth/google/pending' => 'route_google_pending',
+  'POST /auth/google/finish' => 'route_google_finish',
   'PATCH /me' => 'route_update_profile',
   'POST /me/avatar' => 'route_upload_avatar',
   'DELETE /me/avatar' => 'route_delete_avatar',

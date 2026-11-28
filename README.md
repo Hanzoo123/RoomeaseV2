@@ -68,6 +68,31 @@ If you change anything in `src/`, run `npm run build` to update `dist/`; WAMP th
 
 Each email is logged in `backend/logs/mail.log` (who, when, and whether it worked; never the code or the password). The database settings can go in `.env` too (`ROOMEASE_DB_HOST`, `_NAME`, `_USER`, `_PASS`; see `.env.example`).
 
+### Continue with Google
+
+The sign-in and sign-up pages offer **Continue with Google** once these are in `.env` (the same names as in the first RoomEase project's `.env`, so those lines can be copied):
+
+```
+ROOMEASE_GOOGLE_CLIENT_ID=000000000000-xxxxxxxx.apps.googleusercontent.com
+ROOMEASE_GOOGLE_CLIENT_SECRET=your-client-secret
+```
+
+1. In the [Google Cloud console](https://console.cloud.google.com/apis/credentials), open your OAuth client (type **Web application**) and add this under **Authorized redirect URIs** (with your folder's name):
+
+   ```
+   http://localhost/RoomeaseV2/backend/api/auth/google/callback
+   ```
+
+   It's the same while developing with `npm run dev`. If Google says `redirect_uri_mismatch`, its error details show the address the site sent: add exactly that one. Through ngrok, also add the `https://…ngrok…/RoomeaseV2/backend/api/auth/google/callback` address (Google accepts plain `http://` only for `localhost`).
+2. While the OAuth consent screen is in **Testing**, only the Google accounts listed under **Test users** can sign in. Add yours, or publish the app.
+
+How it works for people:
+- **New to RoomEase:** after Google, they choose Boarder or Landlord, give a mobile number and agree to the terms (the same as signing up).
+- **Already have an account with that email:** it becomes linked to Google. Its old password stops working (sign-up never proved the email was theirs); they can set one again with **Forgot password**.
+- **Admins** keep signing in to the admin panel with their password. Deactivated accounts can't use Google either.
+
+The client secret stays on the server: the browser only ever sees the client ID. If PHP can't check Google's certificate, the same `cacert.pem` as for Gmail works (`ROOMEASE_GOOGLE_CA_BUNDLE`, or it uses `ROOMEASE_MAIL_CA_BUNDLE`).
+
 ### Going live
 
 Before other people use RoomEase (on your network, through ngrok, or on a host), run these from a Command Prompt in the project folder. `php` below means WAMP's PHP, e.g. `C:\wamp64\bin\php\php8.2.13\php.exe`.
@@ -230,7 +255,7 @@ src/
   - messages, notifications and Contact Us messages.
 
   The browser only keeps the compare list, recently viewed rooms and notification settings. Reset codes are emailed once Gmail is set up in `.env`. (If you imported `database/roomease.sql` before this phase, import it again to get the sample notifications; this resets the data to the demo data.)
-- **Not carried over from the PHP version yet:** Google sign-in, and emails about listing and reservation decisions (those show as notifications on the website).
+- **Not carried over from the PHP version yet:** emails about listing and reservation decisions (those show as notifications on the website).
 - **Start over:** import `database/roomease.sql` again in phpMyAdmin. In demo mode (`VITE_USE_API=false`), Settings → *Reset demo data* restores the original listings, reservations, reviews and messages in the browser.
 - **Maps** use free OpenStreetMap tiles, so they need an internet connection. Pin locations are approximate. If tiles can't load, the pins still show.
 - **Photos:** landlords can upload up to 5 photos per listing. The browser shrinks them first; the API checks each one, re-draws it with PHP's GD extension and saves it in `backend/uploads/listings/`. In demo mode (`VITE_USE_API=false`) they are kept in the browser, which holds roughly 5 MB. Without photos, illustrations are shown.

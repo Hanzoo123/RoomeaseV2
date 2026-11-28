@@ -9,6 +9,7 @@ import { useData } from '../context/DataContext'
 import { useToast } from '../context/ToastContext'
 import { pathAfterSignIn } from '../context/SitePaths'
 import AuthShell, { IconField, RoleTabs, usePasswordToggle } from '../components/auth/AuthShell'
+import GoogleButton from '../components/auth/GoogleButton'
 import { Notice } from '../components/ui'
 
 const EMPTY = { name: '', email: '', phone: '', password: '', confirm: '' }
@@ -119,6 +120,8 @@ export default function Signup() {
           Create {ROLE_META[role].label} account
         </button>
       </form>
+
+      <GoogleButton role={role} next={location.state?.from} />
 
       <p className="small text-body-secondary text-center mt-4 mb-0">
         Already have an account?{' '}

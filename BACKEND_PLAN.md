@@ -180,6 +180,9 @@ The CSRF check runs on every non-GET request before your function.
 | `POST /auth/forgot` | Guest | Creates a `password_resets` row with a 6-digit code (only its hash is stored). Answers the same whether or not the email has an account. The code is emailed through Gmail (`backend/lib/mailer.php`). If it can't be (Gmail isn't set up in `.env`, or sending failed), the code and the reason come back in the answer, but only for requests from the WAMP computer itself, and only while `ROOMEASE_SHOW_RESET_CODES` isn't `false` |
 | `POST /auth/verify-code` | Guest | Code check: 10 minutes, 5 tries |
 | `POST /auth/reset` | Guest | New password, after the code was verified |
+| ✅ `GET /auth/google/start?role&remember&next&return` | Guest | "Continue with Google": sends the browser to Google with a single-use `state` and PKCE (`backend/api/routes/google.php`). `return` (the website's address) must be on this same host |
+| ✅ `GET /auth/google/callback` | Guest | Google sends the browser back here. The code is exchanged over checked HTTPS; the ID token's issuer, audience, expiry and verified email are checked. A known account (by Google id, or by email, which links it and retires its old password) is signed in; admins, removed and deactivated accounts are refused. Ends on the website's `/auth/google` (or `/login?googleError=…`) |
+| ✅ `GET /auth/google/pending`, `POST /auth/google/finish` | Guest | Someone new to RoomEase: shows their Google name and email, then creates the account with the role and mobile number they give |
 | `PATCH /me`, `POST /me/avatar`, `DELETE /me/avatar`, `POST /me/password` | Signed in | Profile, photo (re-drawn as a 256 × 256 JPEG with GD), password (other devices are signed out) |
 
 **Public: Find Place to Stay**

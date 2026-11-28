@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { CircleAlert, Lock, Mail } from 'lucide-react'
 import { ADMIN_PANEL_URL, ROLE_META } from '../config/navigation'
 import { useAuth } from '../context/AuthContext'
@@ -8,6 +8,19 @@ import { API_DEMO_PASSWORDS, USE_API } from '../config/api'
 import { DEMO_USERS } from '../data/mockData'
 import { pathAfterSignIn } from '../context/SitePaths'
 import AuthShell, { IconField, RoleTabs, usePasswordToggle } from '../components/auth/AuthShell'
+import GoogleButton from '../components/auth/GoogleButton'
+
+// Why "Continue with Google" sent the person back here (the API passes a code, not text).
+const GOOGLE_ERRORS = {
+  expired: 'That Google sign-in expired or was started in another tab. Please try again.',
+  cancelled: 'Google sign-in was cancelled.',
+  failed: 'Google sign-in couldn’t be completed. Please try again, or use your email and password.',
+  'not-set-up': 'Google sign-in isn’t set up on this server yet. Please use your email and password.',
+  admin: 'Admins and super admins sign in to the admin panel, with their username or email and password.',
+  'other-google': 'That email address is already linked to a different Google account.',
+  removed: 'That account has been removed. Please contact the RoomEase team.',
+  deactivated: 'Your account is deactivated. Please contact the RoomEase team.',
+}
 
 // The demo accounts' passwords in MySQL (API) or in this browser (demo mode).
 const demoPassword = (account) => (USE_API ? API_DEMO_PASSWORDS[account.role] : account.password)
@@ -16,12 +29,14 @@ export default function Login() {
   const { user, login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const [role, setRole] = useState(location.state?.role ?? 'boarder')
+  const [params] = useSearchParams()
+  const googleError = GOOGLE_ERRORS[params.get('googleError')]
+  const [role, setRole] = useState(location.state?.role ?? (params.get('role') === 'landlord' ? 'landlord' : 'boarder'))
   const [email, setEmail] = useState(location.state?.email ?? '')
   const [password, setPassword] = useState('')
   const [passwordType, passwordToggle] = usePasswordToggle()
   const [remember, setRemember] = useState(true)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(googleError ?? '')
   const [busy, setBusy] = useState(false)
   const toast = useToast()
 
@@ -111,6 +126,8 @@ export default function Login() {
           Sign in as {ROLE_META[role].label}
         </button>
       </form>
+
+      <GoogleButton role={role} remember={remember} next={location.state?.from} />
 
       <p className="small text-body-secondary text-center mt-4 mb-0">
         New to RoomEase?{' '}

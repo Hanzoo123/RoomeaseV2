@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api/client'
 import { appUserId } from '../api/ids'
-import { backendFileUrl } from '../config/api'
+import { API_URL, backendFileUrl } from '../config/api'
+import { BASE_PATH } from '../config/base'
 import { DEMO_USERS } from '../data/mockData'
 import { AuthContext } from './authContext'
 import { useToast } from './ToastContext'
@@ -25,6 +26,8 @@ const result = (response, extra = {}) => (response.ok ? { ok: true, ...extra } :
 export default function ApiAuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [ready, setReady] = useState(false)
+  // Whether "Continue with Google" is set up on the server (.env).
+  const [googleSignIn, setGoogleSignIn] = useState(false)
   const userRef = useRef(null)
   // Password reset tokens from step 2, kept until step 3 (never stored).
   const resetTokens = useRef({})
@@ -42,6 +45,7 @@ export default function ApiAuthProvider({ children }) {
     setReady(true)
     // Offline or a server error: keep things as they are and try again later.
     if (!response.ok) return
+    setGoogleSignIn(Boolean(response.data.googleSignIn))
     const next = toAppUser(response.data.user)
     if (userRef.current && !next) {
       toast(
@@ -131,6 +135,39 @@ export default function ApiAuthProvider({ children }) {
     return result(response)
   }, [])
 
+  // ---------- Continue with Google ----------
+  // The browser goes to the API, then Google, then back to /auth/google (GoogleReturn).
+  const googleStartUrl = useCallback(({ role, remember, next }) => {
+    const query = new URLSearchParams({ role, remember: remember ? '1' : '', next: next ?? '', return: window.location.origin + BASE_PATH })
+    return `${API_URL}/auth/google/start?${query}`
+  }, [])
+
+  // After coming back from Google: the session the API just started.
+  const refreshSession = useCallback(async () => {
+    const response = await api('/auth/me')
+    if (!response.ok) return result(response)
+    const next = toAppUser(response.data.user)
+    applyUser(next)
+    return { ok: true, user: next }
+  }, [applyUser])
+
+  // A new Google user: { name, email, role, next } until they choose Boarder or Landlord.
+  const googlePending = useCallback(async () => {
+    const response = await api('/auth/google/pending')
+    return response.ok ? { ok: true, ...response.data } : result(response)
+  }, [])
+
+  const finishGoogleSignup = useCallback(
+    async ({ role, phone }) => {
+      const response = await api('/auth/google/finish', { method: 'POST', body: { role, phone: phone.trim() } })
+      if (!response.ok) return result(response)
+      const next = toAppUser(response.data.user)
+      applyUser(next)
+      return { ok: true, user: next, next: response.data.next }
+    },
+    [applyUser],
+  )
+
   const accounts = useMemo(() => DEMO_ACCOUNTS.map((account) => (user && account.id === user.id ? { ...account, ...user } : account)), [user])
   const findAccount = useCallback((id) => accounts.find((account) => account.id === id) ?? null, [accounts])
 
@@ -148,8 +185,31 @@ export default function ApiAuthProvider({ children }) {
       completePasswordReset,
       logout,
       findAccount,
+      googleSignIn,
+      googleStartUrl,
+      refreshSession,
+      googlePending,
+      finishGoogleSignup,
     }),
-    [user, ready, accounts, login, register, updateProfile, changePassword, requestPasswordReset, verifyResetCode, completePasswordReset, logout, findAccount],
+    [
+      user,
+      ready,
+      accounts,
+      login,
+      register,
+      updateProfile,
+      changePassword,
+      requestPasswordReset,
+      verifyResetCode,
+      completePasswordReset,
+      logout,
+      findAccount,
+      googleSignIn,
+      googleStartUrl,
+      refreshSession,
+      googlePending,
+      finishGoogleSignup,
+    ],
   )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

@@ -188,6 +188,8 @@ function public_user($account)
     'phone' => $account['phone_number'] ?? '',
     // Relative to backend/, e.g. "uploads/avatars/ab12….jpg".
     'avatarPath' => $account['avatar_path'],
+    // Signs in with Google (its password, if any, was set with "Forgot password").
+    'google' => !empty($account['google_id']),
     'createdAt' => date(DATE_ATOM, strtotime($account['created_at'])),
   ];
 }

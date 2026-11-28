@@ -15,6 +15,8 @@ function route_me()
     'csrfToken' => csrf_token(),
     // 'deactivated' when an admin deactivated the account since the last request.
     'signedOutReason' => $user ? null : $signed_out_reason,
+    // Whether "Continue with Google" is set up (.env).
+    'googleSignIn' => google_enabled(),
   ]);
 }
 

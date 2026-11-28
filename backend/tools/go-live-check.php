@@ -29,6 +29,10 @@ mail_enabled()
   ? $check('OK', 'Email is set up (' . mail_config()['username'] . '). Test it: php backend/tools/send-test-email.php you@example.com')
   : $check('FIX', 'Email isn\'t set up, so "Forgot password" can\'t send codes', 'Set ROOMEASE_MAIL_USERNAME and ROOMEASE_MAIL_PASSWORD in .env (README.md, "Email").');
 
+(env_value('ROOMEASE_GOOGLE_CLIENT_ID') !== '' && env_value('ROOMEASE_GOOGLE_CLIENT_SECRET') !== '')
+  ? $check('OK', 'Continue with Google is set up (its redirect URI must be listed in the Google Cloud console)')
+  : $check('OK', 'Continue with Google is off (optional: README.md, "Continue with Google")');
+
 // Accounts
 $pdo = tool_db();
 $in = implode(',', array_map([$pdo, 'quote'], DEMO_EMAILS));

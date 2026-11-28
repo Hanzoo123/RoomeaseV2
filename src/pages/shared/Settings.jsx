@@ -11,7 +11,7 @@ import { TextField, Toggle } from '../../components/ui/form'
 import { Modal, Notice, PageHeader } from '../../components/ui'
 
 function PasswordForm() {
-  const { changePassword } = useAuth()
+  const { user, changePassword } = useAuth()
   const [form, setForm] = useState({ current: '', next: '', confirm: '' })
   const [status, setStatus] = useState(null)
   const toast = useToast()
@@ -33,6 +33,11 @@ function PasswordForm() {
     <form onSubmit={handleSubmit} noValidate className="card">
       <div className="card-body p-4 d-flex flex-column gap-3">
         <h2 className="fs-6 fw-semibold mb-0">Change password</h2>
+        {user.google && (
+          <p className="small text-body-secondary mb-0">
+            You sign in with Google. To also sign in with a password, sign out and use “Forgot password” on the sign-in page: it emails you a code to set one.
+          </p>
+        )}
         <TextField id="current-password" label="Current password" type="password" autoComplete="current-password" value={form.current} onChange={set('current')} />
         <div className="row g-3">
           <div className="col-sm-6">

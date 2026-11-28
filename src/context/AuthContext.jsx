@@ -190,6 +190,8 @@ function MockAuthProvider({ children }) {
       completePasswordReset,
       logout,
       findAccount,
+      // The demo has no server, so no "Continue with Google".
+      googleSignIn: false,
     }),
     [user, publicAccounts, login, register, updateProfile, changePassword, requestPasswordReset, verifyResetCode, completePasswordReset, logout, findAccount],
   )
